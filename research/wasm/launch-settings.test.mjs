@@ -18,6 +18,9 @@ test('storage cannot inject native config values or unsupported settings',()=>{
 test('invitation transfers every shared setting, while controls and volume stay local',()=>{
   const url=sessionURL('https://example.com/',{room:'a'.repeat(24),token:'b'.repeat(64)},{renderer:'opengl',resolution:1,filter:1,unlocked:false});
   assert.match(new URL(url).hash,/^#session=[A-Za-z0-9_-]+$/);
+  const protectedURL=sessionURL('https://example.com/access/'+ 'c'.repeat(48),{room:'a'.repeat(24),token:'b'.repeat(64)},normalizeSettings({}));
+  assert.equal(new URL(protectedURL).pathname,'/access/'+'c'.repeat(48));
+  assert.equal(invitationFrom(protectedURL).room,'a'.repeat(24));
   const invite=invitationFrom(url);assert.equal(invite.unlocked,false);assert.equal(invite.resolution,1);assert.equal(invite.filter,1);
   const host={...normalizeSettings({}),camera:2}, guest={...host,volume:0,bindings:WASD};
   assert.equal(roomIdentity(host,'disc','wasm'),roomIdentity(guest,'disc','wasm'));

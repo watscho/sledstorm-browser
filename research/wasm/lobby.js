@@ -53,7 +53,7 @@ function update() {
   $('summary-progress').textContent=settings.unlocked?'All content unlocked':'Original progression';
   $('summary-controls').textContent=({classic:'Arrows + X',wasd:'WASD + space',custom:'Custom layout'})[settings.preset];
   $('launch-label').textContent=joining?'Join game':'Start game';
-  $('launch-hint').textContent=localRequired&&!selectedValid?'Select the CUE and all BIN files in Game files.':joining?'Your browser will restore the current game state before joining.':'Your invitation link appears as soon as the session starts.';
+  $('launch-hint').textContent=localRequired&&!selectedValid?'Select the CUE and all BIN files in Game files.':joining?(localRequired||selectedValid?'Your browser will restore the current game state before joining.':'Uses the host’s disc. Your browser will catch up before joining.'):(localRequired||selectedValid?'Your invitation link appears as soon as the session starts.':'Uses the host’s disc. No local files are needed.');
   $('capabilities').textContent=accelerated?'Accelerated graphics are available in this browser.':'Compatible graphics are available in this browser.';
   $('play-controls').textContent=`${keyLabel(settings.bindings.left)} ${keyLabel(settings.bindings.right)} — steer · ${keyLabel(settings.bindings.cross)} to accelerate / confirm · ${keyLabel(settings.bindings.start)} for Start · ${keyLabel(settings.bindings.triangle)} to go back`;
   $('launch').disabled=busy||Boolean(invitationError);
@@ -115,7 +115,7 @@ $('reset-settings').addEventListener('click',()=>{
 });
 async function updateFiles() {
   selectedValid=false;
-  if(!$('disc-files').files.length){$('disc-selection').textContent='No files selected manually.';$('clear-disc').hidden=true;update();return;}
+  if(!$('disc-files').files.length){$('disc-selection').textContent=localRequired?'No local files selected.':'Using the host’s disc. No local files needed.';$('clear-disc').hidden=true;update();return;}
   try {const files=await selectedDisc($('disc-files').files);selectedValid=true;$('disc-selection').textContent=`Ready: CUE and ${files.length-1} BIN files. Read locally.`;$('clear-disc').hidden=false;setError('');}
   catch(error){$('disc-selection').textContent=discError(error);$('clear-disc').hidden=false;}
   update();
@@ -130,8 +130,10 @@ async function inspectDisc() {
   try {
     const response=await fetch('/manifest');if(!response.ok)throw new Error();
     localRequired=response.headers.get('X-Disc-Local-Required')==='1';const files=await response.json();discAvailable=Array.isArray(files)&&files.length===12;
-    $('disc-title').textContent=localRequired?'Select files on your computer':discAvailable?'Game found in the local folder':'Game files not found';
-    $('disc-description').textContent=localRequired?'You need your own CUE and all 11 BIN files to join.':discAvailable?'Sled Storm · Europe · CUE + 11 BIN. Ready to launch.':'Select the CUE and all BIN files manually.';
+    $('disc-title').textContent=localRequired?'Select files on your computer':discAvailable?'Using the host’s disc':'Game files not found';
+    $('clear-disc').textContent=localRequired?'Clear selection':'Use the host’s disc';
+    if(!$('disc-files').files.length)$('disc-selection').textContent=localRequired?'No local files selected.':discAvailable?'Using the host’s disc. No local files needed.':'No files selected.';
+    $('disc-description').textContent=localRequired?'You need your own CUE and all 11 BIN files to join.':discAvailable?'No files needed on this computer. Game data is read from the host.':'Select the CUE and all BIN files manually.';
   }catch{manifestError='Could not reach the local server. Refresh this page after starting it.';$('disc-title').textContent='Server unavailable';$('disc-description').textContent=manifestError;}
   update();
 }
@@ -178,7 +180,7 @@ $('launch').addEventListener('click',async()=>{
   try{await launchGame(snapshot,{
     onStatus:setStatus,onError,onLog:(text)=>{$('log').textContent=text;},onDiagnostics:(text)=>{$('camera').textContent=text;},
     onInvite:(url)=>{$('invite').value=url;$('invite-box').hidden=false;$('share-session').hidden=false;$('session-state').textContent='Session created';},
-    onBoot:({replaying})=>{$('loading-overlay').hidden=!replaying;$('loading-title').textContent='Connecting controller';$('session-state').textContent=replaying?'Synchronizing':'Starting game';setStatus(replaying?'Restoring the current game…':'Loading game · Enter to skip the intro');},
+    onBoot:({replaying,hostDisc})=>{$('loading-overlay').hidden=!(replaying||hostDisc);$('loading-title').textContent=hostDisc?'Loading the host’s disc':'Connecting controller';$('session-state').textContent=replaying?'Synchronizing':'Starting game';setStatus(replaying?'Restoring the current game…':'Loading game · Enter to skip the intro');},
     onRunning:()=>{$('loading-overlay').hidden=true;$('invite-box').hidden=true;$('session-state').textContent='In game';document.title='Sled Storm — game';$('canvas').focus();},
   });}catch(error){onError(error);}
 });

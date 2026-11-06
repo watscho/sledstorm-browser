@@ -1,6 +1,6 @@
 // Read-only files with a bounded per-file cache. disc_io.js suspends the
 // entire guest fd_read operation on a miss, preserving iovec/seek semantics.
-export function mountDisc(Module, files) {
+export function mountDisc(Module, files, onRead = () => {}) {
   const fs = Module.FS;
   for (const file of files) {
     fs.writeFile(`/disc/${file.name}`, new Uint8Array());
@@ -22,6 +22,7 @@ export function mountDisc(Module, files) {
         }
         if (bytes.length !== end - start) throw new Error('Incomplete disc extent');
         cache = { start, end, bytes };
+        if (!file.data) onRead(bytes.length);
       }
       const count = Math.min(length, file.size - position, cache.end - position);
       Module.HEAPU8.set(cache.bytes.subarray(position - cache.start, position - cache.start + count), pointer);

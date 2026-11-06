@@ -73,7 +73,10 @@ Open [http://127.0.0.1:8001/](http://127.0.0.1:8001/). The server automatically
 starts the Node relay on `127.0.0.1:8002` if needed. Keep this terminal open.
 At this local address the browser can use the server's disc; the **Game files**
 tab also allows selecting the CUE and all BIN files from your own computer.
-The private gateway requires local file selection for every client.
+The private gateway supports two disc modes. Use
+`python3 tools/play-online.py --disc-mode shared` for one host disc with no file
+selection on other computers. Use `--disc-mode local` (the default) to require
+local files on every client. Both use the same HTTPS session-link workflow.
 
 Choose progress, graphics, audio, fullscreen and keyboard options before
 **Start game**. Settings persist in this browser. An invitation appears after

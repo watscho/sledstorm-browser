@@ -17,7 +17,7 @@ async function bytes(url) {
 }
 const hex = (buffer) => Array.from(new Uint8Array(buffer),(n) => n.toString(16).padStart(2,'0')).join('');
 export async function launchGame(settings, ui) {
-  const messages = []; let reported = 0; let failed = false; let running = false;
+  const messages = []; let reported = 0; let failed = false; let running = false; let hostBytesRead = 0;
   function fail(error) { if (!failed) {failed=true;ui.onError(error instanceof Error ? error : new Error(String(error)));} }
   function write(message) {
     const text = String(message), last = messages.at(-1);
@@ -38,6 +38,14 @@ export async function launchGame(settings, ui) {
   if (!manifest.ok) throw new Error('The local server is not responding. Make sure it is running.');
   if (!localFiles && manifest.headers.get('X-Disc-Local-Required') === '1') throw new Error('For this session, select the CUE and all 11 BIN files in Game files.');
   const files = localFiles || await manifest.json(), invitePath = manifest.headers.get('X-Invite-Path');
+  let hostBootPending = !localFiles;
+  function publishInvite(invite) {
+    const base = new URL(location.href);
+    if (invitePath && /^\/access\/[a-f0-9]{48}$/.test(invitePath)) base.pathname = invitePath;
+    const link = sessionURL(base.href, invite, settings);
+    history.replaceState(null, '', link);
+    ui.onInvite(link);
+  }
   ui.onStatus('Loading the game in your browser…');
   const wasmBinary = await bytes('/game.wasm');
   const wasmHash = hex(await crypto.subtle.digest('SHA-256',wasmBinary));
@@ -52,7 +60,7 @@ export async function launchGame(settings, ui) {
           const fs = window.Module.FS;
           fs.mkdir('/disc');fs.mkdir('/bios');
           const bios = await bytes('/bios.bin');fs.writeFile('/bios/openbios.bin',bios,{canOwn:true});
-          mountDisc(window.Module,files);
+          mountDisc(window.Module,files,(count)=>{ hostBytesRead += count; });
           const cue = files.find((file)=>/\.cue$/i.test(file.name));
           fs.writeFile('/keybinds.ini',keybindFile(settings.bindings));
           let config = `[game]\nname="SledStorm"\nid="SLES-02194"\nplayers=4\nexe="/disc/SLES_021.94"\nload_address="0x80010000"\nentry_pc="0x800800FC"\ntext_size="0x000B4000"\n[recompiler]\nseeds="seeds/ghidra_funcs.txt"\nout_dir="generated"\n[video]\nrenderer="software"\ninternal_resolution="${settings.resolution}x"\ntexture_filtering="${settings.filter===1?'bilinear':'nearest'}"\n[runtime]\nmemcard_dir="/saves"\noverlay_cache=false\n`;
@@ -77,14 +85,8 @@ export async function launchGame(settings, ui) {
             },{keyMap:keyMap(settings.bindings)});
             window.Module.sledNetwork=network;
             ui.onStatus('Connecting to the session…');
-            if(settings.invitation)ui.onInvite(location.href);
-            const slot = await network.connect(identity,settings.invitation,(invite)=>{
-              const base=new URL(location.href);
-              if(invitePath && /^\/access\/[a-f0-9]{48}$/.test(invitePath))base.pathname=invitePath;
-              const link=sessionURL(base.href,invite,settings);
-              history.replaceState(null,'',link);ui.onInvite(link);
-
-            });
+            if (settings.invitation) publishInvite(settings.invitation);
+            const slot = await network.connect(identity, settings.invitation, publishInvite);
             window.Module._sled_online_configure(slot);window.Module._sled_camera_enable(camera);
           }
           window.Module._sled_progress_configure(Number(settings.unlocked));
@@ -93,14 +95,18 @@ export async function launchGame(settings, ui) {
             if (!window.Module._sled_camera_word) return;
             const fields=Array.from({length:6},(_,i)=>window.Module._sled_camera_word(i));
             const network=window.Module.sledNetwork;
+            if (hostBootPending && network.tick >= 0 && !network.replaying) {
+              hostBootPending = false;
+              ui.onBoot({replaying:false,hostDisc:false});
+            }
             if (!network.replaying && !running && (fields[0]===1 || fields[2]!==0)) {running=true;ui.onRunning();}
-            if(!failed)ui.onStatus(network.replaying?`Restoring session · ${Math.min(100,Math.floor((network.tick+1)/network.replayTarget*100))}%`:network.syncing?'Another controller is joining · synchronizing':running?`Controller ${network.slot+1} · Session ${network.members||1} of 4`:'Loading game · Enter to skip the intro');
+            if(!failed)ui.onStatus(!localFiles && network.tick<0?`Reading the host’s disc · ${Math.floor(hostBytesRead/1048576)} MiB received`:network.replaying?`Restoring session · ${Math.min(100,Math.floor((network.tick+1)/network.replayTarget*100))}%`:network.syncing?'Another controller is joining · synchronizing':running?`Controller ${network.slot+1} · Session ${network.members||1} of 4`:'Loading game · Enter to skip the intro');
             const progress=Array.from({length:7},(_,i)=>window.Module._sled_progress_word(i));
             const projection=Array.from({length:5},(_,i)=>window.Module._sled_projection_word(i));
             ui.onDiagnostics(`race=${fields[0]}, players=${fields[1]}, frontend=${fields[2]}, menu=${fields[5]}; projection=${projection.join('/')}; profile=${progress.join('/')}; volume=${window.Module._sled_volume_get()}; ${network?`tick=${network.tick}, verified=${network.verified}`:'offline'}`);
           },1000);
           document.querySelector('#canvas').focus();
-          ui.onBoot({replaying:Boolean(window.Module.sledNetwork?.replaying)});
+          ui.onBoot({replaying:Boolean(window.Module.sledNetwork?.replaying),hostDisc:!localFiles});
           resolve();
           window.Module.callMain(['--game','/game.toml','--bios','/bios/openbios.bin','--disc',`/disc/${cue.name}`,'--renderer',settings.renderer,'--no-launcher']);
         } catch(error) {write(String(error));fail(error);reject(error);}

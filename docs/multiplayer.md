@@ -5,8 +5,9 @@
 Each browser runs the same recompiled game locally. The relay exchanges
 controller inputs and state checks, not streamed video. Players behave like
 controllers connected to one console; original multiplayer menus and rules
-still apply. Every participant uses the host's served build and supplies matching
-disc data. Friends do not need Python, Node or a compiler.
+still apply. Every participant uses the host's served build. In **Host disc** mode all
+browsers read the single disc on the host. In **Local files** mode each browser
+selects matching local disc files. Friends do not need Python, Node or a compiler.
 
 Pressing **Start game** from the root launcher creates a random room and starts
 immediately, even alone. **Invite friends → Copy link** copies the full URL,
@@ -39,7 +40,7 @@ After [setup and build](setup.md), install `cloudflared` from the
 From the repository root run:
 
 ```sh
-python3 tools/play-online.py
+python3 tools/play-online.py --disc-mode shared
 ```
 
 The helper starts the loopback runtime/relay, private gateway, and a Cloudflare
@@ -48,12 +49,34 @@ complete `https://<temporary-host>.trycloudflare.com/access/<token>` launcher
 URL. If `cloudflared` is not on PATH, set `CLOUDFLARED_BIN` to its executable;
 the helper also recognizes an existing `.cache/cloudflared/cloudflared`.
 
-Open the printed URL yourself first, select **Game files → CUE + all BIN files**,
-then **Start game → Invite friends → Copy link**. Send that final invitation
-to your friend; it contains both the gateway access path and the room fragment.
-Each friend selects their own matching disc files and presses **Join game**.
-Then use the native multiplayer race flow below. Sending only the launcher's
-access URL does not join an existing room.
+Choose the disc mode when starting the host:
+
+| Mode | Command | What each player needs |
+| --- | --- | --- |
+| Host disc | `python3 tools/play-online.py --disc-mode shared` | Only the host keeps the CUE/BIN files. Browsers fetch bounded parts of that disc. |
+| Local files | `python3 tools/play-online.py --disc-mode local` | Every browser selects its own matching CUE and all BIN files. Host disc reads are blocked. |
+
+Without an option the helper uses `local`, preserving the previous default.
+Cloudflare supports either mode; requiring a disc per computer is our gateway's
+local-files policy, not a Cloudflare requirement. Change mode by stopping the
+helper and restarting it; this ends rooms and creates new access/session links.
+
+In shared mode, open the printed URL yourself and press **Start game**. The page
+shows **Using the host’s disc**; no file picker is required. Copy **Invite friends**
+and send it to your friend, who opens it and presses **Join game**. Keep your host
+browser open and choose native multiplayer after everyone has joined. A browser
+may optionally select matching local files instead to reduce host/network reads.
+
+In local mode, both the host and friend first select **Game files → CUE + all BIN
+files**, then press **Start game** or **Join game** respectively. Either mode
+uses the full invitation containing the access path and `#session=...` fragment.
+The access URL alone does not join an existing room.
+
+Two computers on the same Wi-Fi can use this HTTPS link too. `127.0.0.1` points
+to each computer itself, so it is not a second-computer address. This helper
+still routes requests through Cloudflare and needs internet access; it is not
+an offline/direct-LAN server. No router forwarding or browser security overrides
+are needed. A direct LAN hostname/IP setup is not provided by this helper.
 
 Keep the terminal open and the host awake. **Ctrl+C** stops all helper-owned
 process groups, including the relay, and invalidates the temporary link.
@@ -63,8 +86,17 @@ file permissions; these are never committed. Do not paste access links into
 public issues or changelogs.
 
 The endpoint serves compiled runtime assets, OpenBIOS and metadata through the
-gateway. Disc bytes remain outside its allowlist. The following manual workflow
-is equivalent, and the same license and qualification limits apply.
+gateway. In local mode disc bytes stay blocked. In shared mode anyone with the
+private access link can request parts of the host disc (GET extents of at most
+4 MiB); do not share that access link publicly. Shared mode requires a private
+access token and never permits arbitrary folders or unbounded disc downloads.
+First boot can be much slower in shared mode: the native loader may scan large
+parts of the disc, and every browser fetches its own data through the tunnel.
+The cache is bounded, so switching tracks or replaying can cause more reads.
+Use local files to avoid this network cost.
+Both modes still require appropriate rights to the game; enabling a transport
+mode does not grant any additional rights. The following manual workflow is
+equivalent, and the same license and qualification limits apply.
 
 ## Manual internet hosting
 
@@ -83,13 +115,15 @@ python3 research/serve_port.py
 Start the gateway in terminal 2:
 
 ```sh
-node research/network/public-server.mjs
+node research/network/public-server.mjs --disc-mode shared
 ```
 
 It prints a private URL ending in `/access/<random-token>` and records that path
 in ignored `.cache/gateway-access.txt`. Every restart creates a new access token.
 The gateway serves only its runtime allowlist and same-origin `/relay` WebSocket
-route. It blocks `/disc/*` and requires each client to select local game files.
+route. `--disc-mode shared` also permits authenticated, bounded `/disc/0` through
+`/disc/11` reads. Use `--disc-mode local` (or omit the option) to block disc reads
+and require local game files in every browser.
 
 Expose **only 8003** through your chosen HTTPS reverse proxy with WebSocket
 upgrade support. A temporary development option is Cloudflare Quick Tunnel:
@@ -112,7 +146,8 @@ The host now:
 
 1. Takes the HTTPS hostname printed by the proxy and appends the gateway's exact
    `/access/<random-token>` path. Open this combined URL in the browser.
-2. Opens **Game files** and selects the local CUE plus all 11 BIN tracks.
+2. In shared mode uses the automatically detected host disc. In local mode opens
+   **Game files** and selects the local CUE plus all 11 BIN tracks.
 3. Chooses settings, presses **Start game**, and copies **Invite friends**.
 4. Sends that complete generated invitation to the friend. It contains the
    access path and `#session=...`; the bare HTTPS URL is insufficient.
@@ -120,17 +155,18 @@ The host now:
 Each friend:
 
 1. Opens the complete invitation in a desktop browser.
-2. Selects their own matching CUE and all BIN tracks in **Game files**.
+2. In shared mode selects no files. In local mode selects their own matching
+   CUE and all BIN tracks in **Game files**.
 3. Checks personal controls/audio and presses **Join game**. Shared settings
    come from the invitation and are read-only.
 4. Waits for catch-up, then joins through the original game menus.
 
-The host also selects local files when using the gateway. Its manifest compares
-filenames, sizes and content identity against the host's disc. Browser file
-selection is local; disc bytes are not uploaded by this gateway. Clients do
-receive the compiled game-derived JS/Wasm, OpenBIOS, disc metadata, controller
-history and checksums. This is not a disc redistribution service, and the
-[license boundaries](../THIRD_PARTY_NOTICES.md) still apply to runtime hosting.
+The host's runtime server needs its own compatible disc in either mode to
+provide the manifest and identity. Local selections are read inside the browser,
+not uploaded; shared-disc reads fetch game bytes from the host. Clients also
+receive compiled game-derived JS/Wasm, OpenBIOS, disc metadata, controller
+history and checksums. The [license boundaries](../THIRD_PARTY_NOTICES.md) apply
+to both modes and to hosting game-derived runtime content.
 
 ## Start a native multiplayer race
 

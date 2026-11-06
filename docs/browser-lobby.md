@@ -14,7 +14,8 @@ creates a separate game. The game is still an experimental port.
 - Controls: classic, WASD or individual keyboard bindings. Conflicting keys
   swap, so one key never ambiguously presses multiple pad buttons. Gamepad
   presence and standard mapping are reported from the browser Gamepad API.
-- Files: local manifest detection or CUE + all 11 BIN selected by the player.
+- Files: automatically use the host disc in shared mode, or select CUE + all
+  11 BIN locally. Local mode requires every player to select files.
 
 The preview is an original decorative mountain illustration, not game artwork
 or a selected track. Racer and track selection still takes place in the
@@ -69,8 +70,13 @@ cannot restore it. Connections send heartbeats and stale rooms expire after
 30 seconds without messages. There is no rollback or persistent session save.
 State mismatches stop the affected room rather than allowing divergent games.
 
-The local server and protected gateway explicitly allow the new assets; their
-disc-file access policy remains unchanged. No internet tunnel is created.
+The manifest exposes `X-Disc-Mode` and `X-Disc-Local-Required`. The gateway uses
+`local` by default, denying disc routes. Explicit `shared` mode requires a private
+access token and forwards only GET extents on disc indices 0–11, with validated
+integer offsets and lengths capped at 4 MiB. The source verifies file bounds.
+Both deny full-file disc downloads, HEAD disc requests and arbitrary paths.
+The browser's bounded async disc cache is shared by the local/host-file flows.
+No native runtime rebuild is needed to switch the gateway's disc policy.
 
 ## Interaction and accessibility
 

@@ -81,3 +81,26 @@ The host session and tunnel were left running for participant testing. No live
 hostname, token or session invitation is recorded in this repository. This is
 public transport and single-host boot evidence; a two-device internet race,
 latency, reconnect behavior and gameplay reliability remain unverified.
+
+## Host-disc mode — 0.2.0 (2026-11-06)
+
+- All 12 Node relay/gateway/client tests, 3 settings tests and 3 real Python
+  HTTP-handler tests passed. HTTP-handler fixtures contain synthetic tracks.
+- The existing Wasm disc adapter passed remote extent and local Blob checks,
+  including reporting remote transfer bytes without counting local Blob reads.
+- Through a live Cloudflare endpoint, an authenticated 4 KiB disc extent matched
+  the host's bytes exactly. Unauthorized, unbounded, oversized, out-of-file and
+  private-path requests were refused. A local-files gateway against the same
+  runtime still blocked host disc reads and advertised local selection.
+- Two actual Chrome tabs created/joined a shared-mode room without selecting any
+  CUE/BIN files. Both booted the native frontend and reported matching core state
+  through verified frame 2,550 and reached the original language-selection screen.
+- The native startup scans the approximately 283 MiB data track; shared-mode
+  startup took several minutes through the test tunnel. A transfer counter and
+  loading overlay were added for that phase. It is not video streaming or a
+  guarantee of low startup bandwidth.
+
+Both browser clients ran on the same Mac through the public HTTPS origin.
+This verifies the no-file-selection path and controller synchronization, not a
+race on two separate computers. Direct offline LAN access is not part of this
+helper. Both modes retain the previous native game build; no C/C++ changed.

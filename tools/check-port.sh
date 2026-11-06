@@ -10,7 +10,8 @@ node --check research/wasm/network-client.js
 node --check research/wasm/disc-fs.js
 node --check research/wasm/local-disc.js
 node --check research/network/server.mjs
-python3 -m py_compile research/serve_port.py tools/inspect-camera.py
+python3 -m py_compile research/serve_port.py tools/inspect-camera.py tools/play-online.py
+python3 tools/test-server.py
 python3 tools/inspect-camera.py
 EMSDK_QUIET=1
 export EMSDK_QUIET

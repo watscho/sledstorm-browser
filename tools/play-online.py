@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run the private gateway through a temporary Cloudflare Quick Tunnel."""
+import argparse
 import os
 from pathlib import Path
 import re
@@ -29,6 +30,10 @@ def listening(port):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--disc-mode', choices=['local', 'shared'], default='local',
+                        help='local: each browser selects files (default); shared: read the host disc')
+    args = parser.parse_args()
     node = shutil.which('node')
     cloudflared = os.environ.get('CLOUDFLARED_BIN') or shutil.which('cloudflared')
     if not cloudflared:
@@ -78,7 +83,7 @@ def main():
         start('runtime', [sys.executable, str(ROOT / 'research/serve_port.py')])
         wait_port(8001)
         wait_port(8002)
-        start('gateway', [node, str(ROOT / 'research/network/public-server.mjs')])
+        start('gateway', [node, str(ROOT / 'research/network/public-server.mjs'), '--disc-mode', args.disc_mode])
         wait_port(8003)
         start('tunnel', [cloudflared, 'tunnel', '--url', 'http://127.0.0.1:8003', '--no-autoupdate'])
         print('Starting Cloudflare Quick Tunnel. Runtime assets will be reachable through the private access link.', flush=True)
@@ -94,7 +99,11 @@ def main():
                 with private_file(link_file) as output:
                     output.write(url + '\n')
                 print(f'\nOpen this private launcher URL:\n{url}\n', flush=True)
-                print('Select your local CUE + all BIN files, press Start game, then share Invite friends.\n'
+                if args.disc_mode == 'shared':
+                    print('Host disc mode: browsers read the host disc; no file selection is required.', flush=True)
+                else:
+                    print('Local files mode: each browser selects its own CUE + all BIN files.', flush=True)
+                print('Press Start game, then share Invite friends.\n'
                       'Keep this process running. Ctrl+C stops the tunnel, gateway and runtime.', flush=True)
                 break
             time.sleep(0.25)

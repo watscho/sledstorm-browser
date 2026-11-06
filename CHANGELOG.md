@@ -5,6 +5,28 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-06
+
+### Added
+
+- Explicit **Host disc** mode: `python3 tools/play-online.py --disc-mode shared`.
+  One CUE/BIN set on the host is sufficient; other browsers start/join without
+  choosing files. The protected gateway serves authenticated, bounded extents.
+- Explicit **Local files** mode via `--disc-mode local`, preserving the default
+  requirement for each browser to provide matching files and blocking host reads.
+- Mode-aware file status, launch hints and host-disc transfer progress during
+  startup; gateway authorization/range tests and
+  real HTTP-handler tests using synthetic disc tracks.
+
+### Changed
+
+- Full-file and HEAD disc requests are refused by the development server;
+  shared requests validate track index, query parameters, bounds and a 4 MiB cap.
+- Guests retain the gateway access path in copied invitations after redirects.
+- Updated setup/hosting documentation explains both modes and that Cloudflare
+  also works for two computers on the same Wi-Fi, without being an offline LAN.
+
+
 ## [0.1.0] - 2026-11-06
 
 ### Added
@@ -36,5 +58,6 @@ semantic versioning and do not refer to the original game or upstream port.
 - Disc images, saves, downloaded upstream sources, compiled output and private
   access/session links are excluded from the Git repository.
 
-[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/watscho/sledstorm-browser/tree/v0.2.0
 [0.1.0]: https://github.com/watscho/sledstorm-browser/tree/v0.1.0

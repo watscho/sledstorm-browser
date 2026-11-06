@@ -16,7 +16,8 @@ Fast JavaScript tests, without a game disc or compiler:
 npm ci --prefix research/network
 npm test --prefix research/network
 node --test research/wasm/launch-settings.test.mjs
-python3 -m py_compile tools/bootstrap.py research/serve_port.py
+python3 -m py_compile tools/bootstrap.py tools/play-online.py research/serve_port.py
+python3 tools/test-server.py
 ```
 
 After bootstrap and disc setup, run the bounded integration suite:
@@ -28,7 +29,9 @@ sh tools/check-port.sh
 It checks browser JS syntax/settings, PAL camera assumptions, real Wasm fibers,
 disc filesystem extents, pixel conversion, HUD behavior, SIO/Multitap, progression,
 preferences, the actual GPU IRQ parser and relay/gateway/client behavior.
-It is not a replacement for browser race testing or internet qualification.
+The HTTP server tests use synthetic tracks, not a game image. They and the
+network suite need loopback socket access. These checks are not a replacement
+for browser race testing or internet qualification.
 
 For C/C++ integration changes also run `sh tools/build-port-web.sh`. When testing
 browser changes, inspect the local launch page at desktop and narrow widths;

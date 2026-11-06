@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-Version **0.1.0** · experimental · [Changelog](CHANGELOG.md)
+Version **0.2.0** · experimental · [Changelog](CHANGELOG.md)
 
 <p align="center">
   <img src="docs/images/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover art" width="420">
@@ -47,18 +47,31 @@ accelerate, and **Enter** for Start; inspect **Controls** for the full mapping.
 For a temporary internet session, install `cloudflared`, then run:
 
 ```sh
-python3 tools/play-online.py
+python3 tools/play-online.py --disc-mode shared
 ```
 
-Open the complete private HTTPS launcher URL printed by the helper, select your
-local disc files, start the game and share **Invite friends**. Keep the helper
+In **Host disc** mode, only the host needs the CUE/BIN files. Open the complete
+private HTTPS launcher URL printed by the helper, press **Start game**, and share
+**Invite friends**. Friends press **Join game** without choosing any files. Keep the helper
 running for the session; Ctrl+C stops all processes it owns. See the hosting
 guide below for the full friend flow and manual commands.
 
+For **Local files** mode, where every player selects matching files on their own
+computer and the gateway blocks host disc reads, use:
+
+```sh
+python3 tools/play-online.py --disc-mode local
+```
+
+The default without `--disc-mode` remains `local`. Shared mode sends game data
+from the host to authenticated browsers in bounded requests; it does not stream
+video. Cloudflare supports both modes.
+
 A `127.0.0.1` invitation only works on the host computer. For friends on the
 internet, follow the [multiplayer hosting guide](docs/multiplayer.md), including
-the private gateway and HTTPS setup. Each friend supplies matching local disc
-files. Internet play across separate devices is not yet verified.
+the private gateway and HTTPS setup. One host disc is enough in shared mode;
+local mode requires files on each computer. Internet gameplay across separate
+devices is not yet verified.
 
 ## Guides
 

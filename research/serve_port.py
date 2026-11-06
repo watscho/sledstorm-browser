@@ -62,17 +62,36 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         self.send_header('Cache-Control', 'no-store')
+        if urlsplit(self.path).path == '/manifest':
+            self.send_header('X-Disc-Mode', 'shared')
+            self.send_header('X-Disc-Local-Required', '0')
         super().end_headers()
+
+    def do_HEAD(self):
+        if urlsplit(self.path).path.startswith('/disc/'):
+            self.send_error(403, 'Disc files require bounded GET requests')
+            return
+        if self.headers.get('Host') not in ('127.0.0.1:8001', 'localhost:8001'):
+            self.send_error(403)
+            return
+        super().do_HEAD()
 
     def do_GET(self):
         if self.headers.get('Host') not in ('127.0.0.1:8001', 'localhost:8001'):
             self.send_error(403)
             return
         route = urlsplit(self.path)
-        if route.path.startswith('/disc/') and route.query:
+        if route.path.startswith('/disc/'):
+            if not route.query:
+                self.send_error(400, 'Disc files require offset and length')
+                return
             path = ROUTES.get(route.path)
-            query = parse_qs(route.query)
+            query = parse_qs(route.query, keep_blank_values=True)
             try:
+                if set(query) != {'offset', 'length'} or any(len(values) != 1 for values in query.values()):
+                    raise ValueError('Invalid extent parameters')
+                if not all(re.fullmatch(r'[0-9]+', values[0]) for values in query.values()):
+                    raise ValueError('Invalid extent parameters')
                 offset = int(query['offset'][0])
                 length = int(query['length'][0])
                 if not path or offset < 0 or length <= 0 or length > 4 * 1024 * 1024 or offset + length > path.stat().st_size:
