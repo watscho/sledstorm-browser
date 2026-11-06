@@ -10,7 +10,7 @@ export const BUTTONS = [
 ];
 export const CLASSIC = Object.fromEntries(BUTTONS.map(([id,,,code]) => [id,code]));
 export const WASD = {...CLASSIC,up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',cross:'Space',square:'KeyJ',circle:'KeyK',triangle:'Backspace',l1:'KeyQ',r1:'KeyE',l2:'Digit1',r2:'Digit3'};
-export const DEFAULTS = {renderer:'opengl',resolution:2,filter:0,volume:80,unlocked:true,fullscreen:false,preset:'classic',bindings:CLASSIC};
+export const DEFAULTS = {renderer:'opengl',resolution:1,filter:0,volume:80,unlocked:true,fullscreen:false,preset:'classic',bindings:CLASSIC};
 const NAMED = {ArrowUp:'Up',ArrowDown:'Down',ArrowLeft:'Left',ArrowRight:'Right',Enter:'Return',Space:'Space',Backspace:'Backspace',ShiftRight:'Right Shift',ShiftLeft:'Left Shift',ControlRight:'Right Ctrl',ControlLeft:'Left Ctrl'};
 export function validKey(code) { return typeof code === 'string' && (/^Key[A-Z]$/.test(code) || /^Digit[0-9]$/.test(code) || Object.hasOwn(NAMED,code)); }
 export function keyLabel(code) { return ({ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',Space:'Space',Enter:'Enter',Backspace:'⌫',ShiftRight:'R Shift',ShiftLeft:'L Shift',ControlRight:'R Ctrl',ControlLeft:'L Ctrl'})[code] || code?.replace(/^(Key|Digit)/,'') || '—'; }
@@ -20,7 +20,7 @@ export function normalizeSettings(input = {}) {
   if (input.bindings && BUTTONS.every(([id]) => validKey(input.bindings[id])) && new Set(Object.values(input.bindings)).size === BUTTONS.length)
     for (const [id] of BUTTONS) bindings[id] = input.bindings[id];
   return {renderer:input.renderer==='software'?'software':'opengl',
-    resolution:Number(input.resolution)===1?1:2,filter:Number(input.filter)===1?1:0,
+    resolution:Number(input.resolution)===2?2:1,filter:Number(input.filter)===1?1:0,
     volume:Number.isFinite(Number(input.volume))?Math.max(0,Math.min(100,Number(input.volume))):80,
     unlocked:input.unlocked!==false,fullscreen:input.fullscreen===true,preset:['classic','wasd','custom'].includes(input.preset)?input.preset:'classic',bindings};
 }

@@ -178,6 +178,7 @@ $('launch').addEventListener('click',async()=>{
     else{$('loading-overlay').hidden=false;$('loading-detail').textContent=`${error.message} End this session and return to the lobby to try again.`;}
   }
   try{await launchGame(snapshot,{
+    onPerformance:(text)=>{if($('performance').textContent!==text)$('performance').textContent=text;},
     onStatus:setStatus,onError,onLog:(text)=>{$('log').textContent=text;},onDiagnostics:(text)=>{$('camera').textContent=text;},
     onInvite:(url)=>{$('invite').value=url;$('invite-box').hidden=false;$('share-session').hidden=false;$('session-state').textContent='Session created';},
     onBoot:({replaying,hostDisc})=>{$('loading-overlay').hidden=!(replaying||hostDisc);$('loading-title').textContent=hostDisc?'Loading the host’s disc':'Connecting controller';$('session-state').textContent=replaying?'Synchronizing':'Starting game';setStatus(replaying?'Restoring the current game…':'Loading game · Enter to skip the intro');},

@@ -14,6 +14,7 @@ export class BrowserSession {
     this.tick = -1;
     this.verified = -1;
     this.active = false;
+    this.metrics = { buffered: 0, waits: 0, waitMs: 0 };
     this.keyMap = options.keyMap || KEY_BITS;
     this.input = (event) => {
       const bit = this.keyMap[event.code];
@@ -92,23 +93,36 @@ export class BrowserSession {
     }
     return pad;
   }
-  async exchange(tick, state) {
+  async exchange(tick, state) { return this.exchangeFast(tick, state); }
+  exchangeFast(tick, state) {
+    const result = this.exchangeRow(tick, state);
+    if (result?.then) {
+      ++this.metrics.waits;
+      const began = performance.now();
+      return result.then(row => { this.metrics.waitMs += performance.now() - began; return row; });
+    }
+    ++this.metrics.buffered;
+    return result;
+  }
+  replayRow(tick) {
+    const consume = () => {
+      const frame = this.history.get(tick); this.history.delete(tick);
+      if (!frame) { this.fail('Missing replay frame'); throw new Error(this.error); }
+      if (tick % 100 === 0) this.onStatus(`Syncing session: ${tick}/${this.replayTarget}`);
+      return this.consume(frame);
+    };
+    if (this.history.has(tick)) return consume();
+    const available = new Promise((resolve,reject)=>{this.historyWaiter=resolve;this.historyReject=reject;});
+    this.socket.send(JSON.stringify({type:'history',from:tick}));
+    return available.then(() => { this.historyReject=null; return consume(); });
+  }
+  exchangeRow(tick, state) {
     tick >>>= 0;
     if (state !== null) state >>>= 0;
     if (!this.active || this.socket.readyState !== WebSocket.OPEN) throw new Error(this.error || 'Peer is unavailable');
     if (tick !== this.nextFrame++) { this.fail('Non-sequential guest frame'); throw new Error(this.error); }
     if (state !== null) { this.digests.set(tick,state); if(this.digests.size>16)this.digests.delete(this.digests.keys().next().value); }
-    if (tick < this.replayTarget) {
-      if (!this.history.has(tick)) {
-        const available = new Promise((resolve,reject)=>{this.historyWaiter=resolve;this.historyReject=reject;});
-        this.socket.send(JSON.stringify({type:'history',from:tick}));
-        await available; this.historyReject=null;
-      }
-      const frame=this.history.get(tick);this.history.delete(tick);
-      if (!frame) { this.fail('Missing replay frame'); throw new Error(this.error); }
-      if (tick % 100 === 0) this.onStatus(`Syncing session: ${tick}/${this.replayTarget}`);
-      return this.consume(frame);
-    }
+    if (tick < this.replayTarget) return this.replayRow(tick);
     this.replaying=false;
     if (!this.warmed) {
       this.warmed=true;

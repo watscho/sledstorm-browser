@@ -5,6 +5,16 @@ if(NOT EMSCRIPTEN)
     message(FATAL_ERROR "Configure with the project-local Emscripten toolchain")
 endif()
 
+option(SLED_WEB_SIMD "Enable standard WebAssembly SIMD (no relaxed math)" OFF)
+if(SLED_WEB_SIMD)
+    # xxhash NEON compatibility may include SDK templates inside extern C;
+    # include the SDK declarations first in C++ translation units.
+    add_compile_options(-msimd128
+        "$<$<COMPILE_LANGUAGE:CXX>:-include>"
+        "$<$<COMPILE_LANGUAGE:CXX>:emscripten/emscripten.h>")
+    add_link_options(-msimd128)
+endif()
+
 set(PSX_RECOMP_UI OFF CACHE BOOL "" FORCE)
 set(PSX_REWIND OFF CACHE BOOL "" FORCE)
 set(PSX_DEBUG_TOOLS OFF CACHE BOOL "" FORCE)
@@ -52,7 +62,7 @@ set_source_files_properties(
 set_target_properties(psx-runtime PROPERTIES SUFFIX ".js")
 target_link_options(psx-runtime PRIVATE
     -sUSE_SDL=2 -sUSE_ZLIB=1 -sALLOW_MEMORY_GROWTH=1
-    -sSTACK_SIZE=8388608 -sASYNCIFY=1 -sFORCE_FILESYSTEM=1
+    -sSTACK_SIZE=8388608 -sASYNCIFY=1 "-sASYNCIFY_IMPORTS=['exchange_frame']" -sFORCE_FILESYSTEM=1
     -sINVOKE_RUN=0 "-sEXPORTED_RUNTIME_METHODS=FS,callMain,Asyncify,HEAPU8"
     --js-library "${CMAKE_CURRENT_SOURCE_DIR}/disc_io.js"
     -sASYNCIFY_STACK_SIZE=65536

@@ -5,7 +5,7 @@ cd "$TASK_ROOT"
 node --check research/wasm/port.js
 node --check research/wasm/lobby.js
 node --check research/wasm/launch-settings.js
-node --test research/wasm/launch-settings.test.mjs
+node --test research/wasm/launch-settings.test.mjs research/wasm/disc-fs.test.mjs
 node --check research/wasm/network-client.js
 node --check research/wasm/disc-fs.js
 node --check research/wasm/local-disc.js
@@ -31,6 +31,13 @@ emcc research/wasm/test_disc_fs.c -sASYNCIFY=1 \
     -sENVIRONMENT=node -sMODULARIZE=1 -sEXPORT_ES6=1 -sINVOKE_RUN=0 \
     -o .cache/test-disc.mjs
 node tools/test-disc-fs.mjs
+emcc research/wasm/web_network.c research/wasm/test_network_bridge.c \
+    -Iresearch/wasm -Iresearch/port/psxrecomp/runtime/include \
+    -sASYNCIFY=1 "-sASYNCIFY_IMPORTS=['exchange_frame']" \
+    -sEXPORTED_RUNTIME_METHODS=callMain,Asyncify,HEAPU16 \
+    -sENVIRONMENT=node -sMODULARIZE=1 -sEXPORT_ES6=1 -sINVOKE_RUN=0 \
+    -o .cache/network-bridge.mjs
+node tools/test-network-bridge.mjs
 emcc research/wasm/web_hud.c research/wasm/test_hud.c \
     -Iresearch/wasm -Iresearch/port/psxrecomp/runtime/include \
     -sENVIRONMENT=node -o .cache/hud-test.js

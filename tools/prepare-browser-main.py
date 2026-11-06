@@ -24,6 +24,10 @@ source = SOURCE.read_text()
 source = '#include "web_network.h"\n#include "web_preferences.h"\n' + source
 source = patch_once(source, '    psx_netplay_bind_cpu(&cpu);',
                     '    psx_netplay_bind_cpu(&cpu);\n    sled_web_bind_cpu(&cpu);\n    sled_web_preferences_apply();')
+# Replay advances the same SPU samples but must not play compressed history.
+source = patch_once(source, 'static void sdl_audio_pump(bool discard_output = false) {',
+                    'static void sdl_audio_pump(bool discard_output = false) {\n'
+                    '    discard_output = discard_output || sled_web_replaying();')
 # Replay preserves every guest quantum, but removes host wall-clock waits.
 source = patch_once(source, '    if (!psx_netplay_active() && !psx_selfcheck_resim_active()) {',
                     '    if (!psx_netplay_active() && !psx_selfcheck_resim_active() && !sled_web_replaying()) {')

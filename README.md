@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-Version **0.2.0** · experimental · [Changelog](CHANGELOG.md)
+Version **0.2.1-dev** · performance investigation · [Changelog](CHANGELOG.md)
 
 <p align="center">
   <img src="docs/images/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover art" width="420">
@@ -79,11 +79,15 @@ devices is not yet verified.
 - [Playing with friends: hosting, links and native game flow](docs/multiplayer.md)
 - [Launch settings, networking and rendering internals](docs/browser-lobby.md)
 - [All-content preset and original progression](docs/unlocked-profile.md)
+- [Performance settings, counters and measured optimizations](docs/performance.md)
 - [Verification record and known limitations](docs/verification.md)
 - [Upstream provenance and license boundaries](THIRD_PARTY_NOTICES.md)
 - [Contributing and checks](CONTRIBUTING.md)
 
 ## Current behavior
+
+Fresh launch settings default to WebGL2 at 1× resolution. Saved preferences
+remain unchanged; 2× is still available.
 
 Two-player WebGL2 races use a separate full view and the original single-player
 HUD for each player. Pause/options menus return to their original 4:3

@@ -60,13 +60,14 @@ export async function launchGame(settings, ui) {
           const fs = window.Module.FS;
           fs.mkdir('/disc');fs.mkdir('/bios');
           const bios = await bytes('/bios.bin');fs.writeFile('/bios/openbios.bin',bios,{canOwn:true});
-          mountDisc(window.Module,files,(count)=>{ hostBytesRead += count; });
+          const discStats = mountDisc(window.Module,files,(count)=>{ hostBytesRead += count; });
           const cue = files.find((file)=>/\.cue$/i.test(file.name));
           fs.writeFile('/keybinds.ini',keybindFile(settings.bindings));
           let config = `[game]\nname="SledStorm"\nid="SLES-02194"\nplayers=4\nexe="/disc/SLES_021.94"\nload_address="0x80010000"\nentry_pc="0x800800FC"\ntext_size="0x000B4000"\n[recompiler]\nseeds="seeds/ghidra_funcs.txt"\nout_dir="generated"\n[video]\nrenderer="software"\ninternal_resolution="${settings.resolution}x"\ntexture_filtering="${settings.filter===1?'bilinear':'nearest'}"\n[runtime]\nmemcard_dir="/saves"\noverlay_cache=false\n`;
           if (camera===2) config+='\n[widescreen]\ngte_game_mode=true\nauto_ui_squash=true\nauto_ui_anchor="edges"\nauto_ui_size="original"\ngameplay_state_addr="0x800D6980"\ngameplay_state_values=["0x1"]\n[netplay]\nlocal_viewport="vertical_split"\nlocal_viewport_renderer="projection"\nlocal_viewport_aspect="16:9"\n';
           fs.writeFile('/game.toml',config);
           window.Module._sled_preferences_configure(settings.volume,settings.resolution);
+          window.Module._sled_perf_enable?.(Number(new URL(location.href).searchParams.get('perf') === '1'));
           if (online) {
             ui.onStatus('Checking game compatibility…');
             const response = await fetch('/identity');
@@ -91,10 +92,21 @@ export async function launchGame(settings, ui) {
           }
           window.Module._sled_progress_configure(Number(settings.unlocked));
           ui.onStatus('Loading Sled Storm. This may take about a minute…');
+          let sample = { at:performance.now(), tick:-1, netWait:0, underruns:0 };
           setInterval(()=>{
             if (!window.Module._sled_camera_word) return;
             const fields=Array.from({length:6},(_,i)=>window.Module._sled_camera_word(i));
             const network=window.Module.sledNetwork;
+            const now = performance.now(), elapsed = Math.max(1, now - sample.at);
+            const simHz = Math.max(0, network.tick - sample.tick) * 1000 / elapsed;
+            const netWait = Math.min(100, Math.max(0, network.metrics.waitMs - sample.netWait) * 100 / elapsed);
+            const hitRate = discStats.reads ? Math.round(discStats.hits * 100 / discStats.reads) : 0;
+            const audio = window.Module._sled_audio_word;
+            const underruns = audio?.(0) ? audio(3) : 0;
+            const dryRate = Math.max(0, underruns - sample.underruns) * 1000 / elapsed;
+            const audioText = audio?.(0) ? ` · Audio ${Math.round(audio(1))}/${Math.round(audio(2))} ms · Dry ${Math.round(dryRate)} samples/s` : '';
+            ui.onPerformance?.(`Simulation ${simHz.toFixed(1)} Hz · Network wait ${Math.round(netWait)}% · Disc ${discStats.requests} requests / ${Math.round(discStats.bytes/1048576)} MiB · Cache ${hitRate}%${audioText}${document.hidden?' · Background tab':''}`);
+            sample = { at:now, tick:network.tick, netWait:network.metrics.waitMs, underruns };
             if (hostBootPending && network.tick >= 0 && !network.replaying) {
               hostBootPending = false;
               ui.onBoot({replaying:false,hostDisc:false});

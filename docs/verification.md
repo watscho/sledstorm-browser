@@ -104,3 +104,29 @@ Both browser clients ran on the same Mac through the public HTTPS origin.
 This verifies the no-file-selection path and controller synchronization, not a
 race on two separate computers. Direct offline LAN access is not part of this
 helper. Both modes retain the previous native game build; no C/C++ changed.
+
+## Performance investigation — unreleased (2026-11-06)
+
+- Controlled scalar fixtures against baseline `4b8013a`: 36 → 1 remote requests,
+  539 → 1 remote-read Wasm suspensions, 539 → 3 local-Blob suspensions; the
+  native controller bridge used 2 suspensions instead of 200 for 200 rows with
+  exactly two delayed arrivals. Details/limits are in [performance.md](performance.md).
+- The full `tools/check-port.sh` suite passed after the synchronous I/O/input
+  changes: 6 settings/cache tests, 13 relay/client/gateway tests, 3 synthetic
+  HTTP-handler tests and the bounded native/Wasm adapter checks.
+- The scalar optimized browser build booted two Chrome tabs without local file
+  selection and preserved matching core digests. Intro samples were near 50 Hz;
+  the animated menu still fell to roughly 20–31 simulation steps/s with two tabs.
+  Closing the second tab restored a sampled 50 Hz menu.
+- A separately built standard-SIMD experiment also booted two clients and
+  preserved core agreement through verified frame 5,325, including a late
+  client with replay audio discarded and different personal volumes. Menu
+  samples around 17–20 Hz did not establish a speedup. SIMD remains default-off.
+- Native audio diagnostics in the slow menu showed near-zero fill against a
+  180 ms target, rising dry-sample counters, and SPU sample supply below device
+  demand. This corroborates the reported audio breakup; audible quality was
+  not independently listened to through automation.
+
+These changes reduce measured overhead and improve diagnosis/replay audio;
+they do not qualify two-tab menu stutter as fixed. Physical two-computer race
+performance and a complete CPU/GPU/audio scheduling optimization remain open.

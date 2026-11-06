@@ -26,14 +26,21 @@ int sled_web_online_slot(void) { return local_slot; }
 void sled_web_bind_cpu(CPUState *cpu) { bound_cpu = cpu; }
 
 EM_JS(int, sled_web_replaying, (), { return Module.sledNetwork?.replaying ? 1 : 0; });
-EM_ASYNC_JS(void, exchange_frame, (uint32_t frame, uint32_t digest, int has_digest, uint16_t *target), {
-    try {
-        const pads = await Module.sledNetwork.exchange(frame, has_digest ? digest : null);
-        for (let i=0;i<4;i++) HEAPU16[(target>>1)+i]=pads[i];
-    } catch(error) {
-        Module.sledNetwork.fail(String(error));
-        await new Promise(()=>{});
-    }
+/* Mark exchange_frame as an Asyncify import in CMake/tests. Buffered rows use
+ * handleSleep's synchronous callback path and never unwind the guest stack. */
+EM_JS(void, exchange_frame, (uint32_t frame, uint32_t digest, int has_digest, uint16_t *target), {
+    return Asyncify.handleSleep(wakeUp => {
+        const failed = error => { Module.sledNetwork.fail(String(error)); };
+        const deliver = pads => {
+            for (let i=0;i<4;i++) HEAPU16[(target>>1)+i]=pads[i];
+            wakeUp();
+        };
+        try {
+            const row = Module.sledNetwork.exchangeFast(frame, has_digest ? digest : null);
+            if (row?.then) row.then(deliver, failed);
+            else deliver(row);
+        } catch (error) { failed(error); }
+    });
 });
 
 void sled_web_sync_frame(void) {

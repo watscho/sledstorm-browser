@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <sys/resource.h>
 #include <errno.h>
+#include <stdlib.h>
 
 EMSCRIPTEN_KEEPALIVE uint32_t sled_projection_word(int field) {
     GpuWsDebug d;
@@ -42,4 +43,19 @@ int sled_web_getrusage(int who, struct rusage *usage) {
     (void)who; (void)usage;
     errno = ENOSYS;
     return -1;
+}
+
+/* Host audio output health only; never feeds guest state or synchronization. */
+extern int psx_audio_out_stats(double *, double *, uint64_t *, uint64_t *, double *, int *, int *);
+EMSCRIPTEN_KEEPALIVE double sled_audio_word(int field) {
+    double fill = 0, target = 0, correction = 0;
+    uint64_t underruns = 0, drops = 0;
+    int legacy = 0, rate = 0;
+    int active = psx_audio_out_stats(&fill, &target, &underruns, &drops, &correction, &legacy, &rate);
+    return field == 0 ? active : field == 1 ? fill : field == 2 ? target :
+           field == 3 ? (double)underruns : field == 4 ? (double)drops : rate;
+}
+EMSCRIPTEN_KEEPALIVE void sled_perf_enable(int enabled) {
+    setenv("PSX_RUNTIME_PERF_DIAG", enabled ? "1" : "0", 1);
+    setenv("PSX_RUNTIME_PERF_DIAG_MS", "2000", 1);
 }

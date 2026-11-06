@@ -5,6 +5,23 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
+### Performance investigation (unreleased, not a complete stutter fix)
+
+- Buffered controller rows and cached/MEMFS reads no longer unwind Wasm through
+  Asyncify. Real network waits and disc misses remain asynchronous; controller
+  ordering, replay history and digest phase are unchanged.
+- One 16 MiB retained LRU disc cache across tracks replaces last-block-only
+  caching. Remote requests use at most 4 MiB per block, coalesce in-flight reads,
+  and retry failed/short reads without caching incomplete data.
+- Standard WebAssembly SIMD is available as a default-off experiment; it did
+  not establish a menu speedup and is not presented as a stutter fix.
+- Catch-up discards host audio history while preserving guest SPU advancement;
+  audio fill/underrun metrics and optional native diagnostics aid investigation.
+- Fresh settings use 1× resolution. Explicit/saved 2× settings remain supported.
+- Added live simulation-rate, network-wait, disc-request/cache and background-tab
+  counters, plus real Wasm bridge regression tests and performance evidence.
+
+
 ## [0.2.0] - 2026-11-06
 
 ### Added
@@ -58,6 +75,6 @@ semantic versioning and do not refer to the original game or upstream port.
 - Disc images, saves, downloaded upstream sources, compiled output and private
   access/session links are excluded from the Git repository.
 
-[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.2.0...research/performance-baseline
 [0.2.0]: https://github.com/watscho/sledstorm-browser/tree/v0.2.0
 [0.1.0]: https://github.com/watscho/sledstorm-browser/tree/v0.1.0

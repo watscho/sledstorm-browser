@@ -15,7 +15,7 @@ Fast JavaScript tests, without a game disc or compiler:
 ```sh
 npm ci --prefix research/network
 npm test --prefix research/network
-node --test research/wasm/launch-settings.test.mjs
+node --test research/wasm/launch-settings.test.mjs research/wasm/disc-fs.test.mjs
 python3 -m py_compile tools/bootstrap.py tools/play-online.py research/serve_port.py
 python3 tools/test-server.py
 ```
@@ -57,3 +57,8 @@ lockfile root/package version in sync. Record user-facing changes under
 Do not record private tunnel hostnames, access tokens, disc paths or invitation
 fragments in release notes. State separately what was tested over the public
 endpoint and what was tested with two actual remote players.
+
+Performance changes must preserve input/digest phase and guest frame order. Use
+the real Wasm bridge tests, report retained cache memory and suspension counts,
+and distinguish synthetic I/O measurements from actual gameplay frame rates.
+See [performance.md](docs/performance.md).
