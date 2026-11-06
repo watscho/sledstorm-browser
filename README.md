@@ -1,6 +1,12 @@
 # Sled Storm Browser
 
-Version **0.2.0** · experimental · [Changelog](CHANGELOG.md)
+Stable version **0.2.0** · experimental · [Changelog](CHANGELOG.md)
+
+> **Current branch: `research/browser-emulator`.** The new PCSX-ReARMed adapter
+> has verified synchronized multiplayer and history catch-up. Follow the
+> [browser emulator build and play guide](docs/browser-emulator.md) for this
+> branch. Two-player cameras/HUD, the unlock preset and both disc modes are
+> implemented in the adapter; see the guide for their verification limits. The instructions below describe the stable recompiled target.
 
 <p align="center">
   <img src="docs/images/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover art" width="420">

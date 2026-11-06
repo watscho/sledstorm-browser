@@ -8,7 +8,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 const assets = new Set(['/', '/port.js', '/lobby.js', '/lobby.css', '/launch-settings.js', '/race-preview.svg', '/network-client.js', '/disc-fs.js', '/local-disc.js',
   '/game.js', '/game.wasm', '/bios.bin', '/manifest', '/identity']);
-export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002, accessToken = null, discMode = 'local' } = {}) {
+export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002, accessToken = null, discMode = 'local', assetPaths = assets, maxPayload = 2048 } = {}) {
   if (!['local', 'shared'].includes(discMode)) throw new Error('Disc mode must be local or shared');
   if (discMode === 'shared' && !/^[a-f0-9]{48}$/.test(accessToken || ''))
     throw new Error('Shared disc mode requires a private access token');
@@ -46,13 +46,13 @@ export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002
         response.writeHead(400).end('Disc reads require one nonnegative offset and a length of 1 to 4194304 bytes.'); return;
       }
       upstreamPath = `${path}?offset=${offset}&length=${length}`;
-    } else if (!['GET', 'HEAD'].includes(request.method) || !assets.has(path)) {
+    } else if (!['GET', 'HEAD'].includes(request.method) || !assetPaths.has(path)) {
       response.writeHead(403).end(discMode === 'local'
         ? 'This gateway requires local CUE and BIN files.'
         : 'This gateway only permits bounded disc reads and runtime assets.'); return;
     }
     const remote = http.request({ hostname: '127.0.0.1', port: upstream, path: upstreamPath,
-      method: request.method, headers: { host: '127.0.0.1:8001' } }, (incoming) => {
+      method: request.method, headers: { host: `127.0.0.1:${upstream}` } }, (incoming) => {
       const headers = { ...incoming.headers, 'cross-origin-opener-policy': 'same-origin',
         'cross-origin-embedder-policy': 'require-corp', 'cache-control': 'no-store' };
       if (path === '/manifest') {
@@ -60,6 +60,7 @@ export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002
         headers['x-disc-mode'] = discMode;
       }
       if (path === '/manifest' && accessPath) headers['x-invite-path'] = accessPath;
+      if (path === '/session-info' && accessPath) headers['x-invite-path'] = accessPath;
       response.writeHead(incoming.statusCode, headers);
       incoming.pipe(response);
     });
@@ -67,13 +68,13 @@ export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002
     response.on('close', () => remote.destroy());
     remote.end();
   });
-  const websockets = new WebSocketServer({ noServer: true, maxPayload: 2048, perMessageDeflate: false });
+  const websockets = new WebSocketServer({ noServer: true, maxPayload, perMessageDeflate: false });
   server.on('upgrade', (request, socket, head) => {
     let validOrigin = false;
     try { validOrigin = new URL(request.headers.origin).host === request.headers.host; } catch {}
     if (request.url !== '/relay' || !validOrigin || !authorized(request)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
     websockets.handleUpgrade(request, socket, head, (client) => {
-      const peer = new WebSocket(`ws://127.0.0.1:${relay}`, { origin: 'http://127.0.0.1:8001', maxPayload: 2048, perMessageDeflate: false });
+      const peer = new WebSocket(`ws://127.0.0.1:${relay}`, { origin: `http://127.0.0.1:${upstream}`, maxPayload, perMessageDeflate: false });
       const pending = [];
       const close = () => { client.close(); peer.close(); };
       client.on('error', () => {});

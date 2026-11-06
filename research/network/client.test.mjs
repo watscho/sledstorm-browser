@@ -17,7 +17,7 @@ test('custom keys release after toolbar focus changes and blur; UI keys are not 
 });
 
 test('one live console admits three late peers, preserves CRC phase and four pad order', async () => {
-  const relay=createRelay({port:0,inputDelay:8});await once(relay,'listening');
+  const relay=createRelay({port:0,inputDelay:8,compactHistory:true,historyBatch:256});await once(relay,'listening');
   const endpoint=`ws://127.0.0.1:${relay.address().port}`;
   globalThis.window={addEventListener(){}};
   globalThis.location={protocol:'http:',hostname:'127.0.0.1',host:'127.0.0.1:8001',port:'8001'};

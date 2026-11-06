@@ -15,6 +15,10 @@ export class BrowserSession {
     this.verified = -1;
     this.active = false;
     this.keyMap = options.keyMap || KEY_BITS;
+    this.endpoint = options.endpoint;
+    this.metrics = { buffered: 0, waits: 0, waitMs: 0 };
+    this.onSnapshotRequest = options.onSnapshotRequest;
+    this.onSnapshot = options.onSnapshot;
     this.input = (event) => {
       const bit = this.keyMap[event.code];
       if (bit === undefined) return;
@@ -31,7 +35,7 @@ export class BrowserSession {
   }
   connect(identity, invitation, onInvite) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const endpoint = location.port === '8001' ? `${protocol}//${location.hostname}:8002` : `${protocol}//${location.host}/relay`;
+    const endpoint = this.endpoint || (location.port === '8001' ? `${protocol}//${location.hostname}:8002` : `${protocol}//${location.host}/relay`);
     this.socket = new WebSocket(endpoint);
     return new Promise((resolve, reject) => {
       this.socket.addEventListener('open', () => {
@@ -53,7 +57,20 @@ export class BrowserSession {
           this.replaying = this.replayTarget > 0;
           if (!Number.isInteger(this.slot) || this.slot < 0 || this.slot > 3 || !Number.isInteger(this.delay) || this.delay < 0 || this.delay > 8 || !Number.isInteger(this.replayTarget) || this.replayTarget < 0) { this.fail('Invalid session parameters'); return; }
           this.active = true;
-          resolve(this.slot);
+          if(message.snapshot){this.snapshotResolve=resolve;this.onStatus('Loading the live session snapshot…');}
+          else resolve(this.slot);
+        } else if (message.type === 'snapshot-request') {
+          if(!this.onSnapshotRequest){this.fail('Snapshots are unavailable in this runtime');return;}
+          this.onSnapshotRequest(message.tick).then(snapshot=>{
+            if(this.active)this.socket.send(JSON.stringify({type:'snapshot',slot:message.slot,tick:message.tick,...snapshot}));
+          }).catch(error=>this.fail(error.message));
+        } else if (message.type === 'snapshot') {
+          if(!this.snapshotResolve||!this.onSnapshot||message.tick!==this.replayTarget){this.fail('Unexpected session snapshot');return;}
+          this.onSnapshot(message).then(()=>{
+            this.digests=new Map(message.checks);
+            this.nextFrame=message.tick;this.tick=message.tick-1;this.replaying=false;
+            const resume=this.snapshotResolve;this.snapshotResolve=null;resume(this.slot);
+          }).catch(error=>{this.fail(error.message);reject(error);});
         } else if (message.type === 'presence') {
           this.members = message.slots.filter(Boolean).length;
           this.syncing = message.syncing;
@@ -92,23 +109,36 @@ export class BrowserSession {
     }
     return pad;
   }
-  async exchange(tick, state) {
+  async exchange(tick, state) { return this.exchangeFast(tick, state); }
+  exchangeFast(tick, state) {
+    const result = this.exchangeRow(tick, state);
+    if (result?.then) {
+      ++this.metrics.waits;
+      const began = performance.now();
+      return result.then(row => { this.metrics.waitMs += performance.now() - began; return row; });
+    }
+    ++this.metrics.buffered;
+    return result;
+  }
+  replayRow(tick) {
+    const consume = () => {
+      const frame = this.history.get(tick); this.history.delete(tick);
+      if (!frame) { this.fail('Missing replay frame'); throw new Error(this.error); }
+      if (tick % 100 === 0) this.onStatus(`Syncing session: ${tick}/${this.replayTarget}`);
+      return this.consume(frame);
+    };
+    if (this.history.has(tick)) return consume();
+    const available = new Promise((resolve,reject)=>{this.historyWaiter=resolve;this.historyReject=reject;});
+    this.socket.send(JSON.stringify({type:'history',from:tick}));
+    return available.then(() => { this.historyReject=null; return consume(); });
+  }
+  exchangeRow(tick, state) {
     tick >>>= 0;
     if (state !== null) state >>>= 0;
     if (!this.active || this.socket.readyState !== WebSocket.OPEN) throw new Error(this.error || 'Peer is unavailable');
     if (tick !== this.nextFrame++) { this.fail('Non-sequential guest frame'); throw new Error(this.error); }
     if (state !== null) { this.digests.set(tick,state); if(this.digests.size>16)this.digests.delete(this.digests.keys().next().value); }
-    if (tick < this.replayTarget) {
-      if (!this.history.has(tick)) {
-        const available = new Promise((resolve,reject)=>{this.historyWaiter=resolve;this.historyReject=reject;});
-        this.socket.send(JSON.stringify({type:'history',from:tick}));
-        await available; this.historyReject=null;
-      }
-      const frame=this.history.get(tick);this.history.delete(tick);
-      if (!frame) { this.fail('Missing replay frame'); throw new Error(this.error); }
-      if (tick % 100 === 0) this.onStatus(`Syncing session: ${tick}/${this.replayTarget}`);
-      return this.consume(frame);
-    }
+    if (tick < this.replayTarget) return this.replayRow(tick);
     this.replaying=false;
     if (!this.warmed) {
       this.warmed=true;

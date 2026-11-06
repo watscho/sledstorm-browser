@@ -33,6 +33,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--disc-mode', choices=['local', 'shared'], default='local',
                         help='local: each browser selects files (default); shared: read the host disc')
+    parser.add_argument('--engine', choices=['recompiled', 'emulator'], default='recompiled')
     args = parser.parse_args()
     node = shutil.which('node')
     cloudflared = os.environ.get('CLOUDFLARED_BIN') or shutil.which('cloudflared')
@@ -42,12 +43,14 @@ def main():
             cloudflared = str(local)
     if not node or not cloudflared:
         raise RuntimeError('Install Node.js and cloudflared first. See docs/multiplayer.md.')
-    for path in ('.cache/build-web/port/SledStorm_Recompiled.js',
+    required = ('vendor/emulatorjs/loader.js', '.cache/emulator-native-build.json', 'research/network/node_modules/ws/package.json') if args.engine == 'emulator' else ('.cache/build-web/port/SledStorm_Recompiled.js',
                  '.cache/build-web/port/SledStorm_Recompiled.wasm',
-                 'research/network/node_modules/ws/package.json'):
+                 'research/network/node_modules/ws/package.json')
+    for path in required:
         if not (ROOT / path).is_file():
             raise RuntimeError(f'Missing {path}. Complete docs/setup.md first.')
-    for port in (8001, 8002, 8003):
+    runtime_port, relay_port, gateway_port = (8000, 8004, 8005) if args.engine == 'emulator' else (8001, 8002, 8003)
+    for port in (runtime_port, relay_port, gateway_port):
         if listening(port):
             raise RuntimeError(f'Port {port} is already in use. Stop the existing local stack first.')
     CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -80,12 +83,13 @@ def main():
         raise RuntimeError(f'Timed out waiting for port {port}. See {CACHE}')
 
     try:
-        start('runtime', [sys.executable, str(ROOT / 'research/serve_port.py')])
-        wait_port(8001)
-        wait_port(8002)
-        start('gateway', [node, str(ROOT / 'research/network/public-server.mjs'), '--disc-mode', args.disc_mode])
-        wait_port(8003)
-        start('tunnel', [cloudflared, 'tunnel', '--url', 'http://127.0.0.1:8003', '--no-autoupdate'])
+        start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else [])])
+        wait_port(runtime_port)
+        wait_port(relay_port)
+        gateway_command = [node, str(ROOT / ('research/network/emulator-gateway.mjs' if args.engine == 'emulator' else 'research/network/public-server.mjs')), '--disc-mode', args.disc_mode]
+        start('gateway', gateway_command)
+        wait_port(gateway_port)
+        start('tunnel', [cloudflared, 'tunnel', '--url', f'http://127.0.0.1:{gateway_port}', '--no-autoupdate'])
         print('Starting Cloudflare Quick Tunnel. Runtime assets will be reachable through the private access link.', flush=True)
         deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
@@ -94,7 +98,7 @@ def main():
             match = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', log)
             # Print only after the connector is registered, not just when a name is assigned.
             if match and 'Registered tunnel connection' in log:
-                access_path = (ROOT / '.cache/gateway-access.txt').read_text().strip()
+                access_path = (ROOT / ('.cache/emulator-access.txt' if args.engine == 'emulator' else '.cache/gateway-access.txt')).read_text().strip()
                 url = match.group(0) + access_path
                 with private_file(link_file) as output:
                     output.write(url + '\n')

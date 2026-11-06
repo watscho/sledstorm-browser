@@ -55,16 +55,27 @@ are not fetched by bootstrap, and are not vendored here.
 vendored in this repository and is not part of the compiled game. Its original
 license and notices remain with the Cloudflare distribution.
 
-## Earlier emulator launcher
+## Browser emulator adapter
 
-The retained `server.py` / `web/` launcher previously used
+The `research/browser-emulator` branch uses
 [EmulatorJS 4.2.3](https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3)
-(GPL-3.0) and its [PCSX ReARMed core](https://github.com/libretro/pcsx_rearmed)
-(GPL terms and component notices in the core distribution). Those downloaded
-files live under ignored `vendor/`; `tools/bootstrap-emulator.py` installs the
-SHA-256-verified official v4.2.3 release assets listed in `emulator.lock.json`. They are
-not dependencies of the current recompiled multiplayer target. The retained
-launcher files themselves are our original code under MIT.
+(GPL-3.0) assets from its SHA-256-verified official release. Installed assets
+are listed in `emulator.lock.json` and remain ignored under `vendor/`.
+
+The native build uses [EmulatorJS/pcsx_rearmed](https://github.com/EmulatorJS/pcsx_rearmed)
+at `f29871dde1742cafb0ab56ba33636a8600bbbd80` and
+[EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch)
+at `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927`. These retain their GPL and component
+license terms. `tools/build-emulator.py` fetches those exact sources and an
+isolated Emscripten 6.0.13 SDK, then applies our version-checked source hooks.
+The generated core archive retains the bundled license and metadata. No source
+checkout, emulator binary or SDK is committed here.
+
+Our original launcher, frame adapter, controller protocol, canonical state
+checker and build scripts are MIT-licensed. This does not relicense the compiled
+emulator or any upstream component. See [the emulator guide](docs/browser-emulator.md)
+for the build and source details. The static recompilation dependencies above
+belong to the separate retained recompiled target, not this emulator build.
 
 ## README cover image
 

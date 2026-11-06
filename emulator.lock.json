@@ -1,5 +1,14 @@
 {
   "emulatorjs_version": "4.2.3",
+  "frontend_source": {
+    "url": "https://github.com/EmulatorJS/RetroArch",
+    "commit": "6dd4353937ef48b6ec0bfbdbb15d1c5992d86927"
+  },
+  "core_source": {
+    "url": "https://github.com/EmulatorJS/pcsx_rearmed",
+    "commit": "f29871dde1742cafb0ab56ba33636a8600bbbd80",
+    "evidence": "STv4 PCSXra f29871d embedded in the pinned core's serialized-state header"
+  },
   "release_url": "https://github.com/EmulatorJS/EmulatorJS/releases/download/v4.2.3/4.2.3.7z",
   "release_sha256": "07d451bc06fa3ad04ab30d9b94eb63ac34ad0babee52d60357b002bde8f3850b",
   "files": {

@@ -7,13 +7,28 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ### Research
 
-- Added an isolated mature-emulator prototype on `research/browser-emulator`,
-  using the SHA-256-pinned official EmulatorJS 4.2.3 / PCSX-ReARMed distribution.
-- Added reproducible emulator asset setup and an opt-in emulated-frame counter
-  at `http://127.0.0.1:8000/?benchmark=1`.
-- Documented initial two-instance menu/race observations and the remaining
-  networking, audio and player-camera migration gates. No multiplayer feature
-  parity or release is claimed for this experiment.
+- Added a reproducible PCSX-ReARMed / RetroArch native build with true
+  console-step gating, exact source pins and SHA-256 output manifests.
+- Connected invitation rooms, four controller seats, strict state checks and
+  deterministic late-join replay to the browser emulator. Verified independent
+  controller input in a two-player race and a third client catching up.
+- Added compact controller history, muted accelerated replay and uncompressed
+  host-disc ZIPs to reduce history memory and repeated extraction overhead.
+- Added source-audited state canonicalization and focused protocol/core tests.
+  Snapshot joining remains experimental and disabled after timer restoration
+  differences were found; supported joining replays history from boot.
+- Added experimental per-player full-camera GPU replay for two-player races,
+  the original single-player HUD builder and atlas, with canonical GPU/VRAM
+  isolation checks and explicit native-menu bypass.
+- Added the PAL unlock preset and launch controls for progress, image filtering,
+  volume and camera presentation; invitation links inherit shared settings.
+- Added emulator local-file mode, per-track content identity and blocked host
+  disc routes alongside authenticated host-disc mode.
+- Preserved original vendor assets and persistent single-player memory cards.
+  Added a loopback-only diagnostic snapshot and camera laboratory.
+- Documented current limits: three/four-player full cameras,
+  cross-device internet, audio and broad course coverage remain unqualified. No release/tag or
+  feature parity is claimed.
 
 ## [0.2.0] - 2026-11-06
 
