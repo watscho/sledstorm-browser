@@ -19,4 +19,3 @@ test('unlock applies only to initialized PAL menus and preserves unrelated bytes
   view.setUint16(0xc2ecc, 0, true);
   assert.equal(unlockPal(ram), false); // Never rewrite progress during a race.
 });
-

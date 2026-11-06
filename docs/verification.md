@@ -1,5 +1,9 @@
 # Verification and known limits
 
+> Legacy recompiled target. For the default v0.3.0 emulator, follow the
+> [browser emulator guide](browser-emulator.md). Run the older tunnel helper
+> with `--engine recompiled` explicitly.
+
 This is a development experiment, not a completed compatibility or internet
 release. Evidence below is local to macOS and the PAL SLES-02194 configuration.
 

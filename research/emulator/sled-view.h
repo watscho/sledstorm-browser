@@ -9,4 +9,6 @@ void sled_view_record(const uint32_t *words, unsigned count);
 void sled_view_present(void);
 struct psxRegisters;
 int sled_view_pc(struct psxRegisters *registers);
+extern int sled_view_transaction;
+void sled_view_cache_save(int restore);
 #endif

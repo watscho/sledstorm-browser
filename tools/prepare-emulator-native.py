@@ -67,7 +67,19 @@ void retro_run(void)
     text = once(text, 'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {',
                 '#include "../frontend/sled-view.h"\n\nstatic inline void execI_(u8 **memRLUT, psxRegisters *regs) {')
     text = once(text, 'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {\n\tu32 pc = regs->pc;',
-                'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {\n\tu32 pc = regs->pc;\n\tif ((pc == 0x8005f344u || pc == 0x80064128u) && sled_view_pc(regs)) return;')
+                'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {\n\tu32 pc = regs->pc;\n\tif ((pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu) && sled_view_pc(regs)) return;')
+    text = once(text, '} ICache[256];', '''} ICache[256];
+static struct cache_entry sled_saved_icache[256];
+void sled_view_cache_save(int restore) {
+    if (restore) memcpy(ICache, sled_saved_icache, sizeof(ICache));
+    else memcpy(sled_saved_icache, ICache, sizeof(ICache));
+}''')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'libpcsxcore/r3000a.c'
+    text = original(path)
+    text = once(text, 'void psxBranchTest() {',
+                '#include "../frontend/sled-view.h"\n\nvoid psxBranchTest() {\n\tif (sled_view_transaction) return;')
     if path.read_text() != text:
         path.write_text(text)
     for name in ('sled-view.c', 'sled-view.h'):

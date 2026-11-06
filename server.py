@@ -9,6 +9,7 @@ import subprocess
 import shutil
 import sys
 import argparse
+import os
 
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.cache'
@@ -108,6 +109,17 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(data)))
+            # The tunnel helper publishes a capability for this exact runtime.
+            # Keep hosting local while invitations use the public HTTPS origin.
+            try:
+                published = json.loads((CACHE / 'online/public-launcher.json').read_text())
+                if (isinstance(published, dict) and published.get('runtimePid') == os.getpid() and
+                    re.fullmatch(r'https://[a-z0-9-]+\.trycloudflare\.com', published.get('origin', '')) and
+                    re.fullmatch(r'/access/[a-f0-9]{48}', published.get('path', ''))):
+                    self.send_header('X-Invite-Origin', published['origin'])
+                    self.send_header('X-Invite-Path', published['path'])
+            except (OSError, ValueError, TypeError):
+                pass
             self.end_headers()
             self.wfile.write(data)
             return

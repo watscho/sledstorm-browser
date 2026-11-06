@@ -1,12 +1,10 @@
 # Sled Storm Browser
 
-Stable version **0.2.0** · experimental · [Changelog](CHANGELOG.md)
+**Version 0.3.0 · experimental · [Changelog](CHANGELOG.md)**
 
-> **Current branch: `research/browser-emulator`.** The new PCSX-ReARMed adapter
-> has verified synchronized multiplayer and history catch-up. Follow the
-> [browser emulator build and play guide](docs/browser-emulator.md) for this
-> branch. Two-player cameras/HUD, the unlock preset and both disc modes are
-> implemented in the adapter; see the guide for their verification limits. The instructions below describe the stable recompiled target.
+PCSX-ReARMed runs in each browser, with synchronized controllers, private room
+links and separate player cameras. The earlier recompiled target remains
+available through `--engine recompiled`.
 
 <p align="center">
   <img src="docs/images/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover art" width="420">
@@ -16,108 +14,134 @@ Stable version **0.2.0** · experimental · [Changelog](CHANGELOG.md)
 [PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html).
 Original artwork is not covered by the wrapper's MIT license.*
 
-An experimental browser wrapper for the **PlayStation Sled Storm (1999), PAL
-SLES-02194** static recompilation. Start a game, copy its invitation, and friends
-join the same simulated console as additional controllers. Separate invitations
-create separate sessions. Up to four browsers can connect to one room.
+Play **Sled Storm (1999), PAL SLES-02194**, in a browser with friends. Starting a
+game creates a private room invitation automatically. Friends join the same
+simulated console as additional controllers, with up to four browsers per room.
+Separate invitations create separate sessions. Game mode, riders, sleds and
+courses remain in the original game menus.
 
-The browser version builds on [PeriBluGaming/SledStormPSXRecomp](https://github.com/PeriBluGaming/SledStormPSXRecomp)
-and [mstan/psxrecomp](https://github.com/mstan/psxrecomp). Our additions include
-WebAssembly integration, the English launch/settings interface, local disc
-loading, WebSocket controller synchronization, and two-player camera/HUD work.
-See [attribution and licenses](THIRD_PARTY_NOTICES.md) for exact sources and pins.
-This project is not affiliated with Electronic Arts or the upstream authors.
+Each browser runs its own emulator and exchanges controller inputs. The host
+does not stream video. Separate-camera presentation replays the selected
+player's geometry into a private framebuffer and uses the original single-player
+HUD. Native menus keep their 4:3 proportions. The all-content preset unlocks
+selection/progression in memory without modifying disc files or persistent cards.
 
-## Quick start
+## Build and start
 
-Prerequisites: macOS or Linux, Python 3.10+ with pip, Git, Bash, Node.js 22+ with
-npm, a desktop browser with WebAssembly and WebGL2, and your own compatible
-CUE/BIN disc files. Development has been verified on macOS; Linux setup is not
-qualified yet. The first setup downloads a compiler SDK and source dependencies.
-
-From a fresh clone:
-
-```sh
-python3 tools/bootstrap.py
-# Put your PAL SLES-02194 CUE and all 11 referenced BIN tracks in game/.
-sh tools/build-port-web.sh
-python3 research/serve_port.py
-```
-
-Open [the local launcher](http://127.0.0.1:8001/), choose technical settings, and
-press **Start game**. It creates a session immediately and displays an invitation
-under **Invite friends**. Game mode, riders, sleds and tracks are selected in the
-original game menus. The default keyboard uses arrows, **X** to confirm or
-accelerate, and **Enter** for Start; inspect **Controls** for the full mapping.
-
-For a temporary internet session, install `cloudflared`, then run:
+Requirements: macOS or Linux, Python 3.10+, Git, Bash, make, Node.js 22+ with npm,
+bsdtar/libarchive, a desktop browser with WebAssembly and WebGL2, and your own
+compatible CUE/BIN files. macOS setup has been exercised; Linux setup has not
+been qualified. First setup downloads pinned emulator assets, sources and an
+isolated Emscripten SDK. No game data is downloaded by these scripts.
 
 ```sh
-python3 tools/play-online.py --disc-mode shared
+git clone https://github.com/watscho/sledstorm-browser.git
+cd sledstorm-browser
+python3 tools/bootstrap-emulator.py
+python3 tools/build-emulator.py
+# Put your PAL CUE and all eleven referenced BIN tracks in game/.
+python3 server.py
 ```
 
-In **Host disc** mode, only the host needs the CUE/BIN files. Open the complete
-private HTTPS launcher URL printed by the helper, press **Start game**, and share
-**Invite friends**. Friends press **Join game** without choosing any files. Keep the helper
-running for the session; Ctrl+C stops all processes it owns. See the hosting
-guide below for the full friend flow and manual commands.
+Open [the launcher](http://127.0.0.1:8000/), choose progress, image filtering,
+volume and camera preferences, then press **Start game**. A BIOS is optional;
+all players must use the same BIOS or all use HLE (no BIOS). Copy **Invite
+friends** after launch. Guests inherit the room's progression and camera options.
+Keyboard: arrows, **X** for cross/confirm/accelerate, **Enter** for Start,
+**A** for triangle/back. Click the game to focus it.
 
-For **Local files** mode, where every player selects matching files on their own
-computer and the gateway blocks host disc reads, use:
+In the original menus, select **Start → Multiplayer quick race** (or another
+native multiplayer mode). Each participant presses **X** to join and confirms
+its rider. Controller 1 advances to course selection after everyone is ready.
+Play proceeds as with controllers attached to one console. Keep connected tabs
+open; joining players synchronize automatically before the room resumes.
+
+## Play over the internet
+
+With `cloudflared` installed, stop any existing local launcher and run:
 
 ```sh
-python3 tools/play-online.py --disc-mode local
+python3 tools/play-online.py
 ```
 
-The default without `--disc-mode` remains `local`. Shared mode sends game data
-from the host to authenticated browsers in bounded requests; it does not stream
-video. Cloudflare supports both modes.
+Open [the host launcher](http://127.0.0.1:8000/), start a game, and share
+**Invite friends**. The link automatically uses the private HTTPS tunnel origin;
+the host reads its own disc locally. The helper also prints a private HTTPS
+launcher for other devices. In **shared** mode, only the host needs disc files;
+each authenticated browser downloads the complete disc, including music.
+Startup therefore depends on the host's upload speed. Keep the helper running;
+Ctrl+C stops its tunnel, gateway and runtime. A loopback invitation beginning
+with `127.0.0.1` works only on the host computer.
 
-A `127.0.0.1` invitation only works on the host computer. For friends on the
-internet, follow the [multiplayer hosting guide](docs/multiplayer.md), including
-the private gateway and HTTPS setup. One host disc is enough in shared mode;
-local mode requires files on each computer. Internet gameplay across separate
-devices is not yet verified.
+For **local** mode, where every player selects matching CUE/BIN files and host
+disc downloads are blocked:
 
-## Guides
+```sh
+python3 tools/play-online.py --engine emulator --disc-mode local
+# Without a tunnel:
+python3 server.py --disc-mode local
+```
 
-- [Installation, build, local launch and troubleshooting](docs/setup.md)
-- [Playing with friends: hosting, links and native game flow](docs/multiplayer.md)
-- [Launch settings, networking and rendering internals](docs/browser-lobby.md)
-- [All-content preset and original progression](docs/unlocked-profile.md)
-- [Verification record and known limitations](docs/verification.md)
-- [Upstream provenance and license boundaries](THIRD_PARTY_NOTICES.md)
-- [Contributing and checks](CONTRIBUTING.md)
+Local mode can start without disc files on the server. Each browser verifies
+all selected track contents before joining. Cloudflare supports both modes.
+The defaults are `--engine emulator --disc-mode shared`. Select
+`--engine recompiled` explicitly for the earlier runtime.
 
-## Current behavior
+## Status and limits
 
-Two-player WebGL2 races use a separate full view and the original single-player
-HUD for each player. Pause/options menus return to their original 4:3
-presentation. Software rendering and three/four-player races retain the
-original split-screen layout; four independent cameras are not implemented.
+Four browsers raced together with independent sled controls and full camera/HUD
+views. All four agreed at 19,500 core steps; final short samples were 48.5–50.3
+steps/s. The host passed 30 full-state presentation checks. History catch-up and
+a third late join were also exercised, and two browsers loaded and joined
+through the private Cloudflare HTTPS tunnel. See the
+[verification record](docs/browser-emulator.md#verification-record--2026-11-0607)
+for exact observations and remaining qualification.
 
-Rooms use deterministic controller-history replay and frame synchronization.
-Joining late can take time, and the slowest peer can hold up the room. There is
-no rollback, host migration, durable room storage, matchmaking or voice chat.
-The all-content preset unlocks selection/progression in memory; it does not edit
-your disc or memory cards, and does not fabricate race records.
+Late joins replay input history from boot; a long session can take time to
+catch up. The room pauses at a fixed boundary while a player synchronizes.
+The slowest peer can hold up the room. There is no rollback, host migration,
+matchmaking or durable room storage. Snapshot joining is experimental and
+**disabled**, because stock state restoration normalizes timers.
 
-## Repository contents and licensing
+World geometry and detail remain those of the original multiplayer game.
+Separate cameras do not reconstruct higher-detail single-player geometry.
+Every course, race phase, hidden-tab behavior, Chrome, audible soundtrack
+quality and separate physical computers are not comprehensively qualified.
+This is an experimental project, not a promise of lag-free play on every device.
 
-Our original contributions are under the [MIT license](LICENSE). Third-party
-code and derivative runtime output retain their own terms, including PolyForm
-Noncommercial for the upstream port/framework. MIT does not cover the original
-game, generated game code, disc data, or all parts of the compiled runtime.
-Read [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing a build.
+## Sources and licensing
 
-Disc images, memory cards, generated game sources, downloaded dependencies and
-compiled JS/Wasm are excluded from Git. No game download is provided. Supplying
-a local image does not by itself establish permission to redistribute or host
-game-derived code; the wrapper license grants no rights in Sled Storm.
+The emulator target uses [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS),
+[EmulatorJS/PCSX-ReARMed](https://github.com/EmulatorJS/pcsx_rearmed) and
+[EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch). Versions, source
+commits, asset SHA-256 hashes and modifications are documented in
+[the emulator guide](docs/browser-emulator.md) and
+[third-party notices](THIRD_PARTY_NOTICES.md).
 
-The `research/browser-emulator` branch investigates a mature emulator in each
-browser as an alternative to the recompiled runtime. Its separate launcher is
-`server.py` / `web/`; install its pinned dependencies with
-`python3 tools/bootstrap-emulator.py`. See [the experiment guide](docs/browser-emulator.md)
-for launch instructions, measurements and migration limits. This prototype does
-not yet implement the multiplayer flow described above.
+The earlier target builds on
+[PeriBluGaming/SledStormPSXRecomp](https://github.com/PeriBluGaming/SledStormPSXRecomp)
+and [mstan/psxrecomp](https://github.com/mstan/psxrecomp). Its build scripts and
+[setup](docs/setup.md), [hosting](docs/multiplayer.md) and
+[rendering](docs/browser-lobby.md) documentation are retained for that target.
+Those dependencies are not compiled into the new emulator target. The earlier
+performance investigation is preserved on `research/performance-baseline`.
+
+Our original wrapper, networking and tooling are **MIT**, copyright
+**Vacho Aivazov**. The emulator and other components retain their GPL/component
+terms; MIT does not relicense them. No game images, BIOS, generated game code,
+emulator binaries, memory cards or private invitation tokens are committed.
+Original game content and trademarks remain with their respective owners.
+This project is not affiliated with Electronic Arts or upstream authors.
+
+## Checks
+
+```sh
+node --test web/*.test.mjs
+npm test --prefix research/network
+python3 tools/test-emulator-view.py
+python3 tools/test-emulator-server.py
+```
+
+The native presentation check requires a local C compiler and the pinned source
+checkout created by the build. Protocol tests use synthetic inputs and do not
+replace real-game verification.

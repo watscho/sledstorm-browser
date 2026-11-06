@@ -16,4 +16,4 @@ output = ROOT / '.cache/emulator-view-test'
 subprocess.run([compiler, *['-I' + str(CORE / path) for path in includes], '-DHAVE_LIBRETRO', '-DNO_FRONTEND',
                 str(ROOT / 'research/emulator/view-test.c'), str(CORE / 'frontend/sled-view.c'), '-o', str(output)], check=True)
 subprocess.run([str(output)], check=True)
-print('Presentation isolation, both PAL panes and native-menu bypass passed.')
+print('Presentation isolation, four PAL controller viewports and native-menu bypass passed.')

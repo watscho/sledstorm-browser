@@ -5,30 +5,46 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
-### Research
+## [0.3.0] - 2026-11-07
+
+### Added
 
 - Added a reproducible PCSX-ReARMed / RetroArch native build with true
   console-step gating, exact source pins and SHA-256 output manifests.
 - Connected invitation rooms, four controller seats, strict state checks and
   deterministic late-join replay to the browser emulator. Verified independent
-  controller input in a two-player race and a third client catching up.
+  controller input in a four-browser race, agreement at 19,500 core steps,
+  and a third client catching up in the earlier boundary test.
 - Added compact controller history, muted accelerated replay and uncompressed
   host-disc ZIPs to reduce history memory and repeated extraction overhead.
 - Added source-audited state canonicalization and focused protocol/core tests.
   Snapshot joining remains experimental and disabled after timer restoration
   differences were found; supported joining replays history from boot.
-- Added experimental per-player full-camera GPU replay for two-player races,
-  the original single-player HUD builder and atlas, with canonical GPU/VRAM
-  isolation checks and explicit native-menu bypass.
+- Added experimental per-player full-camera GPU replay for two to four racers,
+  including the PAL divider bounds and the original single-player HUD/atlas.
+  The local HUD uses isolated interpreter execution with event dispatch frozen;
+  CPU registers, RAM, instruction cache and canonical GPU state are restored.
+  Added full-state presentation qualification and partial-failure isolation tests.
 - Added the PAL unlock preset and launch controls for progress, image filtering,
   volume and camera presentation; invitation links inherit shared settings.
 - Added emulator local-file mode, per-track content identity and blocked host
   disc routes alongside authenticated host-disc mode.
+- Corrected the pinned core's Multitap option to `pcsx_rearmed_multitap =
+  "port 1"` and verified all four native controllers.
+- Preserved private access paths when guests reshare invitations. Added a local
+  host launcher that publishes HTTPS invitations without downloading its own
+  disc through Cloudflare, plus explicit replay/waiting status.
 - Preserved original vendor assets and persistent single-player memory cards.
   Added a loopback-only diagnostic snapshot and camera laboratory.
-- Documented current limits: three/four-player full cameras,
-  cross-device internet, audio and broad course coverage remain unqualified. No release/tag or
-  feature parity is claimed.
+- Documented current limits: separate physical devices,
+  audible soundtrack quality and broad course coverage remain unqualified.
+
+### Changed
+
+- The default tunnel helper now uses the emulator and shared host disc.
+  The previous runtime is available via `--engine recompiled`.
+- Rewrote the primary README/setup flow around the emulator; retained earlier
+  build and rendering documentation as explicitly marked legacy guides.
 
 ## [0.2.0] - 2026-11-06
 

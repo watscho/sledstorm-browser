@@ -1,5 +1,9 @@
 # Installation and local play
 
+> Legacy recompiled target. For the default v0.3.0 emulator, follow the
+> [browser emulator guide](browser-emulator.md). Run the older tunnel helper
+> with `--engine recompiled` explicitly.
+
 ## Requirements
 
 - macOS or Linux, Bash, Git, Python 3.10+ with pip, Node.js 22+ and npm.
@@ -74,7 +78,7 @@ starts the Node relay on `127.0.0.1:8002` if needed. Keep this terminal open.
 At this local address the browser can use the server's disc; the **Game files**
 tab also allows selecting the CUE and all BIN files from your own computer.
 The private gateway supports two disc modes. Use
-`python3 tools/play-online.py --disc-mode shared` for one host disc with no file
+`python3 tools/play-online.py --engine recompiled --disc-mode shared` for one host disc with no file
 selection on other computers. Use `--disc-mode local` (the default) to require
 local files on every client. Both use the same HTTPS session-link workflow.
 

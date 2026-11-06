@@ -1,5 +1,9 @@
 # Playing with friends
 
+> Legacy recompiled target. For the default v0.3.0 emulator, follow the
+> [browser emulator guide](browser-emulator.md). Run the older tunnel helper
+> with `--engine recompiled` explicitly.
+
 ## How a session works
 
 Each browser runs the same recompiled game locally. The relay exchanges
@@ -40,7 +44,7 @@ After [setup and build](setup.md), install `cloudflared` from the
 From the repository root run:
 
 ```sh
-python3 tools/play-online.py --disc-mode shared
+python3 tools/play-online.py --engine recompiled --disc-mode shared
 ```
 
 The helper starts the loopback runtime/relay, private gateway, and a Cloudflare
@@ -53,8 +57,8 @@ Choose the disc mode when starting the host:
 
 | Mode | Command | What each player needs |
 | --- | --- | --- |
-| Host disc | `python3 tools/play-online.py --disc-mode shared` | Only the host keeps the CUE/BIN files. Browsers fetch bounded parts of that disc. |
-| Local files | `python3 tools/play-online.py --disc-mode local` | Every browser selects its own matching CUE and all BIN files. Host disc reads are blocked. |
+| Host disc | `python3 tools/play-online.py --engine recompiled --disc-mode shared` | Only the host keeps the CUE/BIN files. Browsers fetch bounded parts of that disc. |
+| Local files | `python3 tools/play-online.py --engine recompiled --disc-mode local` | Every browser selects its own matching CUE and all BIN files. Host disc reads are blocked. |
 
 Without an option the helper uses `local`, preserving the previous default.
 Cloudflare supports either mode; requiring a disc per computer is our gateway's

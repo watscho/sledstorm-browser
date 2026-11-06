@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+import json
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / '.cache/online'
@@ -31,9 +32,10 @@ def listening(port):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--disc-mode', choices=['local', 'shared'], default='local',
-                        help='local: each browser selects files (default); shared: read the host disc')
-    parser.add_argument('--engine', choices=['recompiled', 'emulator'], default='recompiled')
+    parser.add_argument('--disc-mode', choices=['local', 'shared'], default='shared',
+                        help='shared: read the host disc (default); local: each browser selects files')
+    parser.add_argument('--engine', choices=['recompiled', 'emulator'], default='emulator',
+                        help='emulator (default), or the retained recompiled runtime')
     args = parser.parse_args()
     node = shutil.which('node')
     cloudflared = os.environ.get('CLOUDFLARED_BIN') or shutil.which('cloudflared')
@@ -48,14 +50,17 @@ def main():
                  'research/network/node_modules/ws/package.json')
     for path in required:
         if not (ROOT / path).is_file():
-            raise RuntimeError(f'Missing {path}. Complete docs/setup.md first.')
+            guide = 'docs/browser-emulator.md' if args.engine == 'emulator' else 'docs/setup.md'
+            raise RuntimeError(f'Missing {path}. Complete {guide} first.')
     runtime_port, relay_port, gateway_port = (8000, 8004, 8005) if args.engine == 'emulator' else (8001, 8002, 8003)
     for port in (runtime_port, relay_port, gateway_port):
         if listening(port):
             raise RuntimeError(f'Port {port} is already in use. Stop the existing local stack first.')
     CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
     link_file = CACHE / 'access-url.txt'
+    public_file = CACHE / 'public-launcher.json'
     link_file.unlink(missing_ok=True)
+    public_file.unlink(missing_ok=True)
     processes = []
     streams = []
 
@@ -73,8 +78,8 @@ def main():
             if process.poll() is not None:
                 raise RuntimeError(f'{name} exited ({process.returncode}). See {path}')
 
-    def wait_port(port):
-        deadline = time.monotonic() + 20
+    def wait_port(port, timeout=20):
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             check_processes()
             if listening(port):
@@ -83,8 +88,9 @@ def main():
         raise RuntimeError(f'Timed out waiting for port {port}. See {CACHE}')
 
     try:
-        start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else [])])
-        wait_port(runtime_port)
+        print('Preparing local runtime. The first host-disc launch may take longer.', flush=True)
+        runtime = start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else [])])
+        wait_port(runtime_port, 180 if args.engine == 'emulator' else 20)
         wait_port(relay_port)
         gateway_command = [node, str(ROOT / ('research/network/emulator-gateway.mjs' if args.engine == 'emulator' else 'research/network/public-server.mjs')), '--disc-mode', args.disc_mode]
         start('gateway', gateway_command)
@@ -102,7 +108,11 @@ def main():
                 url = match.group(0) + access_path
                 with private_file(link_file) as output:
                     output.write(url + '\n')
-                print(f'\nOpen this private launcher URL:\n{url}\n', flush=True)
+                if args.engine == 'emulator':
+                    with private_file(public_file) as output:
+                        json.dump({'runtimePid': runtime.pid, 'origin': match.group(0), 'path': access_path}, output)
+                    print('\nHost launcher: http://127.0.0.1:8000/\nInvitations automatically use the private internet URL.', flush=True)
+                print(f'\nPrivate HTTPS launcher:\n{url}\n', flush=True)
                 if args.disc_mode == 'shared':
                     print('Host disc mode: browsers read the host disc; no file selection is required.', flush=True)
                 else:
@@ -134,6 +144,7 @@ def main():
         for stream in streams:
             stream.close()
         link_file.unlink(missing_ok=True)
+        public_file.unlink(missing_ok=True)
         print('Online stack stopped.', flush=True)
 
 

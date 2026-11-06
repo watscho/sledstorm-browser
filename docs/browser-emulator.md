@@ -1,9 +1,9 @@
 # Browser emulator multiplayer
 
-This work lives on `research/browser-emulator`, based on stable v0.2.0.
-The previous runtime investigation is preserved on `research/performance-baseline`.
-This branch runs PCSX-ReARMed in each browser. It synchronizes controller inputs;
-it does not stream the host's video. Two-player races can use separate full cameras and the original single-player HUD.
+Version **0.3.0** uses PCSX-ReARMed in each browser and synchronizes controller
+inputs, with separate full cameras and the original single-player HUD for up to
+four racers. The earlier runtime investigation is preserved on
+`research/performance-baseline`; the recompiled engine remains an explicit option.
 
 ## Build and run
 
@@ -38,11 +38,14 @@ Loopback invitations work only on this computer. For a temporary private
 internet launcher, with `cloudflared` installed:
 
 ```sh
-python3 tools/play-online.py --engine emulator --disc-mode shared
+python3 tools/play-online.py
 ```
 
-Open the complete private URL printed by the helper, start a game, and share the
-in-game invitation. Keep the helper running. Ctrl+C stops its owned processes.
+Open <http://127.0.0.1:8000/>, start a game, and share the in-game invitation.
+The helper publishes the private HTTPS origin to its own runtime, so the host
+reads disc data locally while friends receive internet links. Metadata is bound
+to the runtime PID and removed when the helper stops. Guests preserve the
+private access path when resharing an invitation. Keep the helper running. Ctrl+C stops its owned processes.
 Host-disc mode transfers the complete disc to each authenticated browser; it does not use the earlier
 recompiled port's bounded disc cache. Alternatively, use `--disc-mode local` with the helper, or
 `python3 server.py --disc-mode local`. Each browser selects its own CUE and all
@@ -50,9 +53,11 @@ recompiled port's bounded disc cache. Alternatively, use `--disc-mode local` wit
 identity hashes every track's contents, including audio, in CUE order. Files
 are read locally by the browser. No host disc is required to start this mode.
 Local-file boot was verified with the complete PAL CUE/BIN set. The launcher
-refused host disc downloads in that mode. The emulator tunnel path has not yet
-been qualified across physical computers. The older helper's default engine remains
-`recompiled`; always include `--engine emulator` for this branch.
+refused host disc downloads in that mode. Two browsers loaded the host disc through the private Cloudflare HTTPS URL,
+joined the same room, completed history catch-up and agreed at 9,000 steps with
+short live samples around 48 steps/s. This exercised the internet tunnel on one
+Mac; physical-computer and remote-network qualification remains open. The helper defaults to `--engine emulator --disc-mode shared`. Use
+`--engine recompiled` explicitly for the earlier target.
 
 ## Synchronization
 
@@ -88,42 +93,62 @@ short samples around 50 completed core steps/s. State checks agreed past 8,500
 steps. A third browser caught up and reached live play with agreement at 34,000
 steps. Guest Start opened the original pause menu in 4:3.
 
+The final 0.3.0 build was then exercised with **four actual browsers** in one
+Pine Valley race. Each browser joined and confirmed its own native controller,
+accelerated a different sled, and showed its own full camera and HUD. All four
+reported agreement at **19,500** core steps. Final short samples were 50.3, 49.0,
+48.5 and 49.8 steps/s; race samples were also around 48–50. The host passed 30
+full-state comparisons around presentation. Controller 4 opened the shared pause
+menu in 4:3. Local evidence is ignored under `.cache/emulator-four-browser-*`.
+
+The final launcher flow was also checked with the host on localhost: its copied
+invitation used the private HTTPS origin, and that link opened the authenticated
+guest launcher with inherited room options. The host did not download its disc
+through the tunnel.
+
 These checks used the Codex in-app browser on one Mac, PAL disc, HLE BIOS,
 single-threaded Wasm and a 512 MiB heap per instance. They do not qualify Chrome,
-hidden tabs, four active racers, long sessions, multiple computers, internet
+hidden tabs, long sessions, multiple computers, internet
 latency or audible soundtrack quality. Initial independent-game measurements
 used the frontend counter and should not be read as native-step measurements.
 
 ## Cameras, progression and technical settings
 
-**Separate cameras (two-player races)** is enabled by default before launch. This
-uses a presentation-only GPU command replay into private VRAM, widening each
-player's viewport without stretching a framebuffer crop. Both clients execute
-the same canonical single-player HUD builder for both racers; presentation
-selects the local HUD. The PAL resource loader selects the original single-player
-HUD atlas in memory. The disc remains unchanged. The right pane's native
-two-pixel divider is explicitly accounted for.
+**Separate cameras** is enabled by default. The adapter replays the selected
+player's GPU geometry into private VRAM. Two-player panes gain a wider clip;
+three/four-player geometry is rerasterized at full viewport size, preserving
+texture coordinates. It does not stretch a framebuffer crop. The PAL right
+pane starts at X=258, and the lower panes start at Y=129; both native divider
+margins are accounted for.
 
-Both seats were visually checked while driving with original-sized HUDs and
-short samples around 50 core steps/s. The native isolation test checks that
-presentation restores canonical GPU state and leaves canonical VRAM unchanged.
-The fresh two-player network race with the HUD adapter agreed beyond 10,000
-steps. The later right-pane clipping fix was checked in a saved race on both
-seats; a fresh network run of that exact fix remains to be recorded.
+The original single-player HUD routine runs once for the local racer in an
+isolated presentation pass. Four complete HUDs would overflow the game's
+256-slot UI pool. Instead, the adapter uses a private ordering table, freezes
+hardware event dispatch during that audited UI routine, then restores all
+interpreter registers, console RAM and instruction-cache contents before
+returning. GPU state and the canonical framebuffer are restored too. It never
+uses LoadState for this transaction or advances canonical simulation time.
+The resource loader selects the original single-player HUD atlas in memory;
+the disc remains unchanged.
 
-Pause menus bypass camera replay and keep their native 4:3 presentation.
-Three/four-player races currently retain original split-screen; four independent
-cameras are not implemented. Edge visibility across every course, weather and
-race phase is not comprehensively qualified. Keep the option off for the
-original rendering fallback.
+All four controller/camera seats were visually checked while driving in a
+local four-player race. Short samples were around 48–50 core steps/s with
+extra developer validation enabled. Full serialized-state comparisons before
+and after presentation passed while switching cameras. The native isolation
+test also covers partial HUD execution failure, register/RAM restoration,
+canonical VRAM preservation, native viewport bounds and menu bypass.
+
+Pause menus bypass replay and retain native 4:3 presentation. World geometry,
+LOD and scenery remain those of the original multiplayer mode. Every course,
+weather and race phase is not comprehensively qualified. Turning the camera
+option off before starting restores original rendering.
 
 **All content unlocked** applies the audited PAL progress preset to initialized
 menu RAM on every peer. It leaves disc and persistent memory cards untouched.
 Invitations carry progression and camera options, so guests inherit the same
 settings. Image filtering and volume are local preferences. The preset has
-passed focused RAM tests and the two-player menu/race flow; selecting every
-unlock individually remains unqualified. No release/tag or feature parity is
-claimed for this research branch.
+passed focused RAM tests and multiplayer menu/race flows; selecting every
+unlock individually remains unqualified.
 
 Local diagnostic artifacts are ignored under `.cache/`. `?dev=1` exposes a
 loopback-only snapshot button. A developer can copy an appropriate snapshot to
@@ -140,8 +165,9 @@ network room. Add `&hud=1` only for a fixture saved after the single-player HUD 
 | Emscripten | 6.0.13, isolated SDK checkout pinned in `upstream.lock.json` |
 
 The bundled core's `STv4 PCSXra f29871d` state header identifies the core source.
-Our anchor-checked build adds native frame gating, a RAM pointer export and a
-synchronous restore export, guarded PAL HUD hooks and a presentation-only GPU replay. A portable sed replacement preserves the revision
+Our anchor-checked build adds native frame gating, a RAM pointer export, a
+synchronous restore export, guarded PAL HUD hooks, an isolated UI execution
+pass and presentation-only GPU replay. A portable sed replacement preserves the revision
 header on macOS. The generated build manifest records output hashes and source
 pins. The prepared core archive retains upstream metadata and notices.
 
@@ -157,8 +183,14 @@ terms remain separate; see [third-party notices](../THIRD_PARTY_NOTICES.md).
 node --test web/*.test.mjs
 npm test --prefix research/network
 python3 tools/test-emulator-view.py
+python3 tools/test-emulator-server.py
 ```
 
 The native presentation check requires the pinned source checkout and a local C
 compiler. Protocol tests use synthetic controller rows and do not substitute for
 real game, audio or internet checks.
+
+For native controller diagnostics, loopback-only `?console=1&dev=1` starts one
+console without a network room and exposes a controller/camera selector. This
+is a developer tool for joining each native controller and saving race fixtures;
+it is not another user-facing play mode.

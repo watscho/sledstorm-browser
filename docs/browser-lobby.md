@@ -1,5 +1,9 @@
 # Browser lobby
 
+> Legacy recompiled target. For the default v0.3.0 emulator, follow the
+> [browser emulator guide](browser-emulator.md). Run the older tunnel helper
+> with `--engine recompiled` explicitly.
+
 Open `http://127.0.0.1:8001/` after starting `python3 research/serve_port.py`.
 The single launch action creates an independent shared-console session and starts
 immediately, even with one player. The generated `#session=…` link connects up to

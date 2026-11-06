@@ -4,24 +4,17 @@ import { canonicalStateDigest, encodeState, decodeState, captureState } from './
 import { unlockPal } from './pal-profile.js';
 import { selectedDisc } from '/local-disc.js';
 import { identifyDisc } from './disc-identity.js';
+import { parseInvitation, invitationUrl } from './invitation.js';
 
 const launch = document.querySelector('#launch');
 const status = document.querySelector('#status');
 let biosUrl;
 let session, sync;
 let roomOptions, launchInfo;
-const readInvitation = () => {
-  if (!location.hash) return null;
-  try {
-    const value = JSON.parse(atob(location.hash.slice(1)));
-    if (value.v !== 6 || !/^[a-f0-9]{24}$/.test(value.room) || !/^[a-f0-9]{64}$/.test(value.token)
-      || !['all', 'original'].includes(value.progress) || typeof value.camera !== 'boolean') throw new Error();
-    return value;
-  } catch { throw new Error('Invalid or outdated invitation. Ask the host for a new complete link.'); }
-};
+let viewChecks = 0;
 let invitation;
 try {
-  invitation = readInvitation();
+  invitation = parseInvitation(location.hash);
   if (invitation) {
     document.querySelector('#progress').value = invitation.progress;
     document.querySelector('#camera').checked = invitation.camera;
@@ -31,6 +24,8 @@ try {
 } catch (error) { status.textContent = error.message; launch.disabled = true; }
 const solo = new URLSearchParams(location.search).has('solo');
 const lab = new URLSearchParams(location.search).has('lab') && location.port === '8000'
+  && ['127.0.0.1', 'localhost'].includes(location.hostname);
+const localConsole = new URLSearchParams(location.search).has('console') && location.port === '8000'
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
 const diagnostics = new URLSearchParams(location.search).has('diagnostics');
 const developerTools = new URLSearchParams(location.search).has('dev');
@@ -78,7 +73,7 @@ launch.addEventListener('click', async () => {
     EJS_paths: solo ? {} : { 'pcsx_rearmed-wasm.data': '/network-core.data' },
     EJS_disableLocalStorage: !solo,
     EJS_disableDatabases: !solo,
-    EJS_defaultOptions: solo ? {} : { pcsx_rearmed_multitap1: 'enabled', pcsx_rearmed_multitap2: 'disabled', rewindEnabled: 'disabled' },
+    EJS_defaultOptions: solo ? {} : { pcsx_rearmed_multitap: 'port 1', rewindEnabled: 'disabled' },
     EJS_Buttons: solo ? {} : Object.fromEntries(['playPause', 'play', 'pause', 'restart', 'saveState', 'loadState', 'cheat', 'settings', 'saveSavFiles', 'loadSavFiles', 'quickSave', 'quickLoad', 'contextMenu', 'gamepad'].map(key => [key, false])),
     EJS_ready: () => {
       const originalConfig = window.EJS_GameManager.prototype.getRetroArchCfg;
@@ -94,7 +89,8 @@ launch.addEventListener('click', async () => {
       }
     },
     EJS_onGameStart: () => {
-      if (lab) restoreLab().catch(error => showStatus(error.message));
+      if (localConsole) startLocalConsole().catch(error => showStatus(error.message));
+      else if (lab) restoreLab().catch(error => showStatus(error.message));
       else if (solo) showStatus('Emulator started. Click the game to focus your controls.');
       else connectRoom(bios).catch(error => { showStatus(error.message); session?.fail(error.message); });
       startBenchmark();
@@ -111,6 +107,34 @@ launch.addEventListener('click', async () => {
   document.body.append(script);
 });
 
+async function startLocalConsole() {
+  const { Module: module, gameManager: manager } = window.EJS_emulator;
+  module.sledBeforeFrame = () => false;
+  if (new URLSearchParams(location.search).has('fixture')) await restoreFixture(module);
+  module.sledBeforeFrame = () => true;
+  manager.setKeyboardEnabled(false);
+  manager.getFrameNum = () => module._sled_frame_count();
+  manager.getState = () => captureState(module, manager.functions.saveStateInfo);
+  qualifyView(module, manager);
+  let seat = 0;
+  manager.simulateInput = (_seat, button, pressed) => manager.functions.simulateInput(seat, button, pressed);
+  const label = document.createElement('label');
+  label.textContent = 'Diagnostic controller and camera';
+  const select = document.createElement('select'); select.id = 'diagnostic-controller';
+  for (let slot = 0; slot < 4; slot++) select.add(new Option(`Controller ${slot + 1}`, String(slot)));
+  select.addEventListener('change', () => {
+    for (let button = 0; button < 16; button++) manager.functions.simulateInput(seat, button, 0);
+    seat = Number(select.value); module._sled_view_configure(seat, roomOptions.camera ? 3 : 0);
+  });
+  label.append(select); document.querySelector('#game').before(label);
+  module._sled_view_configure(seat, roomOptions.camera ? 3 : 0);
+  module.sledCoreBefore = () => {
+    if (roomOptions.progress === 'all') unlockPal(new Uint8Array(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000));
+    return true;
+  };
+  showStatus('Local diagnostic console · no network room. Select each controller to join the native race.');
+}
+
 async function restoreLab() {
   const { Module: module, gameManager } = window.EJS_emulator;
   module.sledBeforeFrame = () => false;
@@ -118,6 +142,15 @@ async function restoreLab() {
   // The fixture was paused by controller 2; the native menu keeps its owner.
   gameManager.simulateInput = (_seat, button, pressed) => gameManager.functions.simulateInput(1, button, pressed);
   gameManager.getFrameNum = () => module._sled_frame_count();
+  await restoreFixture(module);
+  qualifyView(module, gameManager);
+  module._sled_view_configure(Number(new URLSearchParams(location.search).get('seat')) || 0,
+    new URLSearchParams(location.search).has('hud') ? 3 : 1);
+  module.sledBeforeFrame = () => true;
+  showStatus('Local camera laboratory · saved two-player race · Enter to unpause. No network room.');
+}
+
+async function restoreFixture(module) {
   const response = await fetch('/lab-state');
   if (!response.ok) throw new Error('Local camera fixture is missing. Save a diagnostic race snapshot first.');
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -128,10 +161,6 @@ async function restoreLab() {
     module.HEAPU8.set(payload, pointer);
     if (!module._retro_unserialize(pointer, payload.length)) throw new Error('Camera fixture could not be restored.');
   } finally { module._free(pointer); }
-  module._sled_view_configure(Number(new URLSearchParams(location.search).get('seat')) || 0,
-    new URLSearchParams(location.search).has('hud') ? 3 : 1);
-  module.sledBeforeFrame = () => true;
-  showStatus('Local camera laboratory · saved two-player race · Enter to unpause. No network room.');
 }
 
 async function connectRoom(bios) {
@@ -144,6 +173,7 @@ async function connectRoom(bios) {
   }
   showStatus('Connecting session…');
   emulator.gameManager.getState = () => captureState(emulator.Module, emulator.gameManager.functions.saveStateInfo);
+  qualifyView(emulator.Module, emulator.gameManager);
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   session = new BrowserSession(showStatus, {
     endpoint: location.port === '8000' ? `${protocol}//${location.hostname}:8004` : `${protocol}//${location.host}/relay`,
@@ -177,13 +207,14 @@ async function connectRoom(bios) {
   const response = await fetch('/session-info');
   const info = launchInfo;
   const invitePath = response.headers.get('x-invite-path') || '/';
+  const inviteOrigin = response.headers.get('x-invite-origin');
   const biosHash = bios ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())), x => x.toString(16).padStart(2, '0')).join('') : 'HLE';
-  const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, 'fresh-cards-multitap-v3'])))), x => x.toString(16).padStart(2, '0')).join('');
+  const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
   sync = new FrameSync({ module: emulator.Module, manager: emulator.gameManager, session,
     beforeFrame: () => {
       if (roomOptions.progress === 'all') unlockPal(new Uint8Array(emulator.Module.HEAPU8.buffer, emulator.Module._sled_ram_pointer(), 0x200000));
     },
-    onStatus: () => showStatus(`Controller ${session.slot + 1} · ${session.members || 1}/4 connected · synchronized frame ${sync.tick}`),
+    onStatus: refreshRoomStatus,
     digest: () => {
       const bytes = emulator.gameManager.getState();
       const frame = sync?.tick || 0;
@@ -195,22 +226,47 @@ async function connectRoom(bios) {
   });
   const liveVolume = emulator.volume;
   sync.onReplayChange = replaying => emulator.setVolume(replaying ? 0 : liveVolume);
-  await session.connect(identity, invitation, room => {
-    const url = new URL(location.href);
-    url.pathname = invitePath;
-    url.search = '';
-    url.hash = btoa(JSON.stringify({ v: 6, room: room.room, token: room.token, ...roomOptions }));
-    history.replaceState(null, '', url);
-    document.querySelector('#invite').value = url.href;
+  const shareInvitation = room => {
+    const url = invitationUrl(location.href, invitePath, room, roomOptions, inviteOrigin);
+    const localUrl = new URL(url).origin === location.origin ? url : invitationUrl(location.href, '/', room, roomOptions);
+    history.replaceState(null, '', localUrl);
+    document.querySelector('#invite').value = url;
     document.querySelector('#sharing').hidden = false;
-  });
-  if (invitation) {
-    document.querySelector('#invite').value = location.href;
-    document.querySelector('#sharing').hidden = false;
-  }
+  };
+  await session.connect(identity, invitation, shareInvitation);
+  if (invitation) shareInvitation(invitation);
   emulator.Module._sled_view_configure(session.slot, roomOptions.camera ? 3 : 0);
   sync.start();
   showStatus(`Controller ${session.slot + 1} connected. Enter the game's multiplayer menu to race together.`);
+}
+
+function qualifyView(module, manager) {
+  if (!developerTools && !new URLSearchParams(location.search).has('verifyView')) return;
+  let previous, sampledAt = -Infinity;
+  module.sledViewBefore = () => {
+    const frame = module._sled_frame_count();
+    if (frame - sampledAt < 250) { previous = undefined; return; }
+    sampledAt = frame;
+    previous = canonicalStateDigest(captureState(module, manager.functions.saveStateInfo));
+  };
+  module.sledViewAfter = () => {
+    if (previous === undefined) return;
+    const digest = canonicalStateDigest(captureState(module, manager.functions.saveStateInfo));
+    if (digest !== previous) {
+      const error = 'Camera presentation changed console state. Session stopped.';
+      module.sledBeforeFrame = () => false;
+      session?.fail(error); showStatus(error);
+      throw new Error(error);
+    }
+    viewChecks++;
+  };
+}
+
+function refreshRoomStatus() {
+  if (!session?.active || !sync || sync.failure) return;
+  if (session.replaying) showStatus(`Joining session · ${Math.min(100, Math.floor(sync.tick * 100 / session.replayTarget))}% · replaying ${sync.tick}/${session.replayTarget} frames`);
+  else if (session.syncing) showStatus('Waiting for a joining player to synchronize. The race resumes automatically.');
+  else showStatus(`Controller ${session.slot + 1} · ${session.members || 1}/4 connected · synchronized frame ${sync.tick}`);
 }
 
 document.querySelector('#copy-invite').addEventListener('click', async () => {
@@ -223,13 +279,16 @@ function startBenchmark() {
   const output = document.createElement('pre');
   output.id = 'benchmark';
   output.setAttribute('aria-label', 'Emulator benchmark');
-  document.querySelector('#game').after(output);
+  const details = document.createElement('details');
+  details.id = 'technical-details'; details.open = developerTools || lab || localConsole;
+  const summary = document.createElement('summary'); summary.textContent = 'Technical details';
+  details.append(summary, output); document.querySelector('#game').after(details);
   if (developerTools && location.port === '8000') {
     const save = document.createElement('button');
     save.id = 'save-diagnostic';
     save.textContent = 'Save local diagnostic snapshot';
     save.addEventListener('click', async () => {
-      if (!session?.active || session.replaying) { showStatus('Wait until the session is synchronized.'); return; }
+      if (!localConsole && (!session?.active || session.replaying)) { showStatus('Wait until the session is synchronized.'); return; }
       const response = await fetch('/diagnostic-state?frame=1000&seat=3', { method: 'POST', body: window.EJS_emulator.gameManager.getState() });
       if (!response.ok) { showStatus('Could not save the local snapshot.'); return; }
       save.textContent = 'Saved local diagnostic snapshot'; save.disabled = true;
@@ -240,6 +299,7 @@ function startBenchmark() {
   let previousTime;
   setInterval(() => {
     try {
+      refreshRoomStatus();
       const emulator = window.EJS_emulator;
       const frame = Number(emulator.gameManager.getFrameNum());
       if (!Number.isFinite(frame)) throw new Error('Core returned an invalid frame counter');
@@ -250,7 +310,8 @@ function startBenchmark() {
       output.textContent = `PCSX-ReARMed · ${hz} emulated frames/s · frame ${frame}\n`
         + `Wasm memory: ${heap ? (heap / 1048576).toFixed(0) + ' MiB' : 'unavailable'} · tab ${document.visibilityState}\n`
         + (sync ? `Network frame ${sync.tick} · verified ${session.verified} · ${session.replaying ? 'replaying' : 'live'}${sync.failure ? ' · ' + sync.failure : ''}\n` : '')
-        + (lab || roomOptions?.camera ? `Camera replay: ${[0, 1, 2, 3, 4, 5].map(field => moduleViewStatus(emulator.Module, field)).join(' / ')}\n` : '')
+        + (lab || roomOptions?.camera ? `Camera replay: ${[0, 1, 2, 3, 4, 5, 6, 7].map(field => moduleViewStatus(emulator.Module, field)).join(' / ')}\n` : '')
+        + (developerTools ? `Presentation isolation: ${viewChecks} state checks passed\n` : '')
         + 'PAL target: 50 frames/s. Audio and race pacing require separate checks.';
       previousFrame = frame;
       previousTime = now;

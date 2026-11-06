@@ -18,8 +18,11 @@ def prepare(native=False):
     if hashlib.sha256(archive.read_bytes()).hexdigest() != lock['files']['cores/pcsx_rearmed-wasm.data']:
         raise RuntimeError('Core hash differs. Run tools/bootstrap-emulator.py --check.')
     output = ROOT / '.cache/emulator-network-core.data'
+    extractor = shutil.which('bsdtar') or shutil.which('tar')
+    if not extractor:
+        raise RuntimeError('Install bsdtar (libarchive) to extract the pinned core.')
     with tempfile.TemporaryDirectory(dir=ROOT / '.cache') as temporary:
-        subprocess.run(['tar', '-xf', str(archive), '-C', temporary], check=True)
+        subprocess.run([extractor, '-xf', str(archive), '-C', temporary], check=True)
         if native:
             build = json.loads((ROOT / '.cache/emulator-native-build.json').read_text())
             for name, digest in build.get('patches', {}).items():

@@ -108,3 +108,30 @@ test('shared disc mode requires private access and forwards only bounded reads',
     assert.equal(requests.length, count, 'rejected disc requests must not reach the source');
   } finally { gateway.close(); source.close(); }
 });
+
+test('emulator gateway protects the archive, preserves reshare access and excludes diagnostics', async () => {
+  const { emulatorAssetPaths } = await import('./emulator-assets.mjs');
+  const { readFile } = await import('node:fs/promises');
+  const lock = JSON.parse(await readFile(new URL('../../emulator.lock.json', import.meta.url)));
+  const source = http.createServer((request, response) => response.end(request.url));
+  source.listen(0, '127.0.0.1'); await once(source, 'listening');
+  const token = 'd'.repeat(48), headers = { cookie: `sled_access=${token}` };
+  try {
+    for (const discMode of ['local', 'shared']) {
+      const gateway = createPublicGateway({ port: 0, upstream: source.address().port, accessToken: token,
+        discMode, assetPaths: emulatorAssetPaths(lock, discMode) });
+      await once(gateway, 'listening');
+      const base = `http://127.0.0.1:${gateway.address().port}`;
+      try {
+        assert.equal((await fetch(base + '/disc.zip')).status, 401);
+        assert.equal((await fetch(base + '/disc.zip', { headers })).status, discMode === 'shared' ? 200 : 403);
+        const info = await fetch(base + '/session-info', { headers });
+        assert.equal(info.headers.get('x-invite-path'), '/access/' + token);
+        for (const path of ['/invitation.js', '/disc-identity.js', '/network-core.data'])
+          assert.equal((await fetch(base + path, { headers })).status, 200, path);
+        for (const path of ['/lab-state', '/diagnostic-state', '/.cache/disc.zip', '/.git/config'])
+          assert.equal((await fetch(base + path, { headers })).status, 403, path);
+      } finally { gateway.close(); }
+    }
+  } finally { source.close(); }
+});

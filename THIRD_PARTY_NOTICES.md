@@ -57,7 +57,7 @@ license and notices remain with the Cloudflare distribution.
 
 ## Browser emulator adapter
 
-The `research/browser-emulator` branch uses
+The default v0.3.0 emulator target uses
 [EmulatorJS 4.2.3](https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3)
 (GPL-3.0) assets from its SHA-256-verified official release. Installed assets
 are listed in `emulator.lock.json` and remain ignored under `vendor/`.
