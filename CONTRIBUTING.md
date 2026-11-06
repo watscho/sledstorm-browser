@@ -44,3 +44,13 @@ local absolute paths, passwords, gateway paths or session invitations should be
 staged. Source dependencies are fetched by bootstrap; do not add them as copied
 source or accidental nested Git repositories. Preserve upstream notices and
 keep original contribution licensing separate from derived output.
+
+## Versions and changelog
+
+Use semantic versions for this wrapper, independent of the original game and
+upstream port versions. Keep `VERSION`, `research/network/package.json` and its
+lockfile root/package version in sync. Record user-facing changes under
+`CHANGELOG.md` with an ISO release date; use an Unreleased section while working.
+Do not record private tunnel hostnames, access tokens, disc paths or invitation
+fragments in release notes. State separately what was tested over the public
+endpoint and what was tested with two actual remote players.

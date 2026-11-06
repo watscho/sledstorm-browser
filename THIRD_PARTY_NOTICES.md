@@ -47,6 +47,14 @@ is an upstream optional native UI dependency. [recomp-net](https://github.com/Re
 These optional source trees are not compiled into our current browser target,
 are not fetched by bootstrap, and are not vendored here.
 
+## Optional tunnel tooling
+
+`tools/play-online.py` runs a separately installed
+[cloudflare/cloudflared](https://github.com/cloudflare/cloudflared) executable
+(Apache License 2.0) for temporary internet access. The executable is not
+vendored in this repository and is not part of the compiled game. Its original
+license and notices remain with the Cloudflare distribution.
+
 ## Earlier emulator launcher
 
 The retained `server.py` / `web/` launcher previously used
@@ -56,6 +64,15 @@ The retained `server.py` / `web/` launcher previously used
 files live under ignored `vendor/`; bootstrap does not install them. They are
 not dependencies of the current recompiled multiplayer target. The retained
 launcher files themselves are our original code under MIT.
+
+## README cover image
+
+`docs/images/sled-storm-pal-cover.jpg` is the PAL SLES-02194 cover scan from
+[PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html),
+retrieved on 2026-11-06 and included for identification and illustration.
+It is not original wrapper artwork or MIT-licensed material. Game artwork,
+Electronic Arts and PlayStation marks remain with their respective rights
+holders.
 
 ## Original game and distribution
 

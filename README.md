@@ -1,5 +1,15 @@
 # Sled Storm Browser
 
+Version **0.1.0** · experimental · [Changelog](CHANGELOG.md)
+
+<p align="center">
+  <img src="docs/images/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover art" width="420">
+</p>
+
+*Sled Storm — PlayStation PAL (SLES-02194). Cover scan:
+[PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html).
+Original artwork is not covered by the wrapper's MIT license.*
+
 An experimental browser wrapper for the **PlayStation Sled Storm (1999), PAL
 SLES-02194** static recompilation. Start a game, copy its invitation, and friends
 join the same simulated console as additional controllers. Separate invitations
@@ -33,6 +43,17 @@ press **Start game**. It creates a session immediately and displays an invitatio
 under **Invite friends**. Game mode, riders, sleds and tracks are selected in the
 original game menus. The default keyboard uses arrows, **X** to confirm or
 accelerate, and **Enter** for Start; inspect **Controls** for the full mapping.
+
+For a temporary internet session, install `cloudflared`, then run:
+
+```sh
+python3 tools/play-online.py
+```
+
+Open the complete private HTTPS launcher URL printed by the helper, select your
+local disc files, start the game and share **Invite friends**. Keep the helper
+running for the session; Ctrl+C stops all processes it owns. See the hosting
+guide below for the full friend flow and manual commands.
 
 A `127.0.0.1` invitation only works on the host computer. For friends on the
 internet, follow the [multiplayer hosting guide](docs/multiplayer.md), including

@@ -32,10 +32,45 @@ or the relay restarts. A copied link cannot recover a deleted room.
 This tests the room flow on one machine. A loopback URL cannot be used by a
 friend on another computer.
 
-## Internet hosting
+## Quick start with Cloudflare
 
-The following is a hosting recipe; separate-device internet play has not yet
-been qualified. The local servers bind to loopback. For remote access put HTTPS
+After [setup and build](setup.md), install `cloudflared` from the
+[official downloads](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/).
+From the repository root run:
+
+```sh
+python3 tools/play-online.py
+```
+
+The helper starts the loopback runtime/relay, private gateway, and a Cloudflare
+Quick Tunnel to **8003**. It waits for the connector to register, then prints the
+complete `https://<temporary-host>.trycloudflare.com/access/<token>` launcher
+URL. If `cloudflared` is not on PATH, set `CLOUDFLARED_BIN` to its executable;
+the helper also recognizes an existing `.cache/cloudflared/cloudflared`.
+
+Open the printed URL yourself first, select **Game files → CUE + all BIN files**,
+then **Start game → Invite friends → Copy link**. Send that final invitation
+to your friend; it contains both the gateway access path and the room fragment.
+Each friend selects their own matching disc files and presses **Join game**.
+Then use the native multiplayer race flow below. Sending only the launcher's
+access URL does not join an existing room.
+
+Keep the terminal open and the host awake. **Ctrl+C** stops all helper-owned
+process groups, including the relay, and invalidates the temporary link.
+The helper refuses to start over occupied ports 8001–8003. It records private
+logs and the active launcher link in ignored `.cache/online/` with restricted
+file permissions; these are never committed. Do not paste access links into
+public issues or changelogs.
+
+The endpoint serves compiled runtime assets, OpenBIOS and metadata through the
+gateway. Disc bytes remain outside its allowlist. The following manual workflow
+is equivalent, and the same license and qualification limits apply.
+
+## Manual internet hosting
+
+HTTPS/WSS forwarding and one browser host boot have been verified through
+Cloudflare; separate-device internet gameplay has not yet been qualified.
+The local servers bind to loopback. For remote access put HTTPS
 and WebSocket forwarding in front of the **private gateway on port 8003**.
 Do not forward the development disc server on 8001 or the raw relay on 8002.
 

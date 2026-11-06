@@ -60,3 +60,24 @@ started. The clean-source build was compiled, not independently race-qualified.
 - Other regions/disc revisions, standalone ISO/CHD and PS2 Sled Storm.
 
 A local file check or a passing compiler build does not remove these limits.
+
+## Cloudflare endpoint verification — 2026-11-06
+
+The one-command online helper was used to start a real Quick Tunnel to the
+private gateway. HTTPS checks through the public hostname verified:
+
+- Unauthorized requests return 401; the private access route grants an HttpOnly,
+  Secure cookie and redirects to the launcher.
+- COOP/COEP isolation headers survive the proxy; the gateway requires local disc
+  selection, and the manifest describes all 12 local disc files.
+- Compiled JS/Wasm and OpenBIOS are reachable after authorization; `/disc/*`,
+  `.git` and `.cache` paths remain blocked.
+- Two synthetic WSS clients created/joined a room and received identical rows
+  through ten controller-input frames; that test room was then closed.
+- One actual browser host selected its local CUE/BIN files, loaded the runtime
+  through the public origin and reached the original main menu with controller 1.
+
+The host session and tunnel were left running for participant testing. No live
+hostname, token or session invitation is recorded in this repository. This is
+public transport and single-host boot evidence; a two-device internet race,
+latency, reconnect behavior and gameplay reliability remain unverified.
