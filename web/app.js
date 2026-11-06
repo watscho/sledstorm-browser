@@ -16,9 +16,11 @@ launch.addEventListener('click', () => {
     EJS_startOnLoaded: true,
     EJS_threads: false,
     EJS_language: 'en-US',
+    EJS_disableAutoLang: false,
     EJS_color: '#8bd9ec',
     EJS_onGameStart: () => {
       status.textContent = 'Emulator started. Click the game to focus your controls.';
+      if (new URLSearchParams(location.search).has('benchmark')) startBenchmark();
     },
   });
   document.querySelector('#game').classList.add('active');
@@ -31,6 +33,34 @@ launch.addEventListener('click', () => {
   };
   document.body.append(script);
 });
+
+// Opt-in probe: count emulated frames, rather than browser animation callbacks.
+function startBenchmark() {
+  const output = document.createElement('pre');
+  output.id = 'benchmark';
+  output.setAttribute('aria-label', 'Emulator benchmark');
+  document.querySelector('#game').after(output);
+  let previousFrame;
+  let previousTime;
+  setInterval(() => {
+    try {
+      const emulator = window.EJS_emulator;
+      const frame = Number(emulator.gameManager.getFrameNum());
+      if (!Number.isFinite(frame)) throw new Error('Core returned an invalid frame counter');
+      const now = performance.now();
+      const hz = previousTime && frame >= previousFrame
+        ? ((frame - previousFrame) * 1000 / (now - previousTime)).toFixed(1) : 'warming up';
+      const heap = emulator.Module?.HEAPU8?.byteLength;
+      output.textContent = `PCSX-ReARMed · ${hz} emulated frames/s · frame ${frame}\n`
+        + `Wasm memory: ${heap ? (heap / 1048576).toFixed(0) + ' MiB' : 'unavailable'} · tab ${document.visibilityState}\n`
+        + 'PAL target: 50 frames/s. Audio and race pacing require separate checks.';
+      previousFrame = frame;
+      previousTime = now;
+    } catch (error) {
+      output.textContent = `Benchmark unavailable: ${error.message}`;
+    }
+  }, 2000);
+}
 window.addEventListener('pagehide', () => {
   if (biosUrl) URL.revokeObjectURL(biosUrl);
 });

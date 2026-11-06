@@ -109,6 +109,9 @@ compiled JS/Wasm are excluded from Git. No game download is provided. Supplying
 a local image does not by itself establish permission to redistribute or host
 game-derived code; the wrapper license grants no rights in Sled Storm.
 
-The earlier EmulatorJS launcher remains in `server.py` and `web/` for historical
-reference. It needs separately installed files under `vendor/emulatorjs`, is not
-installed by bootstrap, and does not implement this multiplayer flow.
+The `research/browser-emulator` branch investigates a mature emulator in each
+browser as an alternative to the recompiled runtime. Its separate launcher is
+`server.py` / `web/`; install its pinned dependencies with
+`python3 tools/bootstrap-emulator.py`. See [the experiment guide](docs/browser-emulator.md)
+for launch instructions, measurements and migration limits. This prototype does
+not yet implement the multiplayer flow described above.

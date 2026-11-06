@@ -5,6 +5,16 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
+### Research
+
+- Added an isolated mature-emulator prototype on `research/browser-emulator`,
+  using the SHA-256-pinned official EmulatorJS 4.2.3 / PCSX-ReARMed distribution.
+- Added reproducible emulator asset setup and an opt-in emulated-frame counter
+  at `http://127.0.0.1:8000/?benchmark=1`.
+- Documented initial two-instance menu/race observations and the remaining
+  networking, audio and player-camera migration gates. No multiplayer feature
+  parity or release is claimed for this experiment.
+
 ## [0.2.0] - 2026-11-06
 
 ### Added

@@ -61,7 +61,8 @@ The retained `server.py` / `web/` launcher previously used
 [EmulatorJS 4.2.3](https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3)
 (GPL-3.0) and its [PCSX ReARMed core](https://github.com/libretro/pcsx_rearmed)
 (GPL terms and component notices in the core distribution). Those downloaded
-files live under ignored `vendor/`; bootstrap does not install them. They are
+files live under ignored `vendor/`; `tools/bootstrap-emulator.py` installs the
+SHA-256-verified official v4.2.3 release assets listed in `emulator.lock.json`. They are
 not dependencies of the current recompiled multiplayer target. The retained
 launcher files themselves are our original code under MIT.
 
