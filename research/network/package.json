@@ -1,0 +1,12 @@
+{
+  "name": "sledstorm-network-experiment",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test relay.test.mjs gateway.test.mjs client.test.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ws": "8.22.1"
+  }
+}

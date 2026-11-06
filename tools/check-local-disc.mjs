@@ -1,0 +1,14 @@
+import { readdir, openAsBlob } from 'node:fs';
+import {readdir as list, readFile} from 'node:fs/promises';
+import {selectedDisc,localDiscIdentity} from '../research/wasm/local-disc.js';
+const root=new URL('../',import.meta.url);
+const directory=(await list(root)).find(name=>name.startsWith('Sled Storm ('));
+const dir=new URL(`${directory}/`,root);
+const files=[];
+for(const name of await list(dir)) if(/\.(cue|bin)$/i.test(name)) files.push(new File([await openAsBlob(new URL(name,dir))],name));
+const selected=await selectedDisc(files);
+const bios=new Uint8Array(await readFile(new URL('../research/port/psxrecomp/bios/openbios.bin',import.meta.url)));
+const identity=await localDiscIdentity(selected,bios,()=>{});
+const server=await(await fetch('http://127.0.0.1:8001/identity')).json();
+if(identity!==server.disc_identity)throw new Error(`Different identities: ${identity} / ${server.disc_identity}`);
+console.log('LOCAL_DISC_IDENTITY_PASSED',identity);

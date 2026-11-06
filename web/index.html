@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sled Storm · Local Play</title>
+<link rel="stylesheet" href="/style.css">
+<main>
+  <header><p class="eyebrow">PLAYSTATION / LOCAL SESSION</p><h1>Sled Storm</h1><p>Your original disc, running in your browser.</p></header>
+  <section id="setup" aria-label="Launch settings">
+    <label for="bios">Optional PlayStation BIOS <span>Choose your own BIOS if the game will not boot.</span></label>
+    <input id="bios" type="file" accept=".bin,.rom">
+    <button id="launch">Start game</button>
+    <p id="status" role="status">First launch loads the complete disc, including its music. This may take a minute.</p>
+  </section>
+  <div id="game" aria-label="Game screen"></div>
+  <footer><p>Keyboard: arrows to steer and navigate · X = PlayStation cross (confirm / accelerate) · Enter = Start · A = triangle (back). Click the game to focus controls.</p><p>Open Control Settings in the emulator menu to change bindings or connect a gamepad.</p><p>Keep this tab open. Saves belong to this browser; export important saves from the emulator menu.</p><a href="/">Restart session</a><p>Local play only · Online multiplayer is not connected yet.</p></footer>
+</main>
+<script src="/app.js"></script>
+</html>
