@@ -49,3 +49,17 @@ export function captureState(module, saveStateInfo) {
   // The JS side owns only this copy; freeing pointer here would double-free.
   return module.HEAPU8.slice(pointer, pointer + size);
 }
+
+
+// The pinned RetroArch envelope places the PCSX payload after its first block header.
+export function restoreCoreState(module, bytes, { checkpoint = false } = {}) {
+  const restore = checkpoint ? module._sled_unserialize_checkpoint : module._retro_unserialize;
+  if (!restore) throw new Error('Checkpoint support is missing. Rebuild the native emulator.');
+  const payload = bytes.subarray(16, 16 + 0x440000);
+  const pointer = module._malloc(payload.length);
+  if (!pointer) throw new Error('Could not allocate memory for the snapshot');
+  try {
+    module.HEAPU8.set(payload, pointer);
+    if (!restore(pointer, payload.length)) throw new Error('Core rejected the snapshot');
+  } finally { module._free(pointer); }
+}

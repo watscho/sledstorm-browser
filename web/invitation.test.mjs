@@ -22,11 +22,11 @@ test('malformed and outdated invitations fail before disc loading', () => {
 });
 
 test('a loopback host shares the private HTTPS room without downloading through the tunnel', () => {
-  const room = { room: '1'.repeat(24), token: '2'.repeat(64) }, options = { progress: 'all', camera: true };
+  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) }, options = { progress: 'all', camera: true };
   const path = '/access/' + '3'.repeat(48);
   const shared = new URL(invitationUrl('http://127.0.0.1:8000/?dev=1', path, room, options, 'https://game.example'));
   assert.equal(shared.origin, 'https://game.example');
   assert.equal(shared.pathname, path);
-  assert.equal(parseInvitation(shared.hash).room, room.room);
+  assert.deepEqual(parseInvitation(shared.hash), { ...room, ...options });
   assert.throws(() => invitationUrl('http://127.0.0.1:8000/', path, room, options, 'http://game.example'), /Invalid public/);
 });

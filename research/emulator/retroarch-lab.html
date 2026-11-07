@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Sled Storm · RetroArch Netplay lab</title>
+<style>
+body { margin: 1rem; background: #10182a; color: #e8f4ff; font: 1rem system-ui; }
+#game { width: min(960px, 100%); aspect-ratio: 4 / 3; }
+a { color: #9adfff; }
+</style>
+<h1>RetroArch Netplay lab</h1>
+<p><button id="start">Start</button> <a id="invite" hidden>Open guest</a></p>
+<p id="status" role="status">Ready</p>
+<div id="game"></div>
+<script type="module" src="/retroarch-lab-client.js"></script>

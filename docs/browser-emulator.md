@@ -9,8 +9,9 @@ covers the implementation and pinned source dependencies.
 
 ## Runtime and disc loading
 
-The host serves the launcher on loopback port 8000 and starts the controller
-relay on 8004. The online helper adds a private gateway on 8005 and a temporary
+The host serves the launcher on loopback port 8000, with RetroArch Netplay on
+8006 and the legacy diagnostic relay on 8004. The online helper adds a private
+gateway on 8005 and a temporary
 Cloudflare HTTPS tunnel. It publishes the HTTPS invitation origin to its own
 runtime, so the host can play through localhost without downloading its disc
 through the tunnel. Metadata is bound to that runtime PID and removed on stop.
@@ -33,28 +34,22 @@ single-player cards.
 
 ## Synchronization
 
-The native core adapter gates `retro_run` before advancing the PlayStation.
-Exactly one accepted controller row advances one core step. The frontend's
-animation-loop counter is insufficient: fast-forward can execute frontend
-iterations without advancing the console. The visible performance probe uses
-our completed-core-step counter instead. PAL targets 50 steps/s; it does not
-measure audio underruns or distinct displayed images.
+The ordinary lobby uses upstream [RetroArch Netplay](https://docs.libretro.com/development/retroarch/netplay/)
+for controller input, rollback and joining from the host's live state.
+The browser opens WebSockets before RetroArch uses its emulated TCP sockets.
+A loopback relay pairs each guest stream with its host stream. The private HTTPS
+gateway forwards the same binary traffic at `/netplay` through Cloudflare.
+The relay issues a one-time ticket to the host to pair each guest stream.
 
-Every 250 steps, peers compare canonical serialized state. The pinned format
-check includes RAM, CPU, BIOS, VRAM, GPU registers and audio state. It excludes
-only the serializer's save-call counter and unused, uninitialized GPU-control
-padding, as audited against the pinned source. Other differences stop the room.
+Guests load matching content locally before the handshake. The game becomes
+visible after the guest receives the host state and RetroArch assigns the
+controller. The browser uses the same controller slot for its camera and HUD.
+Sled Storm requires racers to be registered in the multiplayer menu before the
+race. Rejoining a live race attaches a controller to an existing racer.
 
-Late joins replay controller history from boot with muted catch-up audio, then
-switch to live play. History uses compact fixed-size records. Catch-up pauses
-the room at a fixed boundary. Long-running sessions can therefore take time to
-join. The slowest live peer can hold up the room. There is no rollback, host
-migration or durable room storage.
-
-Snapshot joining is experimental and disabled by default. The stock core's
-load-state routine normalizes CPU/event timers, so a raw round trip did not
-preserve the strict state checksum. Transport tests do not qualify snapshot
-netplay; deterministic history replay remains the supported path.
+Local diagnostic URLs with `?transport=legacy` use the earlier frame gate and
+input history protocol. The optional checkpoint experiment
+(`SLED_EMULATOR_CHECKPOINTS=1`) applies to that transport only.
 
 ## Verification
 
@@ -81,8 +76,8 @@ uses LoadState for this transaction or advances canonical simulation time.
 The resource loader selects the original single-player HUD atlas in memory;
 the disc remains unchanged.
 
-All four controller/camera seats were visually checked while driving in a
-local four-player race. Short samples were around 48–50 core steps/s with
+All four controller and camera seats were visually checked in a four-player
+Cloudflare race. Earlier local runs also exercised each camera while driving. Short samples were around 48–50 core steps/s with
 extra developer validation enabled. Full serialized-state comparisons before
 and after presentation passed while switching cameras. The native isolation
 test also covers partial HUD execution failure, register/RAM restoration,
@@ -106,7 +101,7 @@ unlock individually remains unqualified.
 Diagnostic files stay under ignored `.cache/`. These are developer tools; use
 the normal launcher for multiplayer play.
 
-1. Open [the local diagnostic launcher](http://127.0.0.1:8000/?dev=1) and start
+1. Open [the local diagnostic launcher](http://127.0.0.1:8000/?dev=1&transport=legacy) and start
    a room. Wait until it is synchronized and reach the desired game state.
 2. Expand **Technical details** and click **Save local diagnostic snapshot**.
    The server writes `.cache/emulator-state-3-1000.bin`.
@@ -131,8 +126,7 @@ two-player fixture paused by controller 2. Its keyboard controls controller 2;
 single-player HUD atlas. Use the fixture console above for general diagnostics.
 
 Snapshot upload and `/lab-state` are loopback-only routes excluded from the
-public gateway. Diagnostic restoration does not qualify snapshot-based room
-joining; supported multiplayer joining uses history replay.
+public gateway. Diagnostic restoration is separate from RetroArch's live room synchronization.
 
 ## Source provenance
 
@@ -152,8 +146,7 @@ pins. The prepared core archive retains upstream metadata and notices.
 
 The official asset installation remains unchanged under ignored `vendor/`;
 patched source and generated binaries stay under ignored `.cache/`. `?solo=1`
-starts an independent console for diagnostics. Room networking is implemented
-by this project's controller protocol. Our MIT wrapper and the emulator's
+starts an independent console for diagnostics. Rooms use RetroArch Netplay over the wrapper's WebSocket relay. Our MIT wrapper and the emulator's
 GPL/component terms remain separate; see
 [third-party notices](../THIRD_PARTY_NOTICES.md).
 
@@ -169,3 +162,9 @@ python3 tools/test-emulator-server.py
 The native presentation check requires the pinned source checkout and a local C
 compiler. Protocol tests use synthetic controller rows and do not substitute for
 real game, audio or internet checks.
+
+### RetroArch Netplay lab
+
+`python3 server.py --retroarch-lab` also enables the standalone two-player
+diagnostic at `/retroarch-lab` in shared-disc mode. It isolates the WebSocket
+adapter from the lobby. For ordinary play, use the root launcher and **Copy link**.

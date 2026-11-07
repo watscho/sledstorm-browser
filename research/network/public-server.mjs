@@ -8,7 +8,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 const assets = new Set(['/', '/port.js', '/lobby.js', '/lobby.css', '/launch-settings.js', '/race-preview.svg', '/network-client.js', '/disc-fs.js', '/local-disc.js',
   '/game.js', '/game.wasm', '/bios.bin', '/manifest', '/identity']);
-export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002, accessToken = null, discMode = 'local', assetPaths = assets, maxPayload = 2048 } = {}) {
+export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002, netplay = null, accessToken = null, discMode = 'local', assetPaths = assets, maxPayload = 2048 } = {}) {
   if (!['local', 'shared'].includes(discMode)) throw new Error('Disc mode must be local or shared');
   if (discMode === 'shared' && !/^[a-f0-9]{48}$/.test(accessToken || ''))
     throw new Error('Shared disc mode requires a private access token');
@@ -72,23 +72,32 @@ export function createPublicGateway({ port = 8003, upstream = 8001, relay = 8002
   server.on('upgrade', (request, socket, head) => {
     let validOrigin = false;
     try { validOrigin = new URL(request.headers.origin).host === request.headers.host; } catch {}
-    if (request.url !== '/relay' || !validOrigin || !authorized(request)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
+    const binaryRelay = request.url === '/netplay' && netplay;
+    if ((request.url !== '/relay' && !binaryRelay) || !validOrigin || !authorized(request)) { socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'); return; }
     websockets.handleUpgrade(request, socket, head, (client) => {
-      const peer = new WebSocket(`ws://127.0.0.1:${relay}`, { origin: `http://127.0.0.1:${upstream}`, maxPayload, perMessageDeflate: false });
+      const peer = new WebSocket(`ws://127.0.0.1:${binaryRelay || relay}`, { origin: `http://127.0.0.1:${upstream}`, maxPayload, perMessageDeflate: false });
       const pending = [];
+      let pendingBytes = 0;
+      const forward = (target, data, binary) => {
+        if (target.bufferedAmount + data.length > maxPayload) { close(); return; }
+        target.send(data, { binary }, error => { if (error) close(); });
+      };
       const close = () => { client.close(); peer.close(); };
       client.on('error', () => {});
       peer.on('error', close);
       client.on('close', () => peer.close());
-      peer.on('close', () => client.close());
+      peer.on('close', (code, reason) => code === 1006 ? client.close() : client.close(code === 1005 ? 1000 : code, reason));
       client.on('message', (data, binary) => {
-        if (binary) { close(); return; }
-        if (peer.readyState === WebSocket.OPEN) peer.send(data, { binary: false });
-        else if (peer.readyState === WebSocket.CONNECTING && pending.length < 8) pending.push(data);
+        if (binary && !binaryRelay) { close(); return; }
+        if (peer.readyState === WebSocket.OPEN) forward(peer, data, binary);
+        else if (peer.readyState === WebSocket.CONNECTING && pending.length < 8 && pendingBytes + data.length <= maxPayload) {
+          pending.push([data, binary]);
+          pendingBytes += data.length;
+        }
         else close();
       });
-      peer.on('open', () => { for (const data of pending) peer.send(data, { binary: false }); pending.length = 0; });
-      peer.on('message', (data, binary) => { if (client.readyState === WebSocket.OPEN) client.send(data, { binary }); });
+      peer.on('open', () => { for (const [data, binary] of pending) forward(peer, data, binary); pending.length = 0; });
+      peer.on('message', (data, binary) => { if (client.readyState === WebSocket.OPEN) forward(client, data, binary); });
     });
   });
   server.on('close', () => { for (const client of websockets.clients) client.terminate(); websockets.close(); });

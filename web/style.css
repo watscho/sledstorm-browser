@@ -1226,3 +1226,19 @@ body:not(.is-playing) main { padding-top:24px; }
 #game.active * { cursor:none!important; }
 
 #copy-invite { min-width:100px; }
+
+/* Cover the emulator until the guest has completed the first live room frame. */
+#game.joining-room::after {
+  content:"Synchronizing with the room…";
+  position:absolute;
+  inset:0;
+  z-index:10000;
+  display:grid;
+  place-items:center;
+  padding:1rem;
+  background:var(--bg);
+  color:var(--text);
+  text-align:center;
+}
+#game.joining-room[data-join-progress]::after { content:attr(data-join-progress); }
+#game.join-failed.joining-room:not([data-join-progress])::after { content:"Could not join the room. Return to the lobby to try again."; }

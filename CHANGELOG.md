@@ -3,6 +3,26 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning and do not refer to the original game or upstream port.
 
+## 0.5.0 - 2026-11-07
+
+### Online play
+
+- Made RetroArch Netplay the default transport in the browser lobby. Guests
+  receive the host's current emulator state after loading matching game files.
+- Added a private WebSocket relay for up to four controllers through the
+  Cloudflare gateway. The room checks game files, BIOS and build identity.
+- Returning guests can resume an existing racer in an available controller
+  slot. The same slot selects the local camera and single-player HUD.
+- The launcher covers the guest's view and mutes audio during synchronization.
+  Technical details show the assigned controller, player count and live frame.
+
+### Verification
+
+- Tested Pine Valley through a real Cloudflare Quick Tunnel with four Chrome
+  contexts on one Mac in local-disc mode. Guests 2–4 returned to the live race
+  using the original link, and the race continued with three and two connected
+  controllers. See the [verification record](docs/verification.md).
+
 ## 0.4.0 - 2026-11-07
 
 ### Disc loading
@@ -62,7 +82,7 @@ semantic versioning and do not refer to the original game or upstream port.
   host-disc ZIPs to reduce history memory and repeated extraction overhead.
 - Added source-audited state canonicalization and focused protocol/core tests.
   Snapshot joining remains experimental and disabled after timer restoration
-  differences were found; supported joining replays history from boot.
+  differences were found. In that release, joining replayed history from boot.
 - Added experimental per-player full-camera GPU replay for two to four racers,
   including the PAL divider bounds and the original single-player HUD/atlas.
   The local HUD uses isolated interpreter execution with event dispatch frozen;

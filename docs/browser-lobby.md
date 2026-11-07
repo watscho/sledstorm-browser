@@ -86,18 +86,16 @@ persistent single-player cards and disc files are unchanged.
 Use **Fullscreen** above the game to show only the game, hiding invitations,
 toolbars and emulator controls. Press **Escape** to return to the normal view.
 **Return to lobby**
-asks before disconnecting your controller; remaining players can continue.
-This does not stop hosting.
+asks before disconnecting your controller. Leaving as the host ends the room.
 
 ## Loading and status
 
-The launcher reports loading, history catch-up and waiting for peers. Catch-up
-audio is muted until the browser reaches live play. The **Technical details** panel
-shows controller number, connected-player count, synchronized frame, completed
-console steps and state-check status. Normal live play leaves the status area
-above the game empty; loading, synchronization and errors remain visible. PAL targets
-50 steps/s; this counter alone does not establish audio quality or distinct
-displayed frames. Keep peer tabs active to avoid browser suspension.
+The launcher covers the guest's game while RetroArch receives and applies the
+host's current state and keeps guest audio muted during that step. The
+**Technical details** panel shows the controller, player count, synchronized
+frame and completed console steps. Loading, synchronization and errors appear
+above the game. PAL targets 50 console steps/s. The counter measures console
+steps, while audio and displayed frame pacing need separate checks. Keep peer tabs active to avoid browser suspension.
 
 To stop the servers and tunnel, return to the hosting terminal and press
-**Ctrl+C**. Closing this page only disconnects its controller.
+**Ctrl+C**. Closing the host page ends its room. The terminal continues serving the launcher.

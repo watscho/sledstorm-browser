@@ -63,8 +63,9 @@ their saved disc copies and other site data, such as access cookies.
 The room acts like one console with up to **four controllers**. Each browser
 has its own camera and original single-player HUD when **Separate cameras** is
 enabled. Native pause/options menus are shared and keep their 4:3 proportions.
-The original game determines race rules and whether another rider can join a
-race already in progress.
+To return to a race, reopen the same invitation while the host is still
+playing. RetroArch restores the current state after the disc loads. An open
+controller slot can resume its existing racer.
 
 ## Stop hosting
 
@@ -89,35 +90,31 @@ that address; send the generated HTTPS invitation to another computer.
 
 ## Rooms and synchronization
 
-Starting from the root launcher creates a new private room. Its full invitation
-joins that room as a free controller. A room supports four players; the relay
-supports up to eight rooms. The invitation includes access capabilities and
-shared progression/camera settings. Keep it private: anyone holding the full
-link can occupy a free seat. The URL fragment contains Base64-encoded JSON;
-it does not encrypt the room credentials or settings.
+Starting from the root launcher creates a private RetroArch Netplay room. The
+full invitation grants access to a free controller slot and carries progression
+and camera settings. Keep the link private. The URL fragment uses Base64 to
+encode the invitation data.
 
-Each browser runs its own emulator. Controller inputs are synchronized and state
-checks detect divergence. Guests replay input history from boot to catch up;
-the room pauses at a fixed boundary during synchronization. Long-running rooms
-take longer to join. The slowest active peer can hold everyone up.
-
-Closing the final client deletes the room. Restarting the relay clears rooms.
-History is limited to 900,000 steps per room (five simulated hours at PAL 50 Hz);
-reaching that limit ends the session. Rooms also expire after 30 seconds without
-client messages.
-There is no persistent room recovery, rollback or host migration. State
-mismatches stop the room; restart with matching build, files and BIOS.
+Each browser runs its own emulator. Once its disc is ready, RetroArch loads
+the host's current state and synchronizes controller input. A guest who returns
+to a free controller slot can continue the corresponding racer. Sled Storm
+only creates racers in its own multiplayer setup, so choose every rider there
+before starting. A disconnected slot can be taken by another guest with the
+invitation. The host and all guests need matching disc data, BIOS, and emulator
+build. A browser tab prefers its previous controller slot if the slot is
+still free. Closing the host ends the room.
 
 ## Hosting details
 
-The helper owns the local runtime on **8000**, relay on **8004**, private gateway
-on **8005**, and the Cloudflare Quick Tunnel. It refuses occupied ports. Its
+The helper owns the local runtime on **8000**, private gateway on **8005**,
+RetroArch relay on **8006**, legacy relay on **8004**, and the Cloudflare Quick
+Tunnel. It refuses occupied ports. Its
 private logs and temporary access metadata live under ignored `.cache/online/`.
 Use `CLOUDFLARED_BIN` if the executable is not on PATH; the helper also recognizes
 `.cache/cloudflared/cloudflared`.
 
 The HTTPS gateway requires private access, serves an asset allowlist and proxies
-same-origin `/relay` WebSockets. In shared mode it allows the complete disc
+same-origin `/netplay` WebSockets. In shared mode it allows the complete disc
 archive; in local mode disc downloads are blocked. A custom deployment must
 provide HTTPS/WSS, retain COOP/COEP headers and route only through the private
 gateway. Direct LAN hosting and persistent public deployment are not provided

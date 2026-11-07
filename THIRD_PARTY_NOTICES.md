@@ -12,8 +12,8 @@ relicense those materials.
 | --- | --- | --- | --- |
 | [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3) | 4.2.3 official release; archive and file SHA-256 hashes in `emulator.lock.json` | Browser loader, frontend assets and core packaging | GPL-3.0 and bundled component notices. |
 | [EmulatorJS/pcsx_rearmed](https://github.com/EmulatorJS/pcsx_rearmed/tree/f29871dde1742cafb0ab56ba33636a8600bbbd80) | `f29871dde1742cafb0ab56ba33636a8600bbbd80` | PlayStation emulation core | Upstream GPL and per-component terms. |
-| [EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch/tree/6dd4353937ef48b6ec0bfbdbb15d1c5992d86927) | `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927` | WebAssembly core frontend and browser integration | Upstream GPL and per-component terms. |
-| [websockets/ws](https://github.com/websockets/ws) | `ws@8.22.1`; npm integrity in `research/network/package-lock.json` | Custom WebSocket relay and gateway transport | [MIT notice](docs/licenses/ws-LICENSE.txt). |
+| [EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch/tree/6dd4353937ef48b6ec0bfbdbb15d1c5992d86927) | `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927` | WebAssembly core frontend, Netplay implementation and browser integration | Upstream GPL and per-component terms. |
+| [websockets/ws](https://github.com/websockets/ws) | `ws@8.22.1`; npm integrity in `research/network/package-lock.json` | WebSocket transport for the Netplay relay and gateway | [MIT notice](docs/licenses/ws-LICENSE.txt). |
 | [emscripten-core/emsdk](https://github.com/emscripten-core/emsdk/tree/35659964bc2762fffec0d257997fb61475f765b7) | SDK 6.0.13; emsdk `35659964bc2762fffec0d257997fb61475f765b7` | WebAssembly compiler and toolchain | MIT/NCSA and per-component SDK terms. |
 
 `tools/bootstrap-emulator.py` verifies official assets against

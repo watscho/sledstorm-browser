@@ -53,7 +53,8 @@ def main():
             guide = 'docs/browser-emulator.md' if args.engine == 'emulator' else 'docs/setup.md'
             raise RuntimeError(f'Missing {path}. Complete {guide} first.')
     runtime_port, relay_port, gateway_port = (8000, 8004, 8005) if args.engine == 'emulator' else (8001, 8002, 8003)
-    for port in (runtime_port, relay_port, gateway_port):
+    netplay_ports = (8006,) if args.engine == 'emulator' else ()
+    for port in (runtime_port, relay_port, gateway_port, *netplay_ports):
         if listening(port):
             raise RuntimeError(f'Port {port} is already in use. Stop the existing local stack first.')
     CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -92,6 +93,8 @@ def main():
         runtime = start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else [])])
         wait_port(runtime_port, 180 if args.engine == 'emulator' else 20)
         wait_port(relay_port)
+        for port in netplay_ports:
+            wait_port(port)
         gateway_command = [node, str(ROOT / ('research/network/emulator-gateway.mjs' if args.engine == 'emulator' else 'research/network/public-server.mjs')), '--disc-mode', args.disc_mode]
         start('gateway', gateway_command)
         wait_port(gateway_port)

@@ -1,14 +1,16 @@
 import { BrowserSession } from '/session-client.js';
 import { FrameSync } from './frame-sync.js';
-import { canonicalStateDigest, encodeState, decodeState, captureState } from './core-state.js';
+import { canonicalStateDigest, encodeState, decodeState, captureState, restoreCoreState } from './core-state.js';
 import { unlockPal } from './pal-profile.js';
 import { selectedDisc } from '/local-disc.js';
 import { identifyDisc } from './disc-identity.js';
 import { parseInvitation, invitationUrl } from './invitation.js';
+import { prepareNetplay, driveRetroPad } from './retroarch-netplay.js';
 import { initLobby } from './lobby-ui.js';
 
 const launch = document.querySelector('#launch');
 const status = document.querySelector('#status');
+const game = document.querySelector('#game');
 let biosUrl;
 let session, sync;
 let inviteLink = '', copiedTimer;
@@ -30,6 +32,9 @@ const lab = new URLSearchParams(location.search).has('lab') && location.port ===
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
 const localConsole = new URLSearchParams(location.search).has('console') && location.port === '8000'
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
+const retroArch = !solo && !lab && !localConsole && (invitation ? invitation.v === 7 :
+  new URLSearchParams(location.search).get('transport') !== 'legacy');
+let retroRoom;
 const diagnostics = new URLSearchParams(location.search).has('diagnostics');
 const developerTools = new URLSearchParams(location.search).has('dev');
 const showStatus = text => { status.textContent = text; };
@@ -93,6 +98,7 @@ launch.addEventListener('click', async () => {
   } catch (error) { showStatus(error.message); launch.disabled = false; return; }
   const bios = document.querySelector('#bios').files[0];
   for (const input of document.querySelectorAll('#setup input, #setup select')) input.disabled = true;
+  if (retroArch && invitation) game.classList.add('joining-room');
   if (bios) biosUrl = URL.createObjectURL(bios);
   Object.assign(window, {
     EJS_player: '#game',
@@ -108,7 +114,7 @@ launch.addEventListener('click', async () => {
     EJS_language: 'en-US',
     EJS_disableAutoLang: false,
     EJS_color: '#8bd9ec',
-    EJS_volume: Number(document.querySelector('#volume').value) / 100,
+    EJS_volume: retroArch && invitation ? 0 : Number(document.querySelector('#volume').value) / 100,
     EJS_paths: solo ? {} : { 'pcsx_rearmed-wasm.data': '/network-core.data' },
     EJS_disableLocalStorage: !solo,
     EJS_disableDatabases: !solo,
@@ -119,6 +125,22 @@ launch.addEventListener('click', async () => {
       window.EJS_GameManager.prototype.getRetroArchCfg = function (...args) {
         return originalConfig.apply(this, args) + `\nvideo_smooth = "${document.querySelector('#image').value === 'smooth'}"\n`;
       };
+      if (retroArch) {
+        const instance = window.EJS_emulator;
+        instance.on('exit', () => retroRoom?.socket.close());
+        const prototype = Object.getPrototypeOf(instance);
+        const start = prototype.startGame;
+        prototype.startGame = async function (...args) {
+          try {
+            showStatus(invitation ? 'Joining race…' : 'Starting room…');
+            const { identity, shareInvitation } = await invitationSettings(bios);
+            retroRoom = await prepareNetplay(this, {
+              invitation, identity, onInvite: shareInvitation, onClose: netplayFailed,
+            });
+            start.apply(this, args);
+          } catch (error) { netplayFailed(error.message); }
+        };
+      }
       if (!solo) {
         // Rooms start from identical empty cards, without reading or modifying
         // the user's persistent single-player memory cards.
@@ -131,6 +153,7 @@ launch.addEventListener('click', async () => {
       if (localConsole) startLocalConsole().catch(error => showStatus(error.message));
       else if (lab) restoreLab().catch(error => showStatus(error.message));
       else if (solo) showStatus('Emulator started. Click the game to focus your controls.');
+      else if (retroArch) startRetroArchRoom();
       else connectRoom(bios).catch(error => { showStatus(error.message); session?.fail(error.message); });
       startBenchmark();
     },
@@ -143,7 +166,8 @@ launch.addEventListener('click', async () => {
     try {
       window.EJS_gameUrl = await sharedDiscFile(launchInfo.disc);
     } catch (error) {
-      showStatus(error.message);
+      if (retroArch) netplayFailed(error.message);
+      else showStatus(error.message);
       return;
     }
     showStatus('Loading emulator and disc…');
@@ -204,12 +228,66 @@ async function restoreFixture(module) {
   if (!response.ok) throw new Error('Local camera fixture is missing. Save a diagnostic race snapshot first.');
   const bytes = new Uint8Array(await response.arrayBuffer());
   canonicalStateDigest(bytes); // Reject a state from a different pinned core.
-  const payload = bytes.subarray(16, 16 + 0x440000);
-  const pointer = module._malloc(payload.length);
-  try {
-    module.HEAPU8.set(payload, pointer);
-    if (!module._retro_unserialize(pointer, payload.length)) throw new Error('Camera fixture could not be restored.');
-  } finally { module._free(pointer); }
+  restoreCoreState(module, bytes);
+}
+
+async function invitationSettings(bios) {
+  const response = await fetch('/session-info');
+  const info = launchInfo;
+  const invitePath = response.headers.get('x-invite-path') || '/';
+  const inviteOrigin = response.headers.get('x-invite-origin');
+  const biosHash = bios ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())), x => x.toString(16).padStart(2, '0')).join('') : 'HLE';
+  const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, retroArch ? 'retroarch-netplay-v7' : 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
+  const shareInvitation = room => {
+    const url = invitationUrl(location.href, invitePath, room, roomOptions, inviteOrigin);
+    const localUrl = new URL(url).origin === location.origin ? url : invitationUrl(location.href, '/', room, roomOptions);
+    history.replaceState(null, '', localUrl);
+    inviteLink = url;
+    document.querySelector('#copy-invite').hidden = false;
+  };
+  return { identity, shareInvitation };
+}
+
+function netplayFailed(message) {
+  if (retroRoom?.failed) return;
+  if (retroRoom) {
+    retroRoom.failed = true;
+    retroRoom.socket.close();
+    window.EJS_emulator.Module.sledBeforeFrame = () => false;
+  }
+  if (invitation) {
+    game.classList.add('join-failed');
+    game.dataset.joinProgress = message;
+  }
+  showStatus(message);
+}
+
+function startRetroArchRoom() {
+  const emulator = window.EJS_emulator;
+  const { Module: module, gameManager: manager } = emulator;
+  const { slot } = retroRoom;
+  const drive = driveRetroPad(emulator, lobby.inputOptions());
+  module._sled_view_configure(slot, roomOptions.camera ? 3 : 0);
+  qualifyView(module, manager);
+  const began = performance.now();
+  let ready = false;
+  module.sledBeforeFrame = () => { drive(); return true; };
+  module.sledCoreBefore = () => {
+    if (roomOptions.progress === 'all') unlockPal(new Uint8Array(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000));
+    return true;
+  };
+  module.sledAfterFrame = () => {
+    if (ready) return;
+    if (module._sled_netplay_status(0) === (1 << slot)) {
+      ready = true;
+      game.classList.remove('joining-room');
+      if (invitation) emulator.setVolume(Number(document.querySelector('#volume').value) / 100);
+      showStatus('');
+      retroRoom.publish();
+    } else if (performance.now() - began > 20_000) {
+      netplayFailed('RetroArch could not synchronize with the room.');
+    }
+  };
 }
 
 async function connectRoom(bios) {
@@ -220,46 +298,35 @@ async function connectRoom(bios) {
     emulator.gameManager.toggleMainLoop(0);
     throw new Error('Native frame hooks are missing. Run python3 tools/build-emulator.py, restart the server, and reload.');
   }
+  if (invitation) game.classList.add('joining-room');
   showStatus('Connecting session…');
   emulator.gameManager.getState = () => captureState(emulator.Module, emulator.gameManager.functions.saveStateInfo);
   qualifyView(emulator.Module, emulator.gameManager);
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  session = new BrowserSession(showStatus, {
+  session = new BrowserSession(message => {
+    if (session?.error && game.classList.contains('joining-room')) {
+      game.classList.add('join-failed');
+    }
+    showStatus(message);
+  }, {
     ...lobby.inputOptions(),
     endpoint: location.port === '8000' ? `${protocol}//${location.hostname}:8004` : `${protocol}//${location.host}/relay`,
     onSnapshotRequest: async tick => ({ data: encodeState(await sync.snapshot(tick)), checks: [...session.digests] }),
     onSnapshot: async message => {
       const bytes = decodeState(message.data);
       const expected = canonicalStateDigest(bytes);
-      const volume = emulator.volume;
-      emulator.setVolume(0);
-      let closestState;
       try {
-        await sync.restore(bytes, message.tick, state => {
-          const matches = canonicalStateDigest(state) === expected;
-          if (!matches && !closestState) {
-            let sameRam = true;
-            for (let i = 0x9035; i < 0x209035; i++) if (state[i] !== bytes[i]) { sameRam = false; break; }
-            if (sameRam) closestState = state;
-          }
-          return matches;
-        });
+        sync.restore(bytes, message.tick, expected);
       } catch (error) {
-        const restored = closestState || emulator.gameManager.getState();
-        if (location.port === '8000' && ['127.0.0.1', 'localhost'].includes(location.hostname)) {
+        if (diagnostics && location.port === '8000' && ['127.0.0.1', 'localhost'].includes(location.hostname)) {
           await Promise.all([fetch('/diagnostic-state?frame=999&seat=2', { method: 'POST', body: bytes }),
-            fetch('/diagnostic-state?frame=999&seat=3', { method: 'POST', body: restored })]);
+            fetch('/diagnostic-state?frame=999&seat=3', { method: 'POST', body: emulator.gameManager.getState() })]);
         }
         throw error;
-      } finally { emulator.setVolume(volume); }
+      }
     },
   });
-  const response = await fetch('/session-info');
-  const info = launchInfo;
-  const invitePath = response.headers.get('x-invite-path') || '/';
-  const inviteOrigin = response.headers.get('x-invite-origin');
-  const biosHash = bios ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())), x => x.toString(16).padStart(2, '0')).join('') : 'HLE';
-  const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
+  const { identity, shareInvitation } = await invitationSettings(bios);
   sync = new FrameSync({ externalInput: true, module: emulator.Module, manager: emulator.gameManager, session,
     beforeFrame: () => {
       if (roomOptions.progress === 'all') unlockPal(new Uint8Array(emulator.Module.HEAPU8.buffer, emulator.Module._sled_ram_pointer(), 0x200000));
@@ -276,13 +343,6 @@ async function connectRoom(bios) {
   });
   const liveVolume = emulator.volume;
   sync.onReplayChange = replaying => emulator.setVolume(replaying ? 0 : liveVolume);
-  const shareInvitation = room => {
-    const url = invitationUrl(location.href, invitePath, room, roomOptions, inviteOrigin);
-    const localUrl = new URL(url).origin === location.origin ? url : invitationUrl(location.href, '/', room, roomOptions);
-    history.replaceState(null, '', localUrl);
-    inviteLink = url;
-    document.querySelector('#copy-invite').hidden = false;
-  };
   await session.connect(identity, invitation, shareInvitation);
   if (invitation) shareInvitation(invitation);
   emulator.Module._sled_view_configure(session.slot, roomOptions.camera ? 3 : 0);
@@ -314,7 +374,18 @@ function qualifyView(module, manager) {
 
 function refreshRoomStatus() {
   if (!session?.active || !sync || sync.failure) return;
-  if (session.replaying) showStatus(`Synchronizing game · ${Math.min(100, Math.floor(sync.tick * 100 / session.replayTarget))}%`);
+  const replayStart = session.replayStart ?? 0;
+  const replayLength = session.replayTarget - replayStart;
+  const percent = replayLength > 0 ? Math.min(100, Math.floor((sync.tick - replayStart) * 100 / replayLength)) : 0;
+  if (game.classList.contains('joining-room')) {
+    if (sync.tick > session.replayTarget) {
+      game.classList.remove('joining-room');
+      delete game.dataset.joinProgress;
+    } else {
+      game.dataset.joinProgress = percent > 0 && percent < 100 ? `Synchronizing with the room… ${percent}%` : 'Synchronizing with the room…';
+    }
+  }
+  if (session.replaying) showStatus(`Synchronizing game · ${percent}%`);
   else if (session.syncing) showStatus('Waiting for a joining player to synchronize. The race resumes automatically.');
   else showStatus('');
 }
@@ -378,6 +449,7 @@ function startBenchmark() {
         ? ((frame - previousFrame) * 1000 / (now - previousTime)).toFixed(1) : 'warming up';
       const heap = emulator.Module?.HEAPU8?.byteLength;
       output.textContent = (session?.active ? `Controller ${session.slot + 1} · ${session.members || 1}/4 connected · synchronized frame ${sync.tick}\n` : '')
+        + (retroRoom ? `RetroArch Netplay · Controller ${retroRoom.slot + 1} · ${emulator.Module._sled_netplay_status(1)}/4 playing · synchronized frame ${emulator.Module._sled_netplay_status(2)}\n` : '')
         + `PCSX-ReARMed · ${hz} emulated frames/s · frame ${frame}\n`
         + `Wasm memory: ${heap ? (heap / 1048576).toFixed(0) + ' MiB' : 'unavailable'} · tab ${document.visibilityState}\n`
         + (sync ? `Network frame ${sync.tick} · verified ${session.verified} · ${session.replaying ? 'replaying' : 'live'}${sync.failure ? ' · ' + sync.failure : ''}\n` : '')
@@ -394,5 +466,6 @@ function startBenchmark() {
 function moduleViewStatus(module, field) { return module._sled_view_status?.(field) ?? 'unavailable'; }
 window.addEventListener('pagehide', () => {
   session?.fail('Page closed');
+  retroRoom?.socket.close();
   if (biosUrl) URL.revokeObjectURL(biosUrl);
 });

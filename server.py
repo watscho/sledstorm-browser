@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.cache'
 IDENTITY = {}
 DISC_MODE = 'shared'
+RETROARCH_LAB_TOKEN = None
 
 
 def prepare_disc():
@@ -41,6 +42,11 @@ def prepare_disc():
         temporary.replace(archive)
         stamp.write_text(signature)
     return archive
+
+
+class LauncherServer(ThreadingHTTPServer):
+    # A gateway can fetch assets concurrently for several new browsers.
+    request_queue_size = 32
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -76,6 +82,12 @@ class Handler(SimpleHTTPRequestHandler):
                    '/lab-state': CACHE / 'emulator-lab.state',
                    '/local-disc.js': ROOT / 'research/wasm/local-disc.js',
                    '/session-client.js': ROOT / 'research/wasm/network-client.js'}
+        if RETROARCH_LAB_TOKEN:
+            special.update({
+                '/retroarch-lab': ROOT / 'research/emulator/retroarch-lab.html',
+                '/retroarch-lab-client.js': ROOT / 'research/emulator/retroarch-lab-client.js',
+                '/retroarch-lab-core.data': CACHE / 'emulator-retroarch-lab.data',
+            })
         if route in special:
             return str(special[route])
         if route == '/disc.zip':
@@ -103,6 +115,15 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get('Host') not in ('127.0.0.1:8000', 'localhost:8000'):
             self.send_error(403)
+            return
+        if self.path == '/retroarch-lab-info' and RETROARCH_LAB_TOKEN:
+            data = json.dumps({'token': RETROARCH_LAB_TOKEN}).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
             return
         if self.path == '/session-info':
             data = json.dumps(IDENTITY).encode()
@@ -172,7 +193,11 @@ def shared_identity():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--disc-mode', choices=['shared', 'local'], default='shared')
-    DISC_MODE = parser.parse_args().disc_mode
+    parser.add_argument('--retroarch-lab', action='store_true', help='Enable the loopback RetroArch Netplay lab')
+    args = parser.parse_args()
+    DISC_MODE = args.disc_mode
+    if args.retroarch_lab and DISC_MODE != 'shared':
+        parser.error('--retroarch-lab requires shared disc mode')
     CACHE.mkdir(exist_ok=True)
     native_build = CACHE / 'emulator-native-build.json'
     if not native_build.is_file():
@@ -186,13 +211,25 @@ if __name__ == '__main__':
     node = shutil.which('node')
     if not node:
         raise RuntimeError('Node.js is required for session rooms.')
+    lab = None
+    if args.retroarch_lab:
+        from secrets import token_hex
+        RETROARCH_LAB_TOKEN = token_hex(24)
+        subprocess.run([sys.executable, str(ROOT / 'tools/prepare-emulator.py'), '--native', '--retroarch-lab'], check=True)
+        lab = subprocess.Popen([node, str(ROOT / 'research/network/retroarch-lab.mjs')], cwd=ROOT,
+                               env={**os.environ, 'SLED_RETROARCH_LAB_TOKEN': RETROARCH_LAB_TOKEN})
     relay = subprocess.Popen([node, str(ROOT / 'research/network/emulator-relay.mjs')], cwd=ROOT)
     try:
-        server = ThreadingHTTPServer(('127.0.0.1', 8000), Handler)
+        server = LauncherServer(('127.0.0.1', 8000), Handler)
         print('Open http://127.0.0.1:8000 — Ctrl+C to stop.', flush=True)
+        if lab:
+            print('RetroArch Netplay lab: http://127.0.0.1:8000/retroarch-lab', flush=True)
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         relay.terminate()
         relay.wait()
+        if lab:
+            lab.terminate()
+            lab.wait()

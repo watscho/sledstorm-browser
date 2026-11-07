@@ -9,7 +9,7 @@ if (!['shared', 'local'].includes(discMode)) throw new Error('Invalid disc mode'
 const assetPaths = emulatorAssetPaths(lock, discMode);
 const token = randomBytes(24).toString('hex');
 await writeFile(new URL('../../.cache/emulator-access.txt', import.meta.url), `/access/${token}`, { mode: 0o600 });
-const gateway = createPublicGateway({ port: 8005, upstream: 8000, relay: 8004, accessToken: token,
+const gateway = createPublicGateway({ port: 8005, upstream: 8000, relay: 8004, netplay: 8006, accessToken: token,
   discMode, assetPaths, maxPayload: 8 * 1024 * 1024 });
 gateway.on('listening', () => console.log('Emulator gateway ready on 127.0.0.1:8005; access path saved privately.'));
 gateway.on('error', error => { console.error(error.message); process.exitCode = 1; });

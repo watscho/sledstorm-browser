@@ -1,5 +1,28 @@
 # Verification and known limits
 
+## v0.5.0 RetroArch Netplay — 2026-11-07
+
+- Rebuilt the pinned WebAssembly emulator and prepared the runtime archive.
+  All 18 browser-module tests, 17 network tests, three HTTP handler tests and
+  the native presentation checks passed.
+
+- Four isolated Chrome contexts on one Mac used the ordinary lobby and a
+  live Cloudflare Quick Tunnel in local-disc mode. The host ran on loopback,
+  and all three guests opened the generated HTTPS invitation.
+- Four racers started Pine Valley. Each screen showed its own camera and
+  the original HUD, including position, timer, points, lap counter, map and
+  speedometer.
+- Players 2–4 each rejoined the running race from a fresh browser context,
+  using the original invitation and the same local disc. From **Join game**
+  to the live view took **6.1–6.7 seconds**, including disc loading. Holding
+  **S** accelerated the returning sled. Host and guest frames kept advancing.
+- The same race continued after the fourth and third players disconnected.
+  All remaining screens advanced and continued rendering the HUD. A separate
+  transport probe checked binary forwarding, full-room rejection, slot reuse
+  and the blocked archive route in local-disc mode.
+- This run exercised the public tunnel from one Mac. Gameplay between
+  separate physical computers and networks remains unverified.
+
 ## v0.4.0 release checks — 2026-11-07
 
 - 18 browser-module tests, 16 networking tests and three synthetic HTTP-handler
@@ -63,22 +86,20 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.4.0
+## Current limits for v0.5.0
 
-- The documented live runs used one Mac. Separate physical computers, remote
-  latency, long sessions and reconnect behavior still need hands-on testing.
-- Audible soundtrack quality, hidden/background tabs, physical gamepads,
-  Chrome gameplay, mobile gameplay and Linux/Windows are unqualified.
-- Course/weather coverage is limited; three-player racing was not separately
-  qualified as a full race. Three and four players share the same presentation
-  path, and the four-player path was exercised.
-- World geometry and detail follow the original multiplayer mode.
-- Late joining replays history and pauses the room; the slowest client can slow
-  everyone down. Snapshot joining is experimental and disabled.
-- Rollback, host migration, persistent room recovery and durable saves are not
-  implemented. Other game regions, standalone ISO/CHD and PS2 Sled Storm are not
-  supported by this setup.
+- The Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
+  computers and networks, sustained sessions and remote latency remain open.
+- The live race started with four registered riders and continued with three
+  and two connected controllers. Complete races starting at each player count,
+  additional courses and weather combinations remain open.
+- A returning guest can use an existing racer if the corresponding controller
+  slot is free. Closing the host ends the room. Start a new room after a host
+  disconnect or server restart.
+- World geometry and detail follow the original multiplayer mode. Soundtrack
+  quality, hidden tabs, physical gamepads, mobile gameplay and Linux/Windows
+  still need hands-on verification.
+- This setup targets PAL SLES-02194 with CUE/BIN tracks.
 
-Core-step measurements do not measure distinct displayed images or audio
-underruns. Passing source/transport tests does not replace real gameplay and
-listening checks on the intended devices.
+Core-step measurements count emulator steps. Display pacing and audio need
+separate measurements on the intended devices.

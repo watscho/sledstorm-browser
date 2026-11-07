@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FrameSync, stateDigest } from './frame-sync.js';
+import { canonicalStateDigest } from './core-state.js';
 
 function fixture(moduleOverrides = {}) {
   let frame = 0;
@@ -60,16 +61,22 @@ test('state digest changes with content and remains unsigned', () => {
   assert.ok(stateDigest(new Uint8Array([255])) >= 0);
 });
 
-test('queued snapshot completes between frontend iterations without consuming a live input', async () => {
-  const f = fixture(); let loaded = false;
-  f.manager.loadState = () => {};
-  f.manager.getState = () => loaded;
-  const restoring = f.sync.restore(new Uint8Array(), 91, state => state);
-  assert.equal(f.module.sledBeforeFrame(), true);
-  f.advance(1); f.module.sledAfterFrame();
-  loaded = true; // Asynchronous RetroArch task completes between RAF callbacks.
+test('snapshot restore verifies the boundary without executing any core frames', () => {
+  const bytes = new Uint8Array(4456472);
+  bytes.set(new TextEncoder().encode('RASTATE'));
+  bytes.set(new TextEncoder().encode('STv4 PCSXra f29871d'), 16);
+  new DataView(bytes.buffer).setUint32(0x29934d, 1, true);
+  const digest = canonicalStateDigest(bytes);
+  const f = fixture({
+    HEAPU8: new Uint8Array(0x440000 + 1),
+    _malloc: () => 1, _free() {},
+    _sled_unserialize_checkpoint: () => true,
+  });
+  f.manager.getState = () => bytes;
+  assert.throws(() => f.sync.restore(bytes, 91, digest ^ 1), /exact console state/);
+  assert.equal(f.sync.tick, 0);
   assert.equal(f.module.sledBeforeFrame(), false);
-  await restoring;
+  f.sync.restore(bytes, 91, digest);
   assert.equal(f.sync.tick, 91);
   assert.equal(f.requests.length, 0);
   assert.equal(f.module.sledBeforeFrame(), false);

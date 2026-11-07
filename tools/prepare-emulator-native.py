@@ -60,6 +60,20 @@ void retro_run(void)
     text = once(text, '#include <emscripten.h>', '#include <emscripten.h>\n#include "sled-view.h"')
     text = once(text, '   psxRegs.stop = 0;\n   psxCpu->Execute(&psxRegs);',
                 '   sled_view_begin();\n   psxRegs.stop = 0;\n   psxCpu->Execute(&psxRegs);\n   sled_view_present();')
+    text = once(text, '/* cheats */', """
+#ifdef __EMSCRIPTEN__
+extern int sled_loading_checkpoint;
+
+bool sled_unserialize_checkpoint(const void *data, size_t size)
+{
+   sled_loading_checkpoint = 1;
+   bool ok = retro_unserialize(data, size);
+   sled_loading_checkpoint = 0;
+   return ok;
+}
+#endif
+
+/* cheats */""")
     if path.read_text() != text:
         path.write_text(text)
     path = CORE / 'libpcsxcore/psxinterpreter.c'
@@ -100,13 +114,77 @@ void sled_view_cache_save(int restore) {
                 '    sled_view_record(list, 1 + len);\n    primTableJ[cmd]((void *)list);')
     if path.read_text() != text:
         path.write_text(text)
+    # Ordinary savestates retain upstream compatibility fixups. A network
+    # checkpoint comes from this same core and must retain the saved timing.
+    path = CORE / 'libpcsxcore/misc.c'
+    text = original(path)
+    text = once(text, 'static u32 save_counter;', 'static u32 save_counter;\nint sled_loading_checkpoint;')
+    text = once(text, '\tgpuSyncPluginSR();', '\tif (!sled_loading_checkpoint)\n\t\tgpuSyncPluginSR();')
+    text = once(text, '\tevents_restore();\n\tif (Config.HLE)',
+                '\tif (!sled_loading_checkpoint)\n\t\tevents_restore();\n\tif (Config.HLE && !sled_loading_checkpoint)')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'libpcsxcore/psxcounters.c'
+    text = original(path)
+    text = once(text, 's32 psxRcntFreeze( void *f, s32 Mode )',
+                'extern int sled_loading_checkpoint;\n\ns32 psxRcntFreeze( void *f, s32 Mode )')
+    text = once(text, '    if (Mode == 0)\n    {\n        rcnts[3].rate = 1;',
+                '    if (Mode == 0 && !sled_loading_checkpoint)\n    {\n        rcnts[3].rate = 1;')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'libpcsxcore/cdrom.c'
+    text = original(path)
+    text = once(text, 'int cdrFreeze(void *f, int Mode) {',
+                'extern int sled_loading_checkpoint;\n\nint cdrFreeze(void *f, int Mode) {')
+    text = once(text, '\t\tcdr.FifoSize = (cdr.Mode & MODE_SIZE_2340) ? 2340 : 2048 + 12;',
+                '\t\tif (!sled_loading_checkpoint)\n\t\t\tcdr.FifoSize = (cdr.Mode & MODE_SIZE_2340) ? 2340 : 2048 + 12;')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'plugins/gpulib/gpu.c'
+    text = original(path)
+    text = once(text, 'long GPUfreeze(uint32_t type, GPUFreeze_t *freeze)',
+                'extern int sled_loading_checkpoint;\n\nlong GPUfreeze(uint32_t type, GPUFreeze_t *freeze)')
+    text = once(text, '        GPUwriteStatus((i << 24) | freeze->ulControl[i]);',
+                """        GPUwriteStatus((i << 24) | freeze->ulControl[i]);
+      if (sled_loading_checkpoint) {
+        memcpy(gpu.regs, freeze->ulControl, sizeof(gpu.regs));
+        gpu.status = freeze->ulStatus;
+      }""")
+    if path.read_text() != text:
+        path.write_text(text)
+    path = FRONTEND / 'network/netplay/netplay_private.h'
+    text = once(original(path), '   bool force_rewind;', '   bool force_rewind;\n   bool sled_received_state;')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = FRONTEND / 'network/netplay/netplay_frontend.c'
+    text = once(original(path), 'static net_driver_state_t networking_driver_st = {0};', """static net_driver_state_t networking_driver_st = {0};
+#ifdef __EMSCRIPTEN__
+unsigned sled_netplay_status(unsigned field)
+{
+   netplay_t *netplay = networking_driver_st.data;
+   if (!netplay)
+      return 0;
+   if (field == 1)
+      return (unsigned)__builtin_popcount(netplay->connected_players);
+   if (field == 2)
+      return netplay->run_frame_count;
+   if (netplay->self_mode != NETPLAY_CONNECTION_PLAYING ||
+       (!netplay->is_server && (!netplay->sled_received_state || netplay->force_rewind)))
+      return 0;
+   return netplay->self_devices;
+}
+#endif""")
+    text = once(text, '            /* Force a rewind to the relevant frame. */',
+                '            netplay->sled_received_state = true;\n            /* Force a rewind to the relevant frame. */')
+    if path.read_text() != text:
+        path.write_text(text)
     path = FRONTEND / 'Makefile.emulatorjs'
     text = original(path)
     if '_sled_frame_count,' not in text:
         text = once(text, 'EXPORTED_FUNCTIONS = _main,_malloc,_free,_load_state,',
                     'EXPORTED_FUNCTIONS = _sled_frame_count,_sled_ram_pointer,_retro_unserialize,_main,_malloc,_free,_load_state,')
     text = once(text, 'EXPORTED_FUNCTIONS = _sled_frame_count,',
-                'EXPORTED_FUNCTIONS = _sled_view_configure,_sled_view_status,_sled_frame_count,')
+                'EXPORTED_FUNCTIONS = _sled_netplay_status,_sled_unserialize_checkpoint,_sled_view_configure,_sled_view_status,_sled_frame_count,')
     if path.read_text() != text:
         path.write_text(text)
     print('Prepared pinned emulator source hooks.')

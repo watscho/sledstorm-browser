@@ -104,8 +104,8 @@ python3 tools/bootstrap-emulator.py
 python3 tools/build-emulator.py
 ```
 
-Start hosting again and send a new invitation. Keep all players on the same
-served build.
+Start hosting again and send a new invitation. Everyone in the room uses the
+same served build. The v0.5.0 lobby uses RetroArch Netplay for new rooms.
 
 ## Troubleshooting
 
@@ -120,7 +120,8 @@ served build.
 | cloudflared not found | Install it, or set `CLOUDFLARED_BIN` to its executable path. |
 | Friend cannot open the invitation | Copy the complete generated HTTPS invitation, keep hosting running, and check internet access. |
 | Invitation begins with 127.0.0.1 | Start the online helper, wait for its tunnel, then start a fresh game and copy its invitation. |
-| Slow first join | Wait for the complete disc download and history catch-up; invite before starting a race. |
+| Slow first join | Wait for the disc to load and RetroArch to apply the host's current state. In shared-disc mode, guests first download all tracks. |
+| Guest joins the room but has no rider | Register that controller in the game's multiplayer menu before starting a new race. Rejoining a live race uses an existing racer. |
 | Pauses or choppy playback | Keep all peers awake with active tabs; try fewer participants and check the slowest device. |
 | Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |

@@ -54,7 +54,8 @@ original contribution licensing separate from derived output.
 
 Use semantic versions for this wrapper, independently of the game and upstream
 components. Keep `VERSION`, `research/network/package.json` and its lockfile
-root/package versions in sync. Record changes in `CHANGELOG.md` with an ISO
+root/package versions in sync with the release labels in `README.md` and
+`web/index.html`. Record changes in `CHANGELOG.md` with an ISO
 release date; use Unreleased while working. Never record private tunnel domains,
 access tokens, disc paths or invitation fragments. Distinguish an internet-path
 check on one computer from a test with players on separate remote computers.

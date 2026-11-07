@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.4.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.5.0 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -86,8 +86,9 @@ Open **Controls** before launching to choose Classic or WASD, click a button on
 the DualShock illustration to rebind it, or select a connected gamepad. Keyboard
 bindings are saved in your browser. See [personal controls](docs/browser-lobby.md#personal-controls).
 
-Click the game if the keyboard does not respond. Invite everyone before the
-race for the shortest wait.
+Click the game if the keyboard does not respond. Register each rider before
+starting the race. A returning guest can open the same invitation and resume
+from the current race state once their game files load.
 
 ### 4. Switch everything off
 
@@ -96,9 +97,9 @@ race for the shortest wait.
 > Wait for **Online stack stopped.** This stops the game server, relay, gateway
 > and Cloudflare Tunnel started by the helper. Then close the game tabs.
 >
-> Closing a browser tab alone does **not** stop hosting. To play again, run the
-> same start command and send a **new** invitation; temporary links expire when
-> hosting stops.
+> Closing the host's tab ends the room. The hosting terminal can still serve
+> the launcher. To play again after stopping the tunnel, restart the helper
+> and send the new invitation.
 
 ## Other ways to play
 
@@ -123,27 +124,25 @@ files must match across all players; leaving BIOS empty uses HLE.
 Guests inherit the room's progression and camera settings. Volume and image
 filtering are personal. Native pause menus remain shared and retain their 4:3
 proportions. Each browser emulates the console locally; networking exchanges
-controller inputs and state checks, rather than streaming video.
+controller inputs and emulator state through RetroArch Netplay.
 
 ## Current limits
 
 - **Game files.** Use the PlayStation PAL SLES-02194 CUE and all eleven BIN
   tracks. Standalone ISO/CHD, other regions and the PS2 game are outside the
   supported setup. [Disc setup](docs/setup.md#add-the-game-files)
-- **Room behavior.** Late joiners replay input history from boot while the
-  room pauses. Join before starting a race and keep game tabs active. The
-  slowest active browser can slow the room. Rooms are temporary and have no
-  rollback, host migration or persistent recovery.
+- **Room behavior.** RetroArch sends the current emulator state to guests
+  once they load the disc. Register each rider in the game's multiplayer menu
+  before starting the race. A returning controller can resume its existing
+  racer. Keep game tabs active. Closing the host ends the room.
   [Rooms and synchronization](docs/multiplayer.md#rooms-and-synchronization)
 - **Presentation.** Separate cameras give each player a full view with the
   original single-player HUD. The course geometry and scenery detail follow
   the game's multiplayer mode. Pause menus are shared.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
-- **Test coverage.** v0.4.0 checks covered the launcher, key remapping and
-  automated networking and presentation. The recorded four-player race and
-  tunnel checks used browsers on one Mac in v0.3.0. Remote races between
-  separate computers, physical gamepads and soundtrack quality still need
-  hands-on testing. [Verification record](docs/verification.md)
+- **Test coverage.** A four-player Chrome race through Cloudflare verified
+  separate cameras, the original HUD, and mid-race reconnection on one Mac. Remote races between separate computers, physical
+  gamepads and soundtrack quality still need hands-on testing. [Verification record](docs/verification.md)
 
 ## Documentation
 

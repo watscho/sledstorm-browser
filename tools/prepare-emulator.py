@@ -12,12 +12,14 @@ import shutil
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def prepare(native=False):
+def prepare(native=False, retroarch_lab=False):
     lock = json.loads((ROOT / 'emulator.lock.json').read_text())
     archive = ROOT / 'vendor/emulatorjs/cores/pcsx_rearmed-wasm.data'
     if hashlib.sha256(archive.read_bytes()).hexdigest() != lock['files']['cores/pcsx_rearmed-wasm.data']:
         raise RuntimeError('Core hash differs. Run tools/bootstrap-emulator.py --check.')
-    output = ROOT / '.cache/emulator-network-core.data'
+    output = ROOT / '.cache' / ('emulator-retroarch-lab.data' if retroarch_lab else 'emulator-network-core.data')
+    if retroarch_lab and not native:
+        raise RuntimeError('RetroArch Netplay lab requires the native adapter build.')
     extractor = shutil.which('bsdtar') or shutil.which('tar')
     if not extractor:
         raise RuntimeError('Install bsdtar (libarchive) to extract the pinned core.')
@@ -45,6 +47,12 @@ def prepare(native=False):
         text = text.replace('var Module=moduleArg;', f'var Module=moduleArg;Module.sledFrameGateVersion={3 if native else 2};')
         text = text.replace(before, before + 'for(var sledRepeat=0;sledRepeat<(Module.sledFrameBudget?Module.sledFrameBudget():1);sledRepeat++){if(Module.sledBeforeFrame&&Module.sledBeforeFrame()===false)return;')
         text = text.replace(after, after + ';if(Module.sledAfterFrame)Module.sledAfterFrame();}')
+        if native:
+            anchor = 'Module["callMain"]=callMain;'
+            if text.count(anchor) != 1:
+                raise RuntimeError('Pinned core callMain anchor changed')
+            adapter = (ROOT / 'research/emulator' / ('retroarch-lab.js' if retroarch_lab else 'retroarch-socket.js')).read_text()
+            text = text.replace(anchor, anchor + '\n' + adapter + '\n')
         source.write_text(text)
         subprocess.run(['node', '--check', str(source)], check=True)
         # Preserve the original code, Wasm and all distribution notices locally.
@@ -60,4 +68,6 @@ def prepare(native=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--native', action='store_true')
-    print('Prepared frame-gated PCSX-ReARMed core:', prepare(parser.parse_args().native))
+    parser.add_argument('--retroarch-lab', action='store_true')
+    args = parser.parse_args()
+    print('Prepared frame-gated PCSX-ReARMed core:', prepare(args.native, args.retroarch_lab))

@@ -1,3 +1,5 @@
+import { canonicalStateDigest, restoreCoreState } from './core-state.js';
+
 // Frame gate around the pinned Emscripten loop. No timers drive emulation here.
 export class FrameSync {
   constructor({ module, manager, session, onStatus, digest, beforeFrame = () => {}, externalInput = false }) {
@@ -29,7 +31,7 @@ export class FrameSync {
     if (this.module._sled_frame_count) {
       this.manager.getFrameNum = () => this.module._sled_frame_count();
       this.module.sledBeforeFrame = () => true;
-      this.module.sledAfterFrame = () => { if (this.restoring) this.checkRestore(); };
+      this.module.sledAfterFrame = () => {};
       this.module.sledCoreBefore = () => this.before();
       this.module.sledCoreAfter = () => this.after();
     } else {
@@ -42,12 +44,10 @@ export class FrameSync {
   stop(reason) {
     this.failure = reason;
     this.running = false;
-    if (this.restoring) { this.restoring.reject(new Error(reason)); this.restoring = null; }
     this.session.fail(reason);
     for (const pending of this.snapshots.splice(0)) pending.reject(new Error(reason));
   }
   before() {
-    if (this.restoring) { this.checkRestore(); return Boolean(this.restoring); }
     if (!this.running || this.failure) return false;
     if (this.replayMode !== Boolean(this.session.replaying)) {
       this.replayMode = Boolean(this.session.replaying);
@@ -72,10 +72,6 @@ export class FrameSync {
     return true;
   }
   after() {
-    if (this.restoring) {
-      this.checkRestore();
-      return;
-    }
     if (this.beforeCount === null) return;
     const delta = Number(this.manager.getFrameNum()) - this.beforeCount;
     this.beforeCount = null;
@@ -86,10 +82,11 @@ export class FrameSync {
     this.tick++;
     this.advanced++;
     for (const pending of this.snapshots.filter(item => item.tick === this.tick)) {
-      pending.resolve(this.manager.getState());
+      try { pending.resolve(this.manager.getState()); }
+      catch (error) { pending.reject(error); }
     }
     this.snapshots = this.snapshots.filter(item => item.tick !== this.tick);
-    if (this.tick % 50 === 0) this.onStatus();
+    if (this.tick % 50 === 0 || this.tick === this.session.replayTarget + 1) this.onStatus();
     this.request();
   }
   request() {
@@ -111,22 +108,13 @@ export class FrameSync {
     if (tick === this.tick) return Promise.resolve(this.manager.getState());
     return new Promise((resolve, reject) => this.snapshots.push({ tick, resolve, reject }));
   }
-  restore(bytes, tick, verify) {
-    if (this.running || this.restoring) return Promise.reject(new Error('Cannot restore a running console'));
-    return new Promise((resolve, reject) => {
-      this.restoring = { tick, verify, resolve, reject, deadline: performance.now() + 5000 };
-      this.manager.loadState(bytes);
-    });
-  }
-  checkRestore() {
-    const pending = this.restoring;
-    try {
-      if (pending.verify(this.manager.getState())) {
-        this.restoring = null; this.tick = pending.tick; pending.resolve();
-      } else if (performance.now() > pending.deadline) {
-        this.restoring = null; pending.reject(new Error('Snapshot did not restore the exact console state'));
-      }
-    } catch (error) { this.restoring = null; pending.reject(error); }
+  restore(bytes, tick, expected) {
+    if (this.running || this.tick !== 0) throw new Error('Cannot restore a started console');
+    restoreCoreState(this.module, bytes, { checkpoint: true });
+    if (canonicalStateDigest(this.manager.getState()) !== expected) {
+      throw new Error('Snapshot did not restore the exact console state');
+    }
+    this.tick = tick;
   }
 }
 
