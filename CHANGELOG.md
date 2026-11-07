@@ -3,7 +3,7 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning and do not refer to the original game or upstream port.
 
-## [Unreleased]
+## 0.4.0 - 2026-11-07
 
 ### Disc loading
 
@@ -12,6 +12,12 @@ semantic versioning and do not refer to the original game or upstream port.
   current session to avoid accumulating copies across temporary hostnames.
 
 ### Interface
+
+- Updated the default keyboard layout to arrows for directions, S for Cross,
+  W/A/D for Triangle/Square/Circle, Q/E for L1/R1, Z/C for L2/R2, Enter for
+  Start and Right Shift for Select. Existing saved layouts are retained.
+- Added an interactive DualShock illustration to **Controls**. Select any of
+  the 14 supported buttons to change its keyboard binding.
 
 - Simplified the lobby heading and session toolbar. **Copy link** copies the
   invitation directly. Controller and synchronization counters appear in
@@ -136,7 +142,6 @@ semantic versioning and do not refer to the original game or upstream port.
 - Disc images, saves, downloaded upstream sources, compiled output and private
   access/session links are excluded from the Git repository.
 
-[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.3.0...HEAD
 [0.3.0]: https://github.com/watscho/sledstorm-browser/tree/v0.3.0
 [0.2.0]: https://github.com/watscho/sledstorm-browser/tree/v0.2.0
 [0.1.0]: https://github.com/watscho/sledstorm-browser/tree/v0.1.0

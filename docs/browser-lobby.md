@@ -28,14 +28,16 @@ the game rather than in the browser launcher.
 
 ## Personal controls
 
-In **Controls**, choose **Classic** (arrows + X), **WASD** (WASD + Space), or
-click any key button and press a replacement. **Escape** cancels capture.
-A conflicting key swaps with the previous binding, keeping one key per button.
-**Other PlayStation buttons** reveals the remaining bindings. **Reset controls**
-restores Classic. Key bindings are saved under `sledstorm.controls.v1` in this
-browser's localStorage; denied storage falls back to session-only preferences.
-Keyboard layouts are independent for each player and are excluded from room
-settings and invitation links. Choose them before launch.
+In **Controls**, choose **Classic** (arrows + S) or **WASD** (WASD + Space).
+To customize either preset, select a button on the DualShock illustration and
+press a replacement key. The label beside each button shows its assigned key.
+L2 and R2 appear above the illustration, and ⌫ means Backspace.
+
+**Escape** cancels capture. If a key is already assigned, the two bindings swap.
+**Reset controls** restores Classic. Existing layouts carry over when updating.
+Each player's keyboard bindings are saved in their own browser under
+`sledstorm.controls.v1`. When browser storage is unavailable, changes apply for
+the current page only.
 
 Connect a controller through USB or Bluetooth and press a button to expose it
 to the browser. The device name and input indicator show what the browser can
@@ -62,8 +64,10 @@ invitation. A new game launched from the root page creates a different room.
 The emulator hover toolbar is hidden, and the pointer is hidden over the game.
 Use the session toolbar above the game for fullscreen and returning to the lobby.
 
-Click the game to focus it. With Classic controls, use arrows, **X** for
-confirm/accelerate, **Enter** for Start/pause and **A** for triangle/back.
+Click the game to focus it. With Classic controls, use arrows, **S** for
+confirm/accelerate, **Enter** for Start/pause and **W** for triangle/back. The
+remaining Classic bindings are **A** (Square), **D** (Circle), **Q/E** (L1/R1),
+**Z/C** (L2/R2) and **Right Shift** (Select).
 The hint below the game reflects your selected keyboard bindings. The native pause menu affects the
 shared console, so all players see it in the original 4:3 proportions.
 

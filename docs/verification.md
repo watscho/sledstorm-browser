@@ -1,11 +1,23 @@
 # Verification and known limits
 
-This record covers **version 0.3.0**, PAL SLES-02194, PCSX-ReARMed and the pinned
-RetroArch browser frontend. Gameplay checks used the Codex in-app browser on one
-Mac with HLE BIOS, single-threaded WebAssembly and a 512 MiB heap per instance.
-It records observed behavior, not a guarantee for every browser or network.
+## v0.4.0 release checks — 2026-11-07
 
-## Gameplay — 2026-11-07
+- 18 browser-module tests, 16 networking tests and three synthetic HTTP-handler
+  tests passed. Coverage includes keyboard presets and conflict swapping,
+  controller device selection and private-gateway access to the controller SVG.
+- Native presentation assertions passed against the pinned source checkout,
+  covering four PAL viewports, state isolation and native-menu bypass.
+- The local launcher served v0.4.0 and the controller illustration with the
+  expected SVG content type.
+- An isolated Chrome preview rendered Controls at wide and narrow panel widths.
+  A browser check changed a binding, verified the conflicting key swapped, and
+  switched to WASD. This check used the launcher panel without a running game.
+
+## v0.3.0 gameplay evidence — 2026-11-07
+
+These runs used PAL SLES-02194 and the pinned PCSX-ReARMed / RetroArch runtime
+in the Codex in-app browser on one Mac with HLE BIOS, single-threaded WebAssembly
+and a 512 MiB heap per instance.
 
 - Four browsers joined one Pine Valley race, each confirmed its own rider and
   independently accelerated a different sled.
@@ -20,7 +32,7 @@ It records observed behavior, not a guarantee for every browser or network.
 
 Local evidence is ignored under `.cache/emulator-four-browser-*`.
 
-## Disc loading and internet access
+## v0.3.0 disc loading and internet access
 
 - Two actual browsers loaded the host disc through private Cloudflare HTTPS,
   joined one room, completed catch-up and agreed at 9,000 core steps. Short live
@@ -44,10 +56,6 @@ python3 tools/test-emulator-view.py
 python3 tools/test-emulator-server.py
 ```
 
-The release passed 15 browser-module tests, 15 networking tests, three synthetic
-HTTP-handler tests and the native C presentation assertions. Python syntax and
-JavaScript syntax checks also passed.
-
 Coverage includes invitation validation, public URL construction, frame gating,
 state canonicalization, real loopback WebSocket exchange, compact history,
 asset-route restrictions and disc policies. Native checks cover viewport bounds,
@@ -60,7 +68,7 @@ requires a C compiler and the pinned source checkout from the build.
 - Separate physical computers, remote latency, long sessions and reconnects
   have not been comprehensively tested.
 - Audible soundtrack quality, hidden/background tabs, physical gamepads,
-  Chrome-specific behavior, mobile gameplay and Linux/Windows are unqualified.
+  Chrome gameplay, mobile gameplay and Linux/Windows are unqualified.
 - Course/weather coverage is limited; three-player racing was not separately
   qualified as a full race. Three and four players share the same presentation
   path, and the four-player path was exercised.

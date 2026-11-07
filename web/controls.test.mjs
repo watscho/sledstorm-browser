@@ -17,9 +17,9 @@ test('presets map every physical key to one PS1 button and recover corrupt prefe
 
 test('rebinding swaps conflicting keys without mutating defaults or losing a button', () => {
   const updated = rebind(CLASSIC, 'cross', 'ArrowUp');
-  assert.equal(updated.cross, 'ArrowUp'); assert.equal(updated.up, 'KeyX');
+  assert.equal(updated.cross, 'ArrowUp'); assert.equal(updated.up, 'KeyS');
   assert.equal(new Set(Object.values(updated)).size, BUTTONS.length);
-  assert.equal(CLASSIC.cross, 'KeyX'); assert.equal(presetFor(updated), 'custom');
+  assert.equal(CLASSIC.cross, 'KeyS'); assert.equal(presetFor(updated), 'custom');
   assert.throws(() => rebind(CLASSIC, 'unknown', 'KeyV'));
   assert.throws(() => rebind(CLASSIC, 'cross', 'Escape'));
 });

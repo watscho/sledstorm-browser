@@ -28,6 +28,12 @@ Downloaded assets, source checkouts, SDK and binaries remain in ignored
 `vendor/` and `.cache/` directories. Preserve applicable upstream notices and
 source-distribution obligations when distributing compiled components.
 
+## Controller illustration
+
+The controller in the Controls panel uses [playstation controller by MatthewHenninger](https://openclipart.org/detail/175351/playstation-controller).
+The [Openclipart CC0 dedication](https://openclipart.org/share) applies to the illustration.
+The local SVG is cropped, with a simplified Circle symbol and editor metadata removed.
+
 ## Optional hosting tool
 
 `tools/play-online.py` runs a separately installed

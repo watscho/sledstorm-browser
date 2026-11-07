@@ -2,11 +2,11 @@
 export const BUTTONS = [
   ['up', 4, 'Navigate up', 'ArrowUp'], ['down', 6, 'Navigate down', 'ArrowDown'],
   ['left', 7, 'Steer left', 'ArrowLeft'], ['right', 5, 'Steer right', 'ArrowRight'],
-  ['cross', 14, 'Accelerate / confirm', 'KeyX'], ['triangle', 12, 'Triangle / back', 'KeyA'],
-  ['start', 3, 'Start / pause', 'Enter'], ['square', 15, 'Square', 'KeyZ'],
-  ['circle', 13, 'Circle', 'KeyS'], ['select', 0, 'Select', 'ShiftRight'],
-  ['l1', 10, 'L1', 'KeyQ'], ['r1', 11, 'R1', 'KeyW'],
-  ['l2', 8, 'L2', 'KeyE'], ['r2', 9, 'R2', 'KeyR'],
+  ['cross', 14, 'Accelerate / confirm', 'KeyS'], ['triangle', 12, 'Triangle / back', 'KeyW'],
+  ['start', 3, 'Start / pause', 'Enter'], ['square', 15, 'Square', 'KeyA'],
+  ['circle', 13, 'Circle', 'KeyD'], ['select', 0, 'Select', 'ShiftRight'],
+  ['l1', 10, 'L1', 'KeyQ'], ['r1', 11, 'R1', 'KeyE'],
+  ['l2', 8, 'L2', 'KeyZ'], ['r2', 9, 'R2', 'KeyC'],
 ];
 export const CLASSIC = Object.fromEntries(BUTTONS.map(([id, , , code]) => [id, code]));
 export const WASD = { ...CLASSIC, up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',

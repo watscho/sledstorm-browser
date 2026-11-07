@@ -1,5 +1,16 @@
 import { BUTTONS, CLASSIC, WASD, normalizeBindings, rebind, keyMap, keyLabel, presetFor } from './controls.js';
 
+// Hotspot centers in the illustration's SVG viewBox (0 14 128 94).
+const controllerButtons = {
+  l2: [30, 20], r2: [98, 20],
+  l1: [30, 30], r1: [98, 30],
+  up: [30, 42], triangle: [98, 39.5],
+  left: [22, 50], right: [38, 50],
+  select: [54, 50.5], start: [74, 50.5],
+  square: [87, 50], circle: [109, 50],
+  down: [30, 58], cross: [98, 60.5],
+};
+
 export function initControls() {
   const $ = selector => document.querySelector(selector);
   const storageKey = 'sledstorm.controls.v1';
@@ -11,24 +22,43 @@ export function initControls() {
     $('#control-preset').value = presetFor(bindings);
     for (const button of document.querySelectorAll('[data-binding]')) {
       const [id, , label] = BUTTONS.find(([id]) => id === button.dataset.binding);
-      button.textContent = id === listening ? 'Press a key…' : keyLabel(bindings[id]);
+      const key = keyLabel(bindings[id]);
+      button.querySelector('kbd').textContent = id === listening ? '…' : key === 'Backspace' ? '⌫' : key;
+      button.title = `${label} · ${key}`;
       button.dataset.listening = String(id === listening);
-      button.setAttribute('aria-label', `Change ${label}: ${keyLabel(bindings[id])}`);
+      button.setAttribute('aria-label', `Change ${label}: ${key}`);
     }
     $('#play-controls').textContent = `${keyLabel(bindings.left)} / ${keyLabel(bindings.right)} to steer · ${keyLabel(bindings.cross)} to accelerate · ${keyLabel(bindings.start)} for Start · ${keyLabel(bindings.triangle)} to go back`;
   };
   const save = () => {
     try { localStorage.setItem(storageKey, JSON.stringify({ bindings })); storageWorks = true; }
     catch { storageWorks = false; }
-    hint(storageWorks ? 'Saved in this browser. Click a key to change it; Escape cancels.' : 'Storage unavailable. Controls apply to this session only.');
+    hint(storageWorks ? 'Saved in this browser. Select a controller button to change its key. Escape cancels.' : 'Storage unavailable. Controls apply to this session only.');
     render();
   };
-  for (const [index, [id, , label]] of BUTTONS.entries()) {
-    const row = document.createElement('div'); row.className = 'key-row';
-    const name = document.createElement('span'); name.textContent = label;
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'key-button'; button.dataset.binding = id;
-    button.addEventListener('click', () => { listening = listening === id ? null : id; hint(listening ? 'Press a new key. Escape cancels. If that key is in use, the two bindings swap.' : 'Key change cancelled.'); render(); });
-    row.append(name, button); $(index < 7 ? '#key-bindings' : '#extra-bindings').append(row);
+  for (const [id, [x, y]] of Object.entries(controllerButtons)) {
+    const [, , label] = BUTTONS.find(([buttonId]) => buttonId === id);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'key-button';
+    button.dataset.binding = id;
+    button.style.left = `${x / 128 * 100}%`;
+    button.style.top = `${(y - 14) / 94 * 100}%`;
+
+    if (/^[lr][12]$/.test(id) || id === 'start' || id === 'select') {
+      const name = document.createElement('span');
+      name.className = 'controller-button-name';
+      name.textContent = id === 'start' ? 'Start' : label;
+      button.append(name);
+    }
+    button.append(document.createElement('kbd'));
+    button.addEventListener('click', () => {
+      if (locked) return;
+      listening = listening === id ? null : id;
+      hint(listening ? 'Press a new key. Escape cancels. If that key is in use, the two bindings swap.' : 'Key change cancelled.');
+      render();
+    });
+    $('#key-bindings').append(button);
   }
   document.addEventListener('keydown', event => {
     if (!listening || locked) return;
@@ -44,7 +74,7 @@ export function initControls() {
     }
   });
   $('#control-preset').addEventListener('change', () => {
-    if ($('#control-preset').value === 'custom') { hint('Click a key below to create your layout.'); return; }
+    if ($('#control-preset').value === 'custom') { hint('Select a controller button below to create your layout.'); return; }
     bindings = { ...($('#control-preset').value === 'wasd' ? WASD : CLASSIC) }; listening = null; save();
   });
   $('#reset-controls').addEventListener('click', () => { bindings = { ...CLASSIC }; listening = null; save(); });

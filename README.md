@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.3.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.4.0 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -68,15 +68,23 @@ from the launcher gets its own room. See [disc downloads and browser storage](do
 ### 3. Enter a race together
 
 In the original game, choose **Start → Multiplayer quick race**. Each player
-presses **X** to join, chooses a rider and confirms. Player 1 then chooses the
-course and starts the race. Up to **four players total** can join a room.
+presses **S** to join with the default keyboard layout, then chooses and confirms
+a rider. Player 1 chooses the course and starts the race. Up to **four players total** can join a room.
 
 | Key | Action |
 | --- | --- |
 | Arrow keys | Navigate / steer |
-| **X** | Confirm / accelerate |
+| **S** | Confirm / accelerate (Cross) |
 | **Enter** | Start / pause |
-| **A** | Triangle / back |
+| **W** | Triangle / back |
+| **A** / **D** | Square / Circle |
+| **Q** / **E** | L1 / R1 |
+| **Z** / **C** | L2 / R2 |
+| **Right Shift** | Select |
+
+Open **Controls** before launching to choose Classic or WASD, click a button on
+the DualShock illustration to rebind it, or select a connected gamepad. Keyboard
+bindings are saved in your browser. See [personal controls](docs/browser-lobby.md#personal-controls).
 
 Click the game if the keyboard does not respond. Invite everyone before the
 race for the shortest wait.
@@ -119,7 +127,7 @@ controller inputs and state checks, rather than streaming video.
 
 ## Current limits
 
-Four browsers on one Mac raced together with separate controls, cameras and
+In the v0.3.0 gameplay checks, four browsers on one Mac raced together with separate controls, cameras and
 HUDs. All agreed at 19,500 core steps; short final measurements were 48.5–50.3
 steps/s against a PAL target of 50. Two browsers also loaded and joined through
 the Cloudflare HTTPS tunnel. See [verification](docs/verification.md).

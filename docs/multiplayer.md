@@ -22,7 +22,7 @@ tab active. No router port forwarding is needed.
 ## Friend: join
 
 1. Open the complete invitation in a desktop browser.
-2. Adjust personal volume and image filtering if desired.
+2. Adjust volume, image filtering or [personal controls](browser-lobby.md#personal-controls) if desired.
 3. Click **Join game** and wait for disc loading and synchronization.
 4. Click the game to focus keyboard input.
 
@@ -53,9 +53,10 @@ their saved disc copies and other site data, such as access cookies.
 
 1. Invite everyone before entering a race.
 2. In the original game, player 1 chooses **Start → Multiplayer quick race**.
-3. Each participant presses **X** to join, selects a rider, and confirms.
+3. Each participant presses **S** to join with the default keyboard layout,
+   then selects and confirms a rider.
 4. Player 1 advances to course selection and starts the race.
-5. Use arrows to steer, **X** to accelerate, **Enter** to pause, and **A** for
+5. Use arrows to steer, **S** to accelerate, **Enter** to pause, and **W** for
    triangle/back in menus.
 
 The room acts like one console with up to **four controllers**. Each browser

@@ -15,7 +15,7 @@
 | Guide | What you will find |
 | --- | --- |
 | [Emulator architecture](browser-emulator.md) | Frame synchronization, camera/HUD isolation, local diagnostics and source pins. |
-| [Verification](verification.md) | Recorded v0.3.0 evidence, automated coverage and unverified behavior. |
+| [Verification](verification.md) | v0.4.0 checks, prior gameplay evidence and remaining limits. |
 | [Contributing](../CONTRIBUTING.md) | Source conventions, checks and versioning. |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Component attribution and license boundaries. |
 | [Preserved license texts](licenses/README.md) | Scope and origin of the upstream files in `licenses/`. |
