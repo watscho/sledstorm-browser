@@ -5,6 +5,13 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
+### Interface
+
+- Restored the tabbed launch interface, responsive settings/summary layout,
+  PAL cover artwork, keyboard tab navigation and reset action for the emulator.
+- Added a focused game stage with invitations, fullscreen and confirmed return
+  to the lobby, retaining existing room and native simulation behavior.
+
 ### Documentation
 
 - Unified setup, multiplayer, launcher, progression and verification guides

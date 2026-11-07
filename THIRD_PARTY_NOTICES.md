@@ -56,7 +56,8 @@ notices are supplied by the pinned source distributions.
 
 ## Cover image
 
-`docs/images/sled-storm-pal-cover.jpg` is the PAL SLES-02194 cover scan from
+`docs/images/sled-storm-pal-cover.jpg` and its launcher copy
+`web/sled-storm-pal-cover.jpg` use the PAL SLES-02194 cover scan from
 [PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html),
 retrieved on 2026-11-06 for identification and illustration. The artwork and
 Electronic Arts / PlayStation marks belong to their respective rights holders

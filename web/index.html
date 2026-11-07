@@ -1,31 +1,69 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>Sled Storm · Browser Multiplayer</title>
 <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip-link" href="#setup">Skip to game settings</a>
+<header class="site-header">
+  <a class="brand" href="/" aria-label="Sled Storm — back to lobby"><span class="brand-mark" aria-hidden="true">S<span>S</span></span><span>SLED STORM<small>BROWSER EDITION</small></span></a>
+  <span class="build-label"><i class="status-dot" aria-hidden="true"></i> Up to 4 players <span class="desktop-only">/ PS1 · 1999</span></span>
+</header>
 <main>
-  <header><p class="eyebrow">PLAYSTATION / BROWSER MULTIPLAYER</p><h1>Sled Storm</h1><p>Your original disc, running in your browser.</p></header>
-  <section id="setup" aria-label="Launch settings">
-    <div id="disc-settings" hidden><label for="disc-files">Local disc files <span>Select your CUE and all eleven BIN tracks together.</span></label><input id="disc-files" type="file" multiple accept=".cue,.bin"></div>
-    <label for="progress">Progress</label>
-    <select id="progress"><option value="all">All content unlocked</option><option value="original">Original progression</option></select>
-    <label for="image">Image</label>
-    <select id="image"><option value="crisp">Crisp pixels</option><option value="smooth">Smooth</option></select>
-    <label for="volume">Volume</label><input id="volume" type="range" min="0" max="100" value="50">
-    <label><input id="camera" type="checkbox" checked> Separate cameras</label>
-    <label for="bios">Optional PlayStation BIOS <span>Choose your own BIOS if the game will not boot.</span></label>
-    <input id="bios" type="file" accept=".bin,.rom">
-    <button id="launch">Start game</button>
-    <p id="status" role="status">First launch loads the complete disc, including its music. This may take a minute.</p>
+  <div class="page-heading"><div><p class="eyebrow">LOBBY / RACE PREPARATION</p><h1>Before the race<span>.</span></h1><p class="intro" id="intro">Start the game and share its link with friends.</p></div><button class="text-button" id="reset-settings" type="button">Reset settings <span aria-hidden="true">↺</span></button></div>
+  <p id="status" class="game-status" role="status" aria-live="polite">Preparing launcher…</p>
+  <div class="lobby-layout" id="setup" tabindex="-1">
+    <section class="configuration" aria-label="Launch settings">
+      <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+        <button type="button" role="tab" id="tab-game" aria-selected="true" aria-controls="panel-game" tabindex="0">Game</button>
+        <button type="button" role="tab" id="tab-display" aria-selected="false" aria-controls="panel-display" tabindex="-1">Display and audio</button>
+        <button type="button" role="tab" id="tab-controls" aria-selected="false" aria-controls="panel-controls" tabindex="-1">Controls</button>
+        <button type="button" role="tab" id="tab-files" aria-selected="false" aria-controls="panel-files" tabindex="-1">Game files</button>
+      </div>
+      <div class="settings-panel" id="panel-game" role="tabpanel" aria-labelledby="tab-game" tabindex="0">
+        <div class="section-title"><h2>Game settings</h2><span>01 / 04</span></div>
+        <div class="field"><label for="progress">Progress</label><select id="progress" aria-describedby="progress-help"><option value="all">All content unlocked</option><option value="original">Original progression</option></select><p class="field-help" id="progress-help">Unlock riders, sleds and courses for this session. Your original saves stay unchanged.</p></div>
+        <label class="setting-row switch-row"><span><strong>Separate cameras</strong><small>Your own view and original HUD, for up to four racers.</small></span><input type="checkbox" id="camera" checked><span class="switch" aria-hidden="true"></span></label>
+        <div class="next-step"><span class="step-number">LIKE A CONSOLE</span><p>Choose game modes, riders and tracks in the original game menus.</p></div>
+        <p class="room-note" id="room-note">One link, one game. Friends join as the next controllers.</p>
+      </div>
+      <div class="settings-panel" id="panel-display" role="tabpanel" aria-labelledby="tab-display" tabindex="0" hidden>
+        <div class="section-title"><h2>Display and audio</h2><span>02 / 04</span></div>
+        <div class="field"><label for="image">Image</label><select id="image"><option value="crisp">Crisp pixels</option><option value="smooth">Smooth</option></select><p class="field-help">Choose the original pixel look or softer filtering.</p></div>
+        <div class="volume-heading"><label for="volume">Volume</label><output id="volume-value" for="volume">50%</output></div><div class="volume-control"><span class="sound-symbol" aria-hidden="true">♪</span><input id="volume" type="range" min="0" max="100" value="50"></div>
+        <p class="quiet-note">These settings apply to your browser. Choose them before launching.</p>
+        <p class="capability">PlayStation · WebAssembly · WebGL2</p>
+      </div>
+      <div class="settings-panel" id="panel-controls" role="tabpanel" aria-labelledby="tab-controls" tabindex="0" hidden>
+        <div class="section-title"><h2>Keyboard controls</h2><span>03 / 04</span></div>
+        <dl class="controls-list"><div><dt>Steer / navigate</dt><dd><kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd></div><div><dt>Accelerate / confirm</dt><dd><kbd>X</kbd></dd></div><div><dt>Start / pause</dt><dd><kbd>Enter</kbd></dd></div><div><dt>Triangle / back</dt><dd><kbd>A</kbd></dd></div></dl>
+        <p class="field-help">Click the game to focus your controls. Each browser controls one player.</p><p class="room-note">Join everyone before starting a race, then choose Multiplayer in the game.</p>
+      </div>
+      <div class="settings-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" tabindex="0" hidden>
+        <div class="section-title"><h2>Game files</h2><span>04 / 04</span></div>
+        <div class="disc-state"><i class="status-dot" aria-hidden="true"></i><div><strong id="disc-title">Checking game files…</strong><p id="disc-description">Reading the host settings.</p></div></div>
+        <div id="disc-settings" hidden><label for="disc-files" class="file-label">Local disc files</label><input id="disc-files" type="file" multiple accept=".cue,.bin" aria-describedby="disc-help"><p class="field-help" id="disc-help">Select your CUE and all eleven BIN tracks together. Files are read in your browser.</p><p class="file-selection" id="disc-selection" role="status"></p></div>
+        <div class="field"><label for="bios">Optional PlayStation BIOS</label><input id="bios" type="file" accept=".bin,.rom" aria-describedby="bios-help"><p class="field-help" id="bios-help">Leave empty for HLE, or choose your own BIOS. All players must use the same BIOS choice.</p></div>
+      </div>
+    </section>
+    <aside class="launch-preview" aria-label="Before launch">
+      <div class="preview-image"><img src="/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover: a rider racing a snowmobile" width="1475" height="1478"></div>
+      <div class="launch-summary"><div class="preview-title"><h2>Launch summary</h2><span aria-hidden="true">↗</span></div><dl><div><dt>Session</dt><dd id="summary-session">New · up to 4 players</dd></div><div><dt>Camera</dt><dd id="summary-camera">Personal view</dd></div><div><dt>Progress</dt><dd id="summary-progress">All content unlocked</dd></div><div><dt>Image</dt><dd id="summary-image">Crisp pixels</dd></div></dl><button class="primary-button" id="launch" type="button"><span id="launch-label">Start game</span><span aria-hidden="true">↗</span></button><p class="launch-hint">First launch loads the full disc, including music.</p><p class="saved-note">PAL SLES-02194 / v0.3.0</p></div>
+    </aside>
+  </div>
+  <section id="game-stage" class="game-stage" aria-label="Game session" hidden>
+    <div class="stage-toolbar"><div><i class="status-dot" aria-hidden="true"></i><strong>Sled Storm</strong></div><div><button type="button" class="text-button" id="back-lobby">Return to lobby</button><button type="button" class="secondary-button" id="fullscreen">Fullscreen ⛶</button></div></div>
+    <section id="sharing" class="invite-box" aria-label="Session invitation" hidden><strong>Invite friends</strong><p>Send the complete link. Friends join as the next controllers.</p><div class="invite-actions"><label class="sr-only" for="invite">Invite friends</label><input id="invite" readonly><button class="secondary-button" id="copy-invite" type="button">Copy invite link</button></div></section>
+    <div id="game" aria-label="Game screen"></div>
+    <div class="game-bottom"><p>Arrows to steer · X to accelerate · Enter for Start · A to go back</p><span>Keep all connected tabs active.</span></div>
   </section>
-  <section id="sharing" hidden aria-label="Session invitation">
-    <label for="invite">Invite friends</label>
-    <input id="invite" readonly aria-label="Session invitation link">
-    <button id="copy-invite">Copy invite link</button>
-  </section>
-  <div id="game" aria-label="Game screen"></div>
-  <footer><p>Keyboard: arrows to steer and navigate · X = PlayStation cross (confirm / accelerate) · Enter = Start · A = triangle (back). Click the game to focus controls.</p><p>Start a session, then share its invitation. Choose Multiplayer in the original game menus. Keep all connected tabs open.</p><p>Network rooms use fresh temporary memory cards. Your single-player saves remain separate.</p><a href="/">Start a new session</a><p>v0.3.0 · experimental · up to four controllers · separate player cameras.</p></footer>
 </main>
-<script type="module" src="/app.js?v=emulator-network-1"></script>
+<footer><span>SLED STORM / BROWSER EDITION</span><span>PS1 · 1999 / experimental build</span></footer>
+<dialog id="exit-dialog" aria-labelledby="exit-title" aria-describedby="exit-help"><h2 id="exit-title">Leave this session?</h2><p id="exit-help">Your controller will disconnect. Others can continue; if you are the last player, the room ends.</p><div><button type="button" class="secondary-button" id="stay-game">Keep playing</button><button type="button" class="primary-button" id="confirm-exit">Return to lobby</button></div></dialog>
+<script type="module" src="/app.js?v=emulator-lobby-2"></script>
+</body>
 </html>

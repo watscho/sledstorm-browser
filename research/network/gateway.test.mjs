@@ -127,7 +127,7 @@ test('emulator gateway protects the archive, preserves reshare access and exclud
         assert.equal((await fetch(base + '/disc.zip', { headers })).status, discMode === 'shared' ? 200 : 403);
         const info = await fetch(base + '/session-info', { headers });
         assert.equal(info.headers.get('x-invite-path'), '/access/' + token);
-        for (const path of ['/invitation.js', '/disc-identity.js', '/network-core.data'])
+        for (const path of ['/invitation.js', '/disc-identity.js', '/network-core.data', '/lobby-ui.js', '/sled-storm-pal-cover.jpg'])
           assert.equal((await fetch(base + path, { headers })).status, 200, path);
         for (const path of ['/lab-state', '/diagnostic-state', '/.cache/disc.zip', '/.git/config'])
           assert.equal((await fetch(base + path, { headers })).status, 403, path);

@@ -5,6 +5,7 @@ import { unlockPal } from './pal-profile.js';
 import { selectedDisc } from '/local-disc.js';
 import { identifyDisc } from './disc-identity.js';
 import { parseInvitation, invitationUrl } from './invitation.js';
+import { initLobby } from './lobby-ui.js';
 
 const launch = document.querySelector('#launch');
 const status = document.querySelector('#status');
@@ -13,13 +14,14 @@ let session, sync;
 let roomOptions, launchInfo;
 let viewChecks = 0;
 let invitation;
+const lobby = initLobby();
 try {
   invitation = parseInvitation(location.hash);
   if (invitation) {
     document.querySelector('#progress').value = invitation.progress;
     document.querySelector('#camera').checked = invitation.camera;
     document.querySelector('#progress').disabled = document.querySelector('#camera').disabled = true;
-    launch.textContent = 'Join game';
+    lobby.guest();
   }
 } catch (error) { status.textContent = error.message; launch.disabled = true; }
 const solo = new URLSearchParams(location.search).has('solo');
@@ -33,8 +35,8 @@ const showStatus = text => { status.textContent = text; };
 const launcherInfo = fetch('/session-info').then(async response => {
   if (!response.ok) throw new Error('Could not read launcher settings.');
   const info = await response.json();
-  document.querySelector('#disc-settings').hidden = info.discMode !== 'local';
-  if (info.discMode === 'local') showStatus('Choose your local CUE and all BIN tracks. Each browser needs matching files.');
+  lobby.discMode(info.discMode);
+  showStatus(info.discMode === 'local' ? 'Choose your local CUE and all BIN tracks before launching.' : 'Ready to play. Start the game, then copy its invitation.');
   return info;
 });
 launcherInfo.catch(error => { showStatus(error.message); launch.disabled = true; });
@@ -96,6 +98,7 @@ launch.addEventListener('click', async () => {
       startBenchmark();
     },
   });
+  lobby.start();
   document.querySelector('#game').classList.add('active');
   document.querySelector('#game').scrollIntoView({ block: 'start' });
   status.textContent = 'Loading emulator and disc…';

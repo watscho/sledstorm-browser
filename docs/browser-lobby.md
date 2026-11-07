@@ -4,6 +4,12 @@ Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) after starting the
 [hosting command](multiplayer.md). Set preferences before pressing **Start game**.
 An invitation opens the same launcher with **Join game** instead.
 
+The launcher groups settings into **Game**, **Display and audio**, **Controls**
+and **Game files** tabs, with a live launch summary and PAL cover artwork.
+Tabs support arrow-key navigation; **Reset settings** restores available launch
+controls to their defaults and clears selected files. Guest room settings remain
+locked to the invitation.
+
 ## Before launch
 
 | Setting | What it does | Shared with the room? |
@@ -42,6 +48,10 @@ the game's original shared-screen presentation. See the
 The [all-content preset](unlocked-profile.md) changes session memory, including
 rider, sled and course selection. Rooms use fresh temporary memory cards;
 persistent single-player cards and disc files are unchanged.
+
+Use **Fullscreen** above the game to expand the session. **Return to lobby**
+asks before disconnecting your controller; remaining players can continue.
+This does not stop hosting.
 
 ## Loading and status
 
