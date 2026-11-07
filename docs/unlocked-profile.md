@@ -1,14 +1,14 @@
 # All-content browser profile (PAL SLES-02194)
 
-The browser launch page defaults to **All content unlocked**. Turn it off before launch
-for original progression. A v4 room invitation carries the unlock setting; the
+The browser launch page defaults to **All content unlocked**. Select
+**Original progression** before launch to use the game's original unlock state.
+A room invitation carries the unlock setting; the
 guest inherits it, and the mode is part of the content identity checked before
-joining. Both peers execute the same hooks and retain normal physics and timers.
+joining. All peers execute the same hooks and retain normal physics and timers.
 
 This is an in-memory session preset, applied after frontend initialization
-and reapplied if the game resets its unlock state. It does not edit the disc,
-the original emulator launcher, or `saves/card*.mcd`. It is not an imported
-memory-card save and does not invent best times, scores, or race records.
+and reapplied if the game resets its unlock state. It does not edit the disc or
+persistent memory cards. It is not an imported memory-card save and does not invent best times, scores, or race records.
 
 ## Audited PAL fields
 
@@ -25,8 +25,8 @@ Do not transplant these addresses to another game region or PS2 Sled Storm.
 | `800C2ECC` | Mirror availability = 1 |
 | `800D6AE8` | Original eight-rider circular selector, all links restored |
 
-`sled_web_progress_tick` runs before controller exchange and state CRC in the
-shared frame callback, including offline launches. It only writes in frontend
+`unlockPal` in [`web/pal-profile.js`](../web/pal-profile.js) runs before the
+console step and state check. It only writes in frontend
 modes 1/2 while no race is active, and skips already-unlocked profiles. This
 places the preset before character selection and restores it after a reset.
 
@@ -35,10 +35,9 @@ The derived maximum-progress state follows the audited original builder
 options (`800C2EBC`, `800C2EBE`), eight circular rider links, and fifteen circular
 course links including the demo. These are selection links, not course IDs.
 No guest calls, generated-code replacements or instruction patches are needed.
-Upstream source and the original launcher remain unchanged.
+The preset operates on initialized session RAM.
 
-`web_progress.c` contains no cash, speed, timer, opponent or
-invincibility modifications. A read-only runtime probe reports the actual
-canonical ownership counts, track counts, secret flags and rebuild count.
+The preset does not change cash, speed, timers, opponents or invincibility.
+Focused checks in `web/pal-profile.test.mjs` cover the guarded RAM writes.
 
 Validation results are recorded in [verification.md](verification.md).

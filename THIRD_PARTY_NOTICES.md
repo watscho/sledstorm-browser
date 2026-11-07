@@ -1,99 +1,75 @@
 # Sources, attribution and license boundaries
 
-The root [MIT license](LICENSE) applies to this project's original contributions:
-the browser launch/settings UI, custom WebSocket relay/client and gateway,
-original adapter code, tooling additions, documentation and decorative SVG.
-It does **not** relicense upstream source, upstream-derived snippets in the
-integration generator, original game code/data, or generated and compiled
-runtime output. Where a file combines contributions, MIT covers only our
-original additions. The applicable upstream terms remain in force.
+The root [MIT license](LICENSE), copyright **Vacho Aivazov**, applies to this
+project's original wrapper, launcher, controller protocol, gateway, adapters,
+tooling and documentation. Upstream source, derived snippets, compiled upstream
+components and game content retain their respective terms. MIT does not
+relicense those materials.
 
-## Components used by the current browser build
+## Browser emulator dependencies
 
-| Source | Pinned revision / version | What we use | Terms / notices |
+| Component | Pinned version / source | Use | Terms |
 | --- | --- | --- | --- |
-| [PeriBluGaming/SledStormPSXRecomp](https://github.com/PeriBluGaming/SledStormPSXRecomp/tree/2abf4ec86baf7f98629da09017bf4d978772ebb4) | `2abf4ec86baf7f98629da09017bf4d978772ebb4` | PAL SLES-02194 generated C/scaffold, title configuration, widescreen integration and supplied framework patches | Mixed provenance; author's contributions use PolyForm Noncommercial 1.0.0. See preserved [LICENSE](docs/licenses/port-LICENSE.txt) and detailed [NOTICE](docs/licenses/port-NOTICE.md). Generated game code is explicitly outside that grant. |
-| [mstan/psxrecomp](https://github.com/mstan/psxrecomp/tree/c1f5cafd4102daa57b7342bec7c432aaca8981ce) | `c1f5cafd4102daa57b7342bec7c432aaca8981ce` | CPU/runtime, GPU, GTE, audio, CD, SIO/Multitap, render transactions and port interfaces; browser generator adapts runtime source into ignored build files | [PolyForm Noncommercial 1.0.0](docs/licenses/psxrecomp-LICENSE.txt); internal third-party components retain their terms. |
-| [PCSX-Redux OpenBIOS](https://github.com/grumpycoders/pcsx-redux/tree/55fbf0468345acfbe5512628a3be5c0cfe3f22e7/src/mips/openbios) | `55fbf0468345acfbe5512628a3be5c0cfe3f22e7` | OpenBIOS binary delivered by the pinned framework, not a Sony BIOS dump | MIT, Copyright (c) 2019 PCSX-Redux authors; includes [uC-sdk](https://github.com/grumpycoders/uC-sdk/tree/69e06871824e2d62069487a7426ded09090ceb69) permissively licensed components. Preserve the [OpenBIOS notice](docs/licenses/OpenBIOS-LICENSE.txt) and upstream component notices when distributing it. |
-| [websockets/ws](https://github.com/websockets/ws) | npm `ws@8.22.1`, integrity locked in `research/network/package-lock.json` | Node WebSocket transport for our custom relay/gateway | [MIT](docs/licenses/ws-LICENSE.txt). |
-| [emscripten-core/emsdk](https://github.com/emscripten-core/emsdk/tree/35659964bc2762fffec0d257997fb61475f765b7) | SDK `6.0.13`, emsdk `35659964bc2762fffec0d257997fb61475f765b7` | WebAssembly compiler, JS glue, Asyncify and cooperative fibers, SDL2/zlib ports | Emscripten MIT/NCSA and per-component toolchain/port licenses; preserve distribution notices supplied by the SDK. |
-| [SDL2](https://github.com/libsdl-org/SDL), [zlib](https://github.com/madler/zlib), [libwebp](https://github.com/webmproject/libwebp) | SDL2/zlib selected by the pinned Emscripten SDK; libwebp archive pinned by framework `third_party/deps.manifest` | Graphics/input/audio backend, compression and runtime image decoding | SDL2: zlib license; zlib: zlib license; libwebp: BSD-style license and PATENTS. Their source packages carry complete notices. |
+| [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3) | 4.2.3 official release; archive and file SHA-256 hashes in `emulator.lock.json` | Browser loader, frontend assets and core packaging | GPL-3.0 and bundled component notices. |
+| [EmulatorJS/pcsx_rearmed](https://github.com/EmulatorJS/pcsx_rearmed/tree/f29871dde1742cafb0ab56ba33636a8600bbbd80) | `f29871dde1742cafb0ab56ba33636a8600bbbd80` | PlayStation emulation core | Upstream GPL and per-component terms. |
+| [EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch/tree/6dd4353937ef48b6ec0bfbdbb15d1c5992d86927) | `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927` | WebAssembly core frontend and browser integration | Upstream GPL and per-component terms. |
+| [websockets/ws](https://github.com/websockets/ws) | `ws@8.22.1`; npm integrity in `research/network/package-lock.json` | Custom WebSocket relay and gateway transport | [MIT notice](docs/licenses/ws-LICENSE.txt). |
+| [emscripten-core/emsdk](https://github.com/emscripten-core/emsdk/tree/35659964bc2762fffec0d257997fb61475f765b7) | SDK 6.0.13; emsdk `35659964bc2762fffec0d257997fb61475f765b7` | WebAssembly compiler and toolchain | MIT/NCSA and per-component SDK terms. |
 
-CMake 4.4.4 (BSD 3-Clause), Ninja 1.13.2 (Apache 2.0), and Capstone 5.0.9
-(BSD-style) are project-local build/inspection tools installed by bootstrap.
-Their distributions carry their own licenses. They are not vendored in this
-repository. Additional transitive runtime/toolchain dependencies are described
-by the pinned framework and SDK; this table does not replace their notices.
+`tools/bootstrap-emulator.py` verifies official assets against
+[emulator.lock.json](emulator.lock.json). `tools/build-emulator.py` fetches exact
+core/frontend sources and an isolated SDK, then applies anchor-checked hooks
+from `tools/prepare-emulator-native.py` and `research/emulator/`. The hooks add
+console-step gating, state access and isolated camera/HUD presentation. Generated
+manifests record source pins and output hashes; the core archive retains bundled
+license metadata and notices. See [architecture](docs/browser-emulator.md).
 
-The source/build pins are recorded in [upstream.lock.json](upstream.lock.json).
-Bootstrap downloads only the port, framework and SDK, then applies the port's
-own version-checked framework patch script. Browser-specific changes are
-anchor-checked in `tools/prepare-browser-main.py` and written into `.cache/`.
-Those generated files include upstream and game-derived material and are not
-covered wholesale by our MIT license.
+Downloaded assets, source checkouts, SDK and binaries remain in ignored
+`vendor/` and `.cache/` directories. Preserve applicable upstream notices and
+source-distribution obligations when distributing compiled components.
 
-## What our networking adds
-
-`research/network/` and `research/wasm/network-client.js` implement our browser
-controller lockstep, room capabilities, history catch-up and content/state
-checks. This is not a direct port of the upstream UDP/ICE/rollback transport.
-The browser CMake disables native `PSX_NETPLAY` and `PSX_RECOMP_UI`.
-
-[RetroPortingToolKit/recomp-ui](https://github.com/RetroPortingToolKit/recomp-ui)
-is an upstream optional native UI dependency. [recomp-net](https://github.com/RetroPortingToolKit/recomp-net)
-(research snapshot `e53059306824edf4f0aec4aae5ae65151b18535f`) and
-[rbengine](https://github.com/RetroPortingToolKit/rbengine)
-(`b29bdde642bc087f21303b827fadba40496b502d`) were inspected during research.
-These optional source trees are not compiled into our current browser target,
-are not fetched by bootstrap, and are not vendored here.
-
-## Optional tunnel tooling
+## Optional hosting tool
 
 `tools/play-online.py` runs a separately installed
 [cloudflare/cloudflared](https://github.com/cloudflare/cloudflared) executable
-(Apache License 2.0) for temporary internet access. The executable is not
-vendored in this repository and is not part of the compiled game. Its original
-license and notices remain with the Cloudflare distribution.
+under Apache License 2.0. It provides temporary HTTPS access and is not vendored
+or compiled into the emulator. Its distribution carries its own notices.
 
-## Browser emulator adapter
+## Optional recompiled engine components
 
-The default v0.3.0 emulator target uses
-[EmulatorJS 4.2.3](https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3)
-(GPL-3.0) assets from its SHA-256-verified official release. Installed assets
-are listed in `emulator.lock.json` and remain ignored under `vendor/`.
+The explicit `--engine recompiled` option has its own source/build dependencies
+in [upstream.lock.json](upstream.lock.json). These notices apply to that option
+and its integration tooling; they are not dependencies of the emulator build.
 
-The native build uses [EmulatorJS/pcsx_rearmed](https://github.com/EmulatorJS/pcsx_rearmed)
-at `f29871dde1742cafb0ab56ba33636a8600bbbd80` and
-[EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch)
-at `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927`. These retain their GPL and component
-license terms. `tools/build-emulator.py` fetches those exact sources and an
-isolated Emscripten 6.0.13 SDK, then applies our version-checked source hooks.
-The generated core archive retains the bundled license and metadata. No source
-checkout, emulator binary or SDK is committed here.
+| Source | Pinned revision | Use and terms |
+| --- | --- | --- |
+| [PeriBluGaming/SledStormPSXRecomp](https://github.com/PeriBluGaming/SledStormPSXRecomp/tree/2abf4ec86baf7f98629da09017bf4d978772ebb4) | `2abf4ec86baf7f98629da09017bf4d978772ebb4` | PAL generated C/scaffold, configuration, widescreen integration and framework patches. Mixed provenance; author's contributions use PolyForm Noncommercial 1.0.0. Preserve [LICENSE](docs/licenses/port-LICENSE.txt) and [NOTICE](docs/licenses/port-NOTICE.md). Generated game code is outside that grant. |
+| [mstan/psxrecomp](https://github.com/mstan/psxrecomp/tree/c1f5cafd4102daa57b7342bec7c432aaca8981ce) | `c1f5cafd4102daa57b7342bec7c432aaca8981ce` | Recompiled runtime and interfaces. [PolyForm Noncommercial 1.0.0](docs/licenses/psxrecomp-LICENSE.txt); internal components retain their terms. |
+| [PCSX-Redux OpenBIOS](https://github.com/grumpycoders/pcsx-redux/tree/55fbf0468345acfbe5512628a3be5c0cfe3f22e7/src/mips/openbios) | `55fbf0468345acfbe5512628a3be5c0cfe3f22e7` | Framework OpenBIOS binary. MIT, Copyright (c) 2019 PCSX-Redux authors; includes permissive [uC-sdk](https://github.com/grumpycoders/uC-sdk/tree/69e06871824e2d62069487a7426ded09090ceb69) components. Preserve [OpenBIOS notice](docs/licenses/OpenBIOS-LICENSE.txt) and component notices. |
+| [SDL2](https://github.com/libsdl-org/SDL), [zlib](https://github.com/madler/zlib), [libwebp](https://github.com/webmproject/libwebp) | SDL2/zlib selected by pinned Emscripten; libwebp pinned by framework `third_party/deps.manifest` | Platform and image support. SDL2/zlib: zlib licenses; libwebp: BSD-style license and PATENTS. Source packages carry full notices. |
 
-Our original launcher, frame adapter, controller protocol, canonical state
-checker and build scripts are MIT-licensed. This does not relicense the compiled
-emulator or any upstream component. See [the emulator guide](docs/browser-emulator.md)
-for the build and source details. The static recompilation dependencies above
-belong to the separate retained recompiled target, not this emulator build.
+That option's local build/inspection tools include CMake 4.4.4 (BSD 3-Clause),
+Ninja 1.13.2 (Apache 2.0) and Capstone 5.0.9 (BSD-style). Its anchor-checked
+integration generator writes derived source into `.cache/`; generated output
+is not covered wholesale by the wrapper's MIT license. Additional component
+notices are supplied by the pinned source distributions.
 
-## README cover image
+## Cover image
 
 `docs/images/sled-storm-pal-cover.jpg` is the PAL SLES-02194 cover scan from
 [PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html),
-retrieved on 2026-11-06 and included for identification and illustration.
-It is not original wrapper artwork or MIT-licensed material. Game artwork,
-Electronic Arts and PlayStation marks remain with their respective rights
-holders.
+retrieved on 2026-11-06 for identification and illustration. The artwork and
+Electronic Arts / PlayStation marks belong to their respective rights holders
+and are outside the wrapper's MIT license.
 
-## Original game and distribution
+## Game content and distribution
 
-Sled Storm names, game code, graphics, music and disc contents belong to their
-respective rights holders. No rights to those works are granted here. The
-upstream port's notice expressly excludes generated game C and the compiled
-game from its license grant. A repository containing only wrapper code does
-not establish permission to distribute a compiled game or host it publicly.
+Sled Storm game code, graphics, music, disc contents and trademarks belong to
+their respective rights holders. This repository grants no rights to those
+works. The optional upstream port also excludes generated game C and the
+compiled game from its license grant.
 
-Do not add disc images, generated game code, compiled JS/Wasm, memory cards or
-private access/session tokens to this repository. Preserve all applicable
-upstream license files and required notices with any permitted distribution.
+Keep disc images, BIOS, generated game code, compiled JS/Wasm, memory cards and
+private invitation/access tokens out of Git. Hosting or distributing game
+content requires its own appropriate rights; the wrapper license does not
+supply them.

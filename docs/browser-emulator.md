@@ -1,63 +1,31 @@
 # Browser emulator multiplayer
 
-Version **0.3.0** uses PCSX-ReARMed in each browser and synchronizes controller
-inputs, with separate full cameras and the original single-player HUD for up to
-four racers. The earlier runtime investigation is preserved on
-`research/performance-baseline`; the recompiled engine remains an explicit option.
+Each browser runs PCSX-ReARMed and synchronizes controller inputs with the room.
+Up to four racers have separate full cameras and the original single-player HUD.
 
-## Build and run
+For installation and commands, see [setup](setup.md). For invitations, starting a
+race and shutting down, see [playing with friends](multiplayer.md). This guide
+covers the implementation and pinned source dependencies.
 
-Requirements: Python 3.10+, Git, Bash, make, Node.js 22+ with npm, and
-bsdtar/libarchive (`tar` on macOS). The first build downloads pinned sources and
-an isolated Emscripten SDK. Linux setup has not been qualified.
+## Runtime and disc loading
 
-```sh
-python3 tools/bootstrap-emulator.py
-python3 tools/build-emulator.py
-python3 server.py
-```
+The host serves the launcher on loopback port 8000 and starts the controller
+relay on 8004. The online helper adds a private gateway on 8005 and a temporary
+Cloudflare HTTPS tunnel. It publishes the HTTPS invitation origin to its own
+runtime, so the host can play through localhost without downloading its disc
+through the tunnel. Metadata is bound to that runtime PID and removed on stop.
 
-Keep exactly one game subdirectory containing a CUE and every referenced BIN
-track directly under the repository root. Bootstrap does not download game data.
-The launcher prepares an ignored, uncompressed `.cache/disc.zip`, including CD
-audio. This avoids costly JavaScript inflation at each join. It reuses the ZIP
-until source filenames, sizes or modification times change.
+Shared mode packages the CUE and all eleven BIN tracks into an ignored,
+uncompressed `.cache/disc.zip`, including CD audio. This avoids JavaScript
+inflation at each join. The archive is reused until source filenames, sizes or
+modification times change. Each guest downloads the complete archive.
 
-Open <http://127.0.0.1:8000/> and press **Start game**. An optional user-supplied
-BIOS must match on all clients; the verified test used HLE (no BIOS).
-The launcher creates an invitation automatically. Open the complete invitation
-in another browser and start the game, then select Multiplayer in the original
-game menus. Each joined browser controls its assigned controller. Separate new
-launcher sessions create isolated rooms, with at most four controllers each.
-
-Controls: arrows, **X** for cross/accelerate, **Enter** for Start, **A** for
-triangle/back. Click the game to focus it. Rooms use fresh temporary memory
-cards; persistent single-player cards are neither loaded nor overwritten.
-
-Loopback invitations work only on this computer. For a temporary private
-internet launcher, with `cloudflared` installed:
-
-```sh
-python3 tools/play-online.py
-```
-
-Open <http://127.0.0.1:8000/>, start a game, and share the in-game invitation.
-The helper publishes the private HTTPS origin to its own runtime, so the host
-reads disc data locally while friends receive internet links. Metadata is bound
-to the runtime PID and removed when the helper stops. Guests preserve the
-private access path when resharing an invitation. Keep the helper running. Ctrl+C stops its owned processes.
-Host-disc mode transfers the complete disc to each authenticated browser; it does not use the earlier
-recompiled port's bounded disc cache. Alternatively, use `--disc-mode local` with the helper, or
-`python3 server.py --disc-mode local`. Each browser selects its own CUE and all
-11 BIN tracks; this mode blocks `/disc.zip` at both launcher and gateway. Disc
-identity hashes every track's contents, including audio, in CUE order. Files
-are read locally by the browser. No host disc is required to start this mode.
-Local-file boot was verified with the complete PAL CUE/BIN set. The launcher
-refused host disc downloads in that mode. Two browsers loaded the host disc through the private Cloudflare HTTPS URL,
-joined the same room, completed history catch-up and agreed at 9,000 steps with
-short live samples around 48 steps/s. This exercised the internet tunnel on one
-Mac; physical-computer and remote-network qualification remains open. The helper defaults to `--engine emulator --disc-mode shared`. Use
-`--engine recompiled` explicitly for the earlier target.
+Local-file mode reads browser-selected CUE/BIN files and blocks `/disc.zip` at
+both server and gateway. Disc identity hashes every track, including audio, in
+CUE order. No host disc is required to start this mode. BIOS selection must match
+across all clients; the verified configuration uses HLE with no BIOS file.
+Rooms use fresh temporary memory cards, without loading or overwriting persistent
+single-player cards.
 
 ## Synchronization
 
@@ -84,33 +52,11 @@ load-state routine normalizes CPU/event timers, so a raw round trip did not
 preserve the strict state checksum. Transport tests do not qualify snapshot
 netplay; deterministic history replay remains the supported path.
 
-## Verification record — 2026-11-06/07
+## Verification
 
-Two actual browsers controlled different sleds in a two-player Pine Valley
-race. Accelerating controller 2 moved the right sled while the left stayed
-stationary, and controller 1 independently moved the left sled. Both sustained
-short samples around 50 completed core steps/s. State checks agreed past 8,500
-steps. A third browser caught up and reached live play with agreement at 34,000
-steps. Guest Start opened the original pause menu in 4:3.
-
-The final 0.3.0 build was then exercised with **four actual browsers** in one
-Pine Valley race. Each browser joined and confirmed its own native controller,
-accelerated a different sled, and showed its own full camera and HUD. All four
-reported agreement at **19,500** core steps. Final short samples were 50.3, 49.0,
-48.5 and 49.8 steps/s; race samples were also around 48–50. The host passed 30
-full-state comparisons around presentation. Controller 4 opened the shared pause
-menu in 4:3. Local evidence is ignored under `.cache/emulator-four-browser-*`.
-
-The final launcher flow was also checked with the host on localhost: its copied
-invitation used the private HTTPS origin, and that link opened the authenticated
-guest launcher with inherited room options. The host did not download its disc
-through the tunnel.
-
-These checks used the Codex in-app browser on one Mac, PAL disc, HLE BIOS,
-single-threaded Wasm and a 512 MiB heap per instance. They do not qualify Chrome,
-hidden tabs, long sessions, multiple computers, internet
-latency or audible soundtrack quality. Initial independent-game measurements
-used the frontend counter and should not be read as native-step measurements.
+The [verification record](verification.md) documents the four-browser race,
+state agreement, native isolation checks, internet-path checks and remaining
+qualification limits.
 
 ## Cameras, progression and technical settings
 
@@ -173,9 +119,10 @@ pins. The prepared core archive retains upstream metadata and notices.
 
 The official asset installation remains unchanged under ignored `vendor/`;
 patched source and generated binaries stay under ignored `.cache/`. `?solo=1`
-retains the original independent-game baseline. Built-in experimental
-EmulatorJS netplay is not used. Our MIT wrapper and the emulator's GPL/component
-terms remain separate; see [third-party notices](../THIRD_PARTY_NOTICES.md).
+starts an independent console for diagnostics. Room networking is implemented
+by this project's controller protocol. Our MIT wrapper and the emulator's
+GPL/component terms remain separate; see
+[third-party notices](../THIRD_PARTY_NOTICES.md).
 
 ## Focused checks
 

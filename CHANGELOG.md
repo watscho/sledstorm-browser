@@ -5,6 +5,12 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
+### Documentation
+
+- Unified setup, multiplayer, launcher, progression and verification guides
+  around the current emulator, with a prominent start/invite/stop walkthrough.
+- Simplified README navigation and separated component notices from play instructions.
+
 ## [0.3.0] - 2026-11-07
 
 ### Added
@@ -99,6 +105,7 @@ semantic versioning and do not refer to the original game or upstream port.
 - Disc images, saves, downloaded upstream sources, compiled output and private
   access/session links are excluded from the Git repository.
 
-[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/watscho/sledstorm-browser/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/watscho/sledstorm-browser/tree/v0.3.0
 [0.2.0]: https://github.com/watscho/sledstorm-browser/tree/v0.2.0
 [0.1.0]: https://github.com/watscho/sledstorm-browser/tree/v0.1.0

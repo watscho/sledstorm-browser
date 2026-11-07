@@ -1,110 +1,76 @@
 # Verification and known limits
 
-> Legacy recompiled target. For the default v0.3.0 emulator, follow the
-> [browser emulator guide](browser-emulator.md). Run the older tunnel helper
-> with `--engine recompiled` explicitly.
+This record covers **version 0.3.0**, PAL SLES-02194, PCSX-ReARMed and the pinned
+RetroArch browser frontend. Gameplay checks used the Codex in-app browser on one
+Mac with HLE BIOS, single-threaded WebAssembly and a 512 MiB heap per instance.
+It records observed behavior, not a guarantee for every browser or network.
 
-This is a development experiment, not a completed compatibility or internet
-release. Evidence below is local to macOS and the PAL SLES-02194 configuration.
+## Gameplay — 2026-11-07
 
-## Gameplay evidence recorded on 2026-11-06
+- Four browsers joined one Pine Valley race, each confirmed its own rider and
+  independently accelerated a different sled.
+- Each player had a separate full camera and original single-player HUD.
+- All four agreed at **19,500 completed core steps**. Final short samples were
+  **50.3, 49.0, 48.5 and 49.8 steps/s**, against a PAL target of 50.
+- The host passed **30 full serialized-state comparisons** before and after
+  private camera/HUD rendering.
+- Controller 4 opened the shared pause menu with original **4:3** proportions.
+- Two-player control and cameras were exercised separately, with state agreement
+  past 8,500 steps. A third late arrival caught up and agreed at 34,000 steps.
 
-- The recompiled WebAssembly target reached the original frontend, multiplayer
-  selection, Pine Valley load, countdown and controllable racing.
-- Two browser clients ran matching core state through frame 18,625 after the
-  two-player HUD/resource and pause-presentation changes. Each had its own
-  expanded WebGL2 view with the single-player HUD; the guest accelerated.
-- Pause/options opened by either player used the original 4:3 menu and resumed
-  the personal view correctly.
-- Earlier four-client checks reached frame 9,500 in software and 8,425 in WebGL2
-  with original quad presentation. The final two-player-only pause/HUD edits
-  were not followed by a new full four-client race qualification.
-- Original disc files and memory cards were not edited by the wrapper.
+Local evidence is ignored under `.cache/emulator-four-browser-*`.
 
-These browser clients ran on one Mac. This is evidence of local room/controller
-synchronization, not of cross-device internet latency, NAT/proxy compatibility,
-or long-running reliability.
+## Disc loading and internet access
 
-## Automated coverage
+- Two actual browsers loaded the host disc through private Cloudflare HTTPS,
+  joined one room, completed catch-up and agreed at 9,000 core steps. Short live
+  samples were around 48 steps/s. This transport check preceded the final
+  four-player camera/HUD changes.
+- The final localhost host launcher generated a private HTTPS invitation. That
+  invitation authenticated and opened the guest launcher with inherited settings,
+  while the host continued reading its disc locally.
+- Local-file mode booted from a complete PAL CUE and eleven BIN tracks selected
+  in the browser; the server refused host archive downloads in that mode.
 
-`tools/check-port.sh` exercises actual Wasm fibers, local disc extents, pixel
-conversion, HUD mapping, real SIO/Multitap polling, progression, preferences,
-GPU IRQ parsing and the JavaScript settings/relay/gateway/client tests.
-The repository preparation run on 2026-11-06 passed:
+The internet-path checks used browsers on **one Mac**. A race between separate
+physical computers on remote networks remains unqualified.
 
-- All 14 JavaScript tests (3 settings and 11 relay/gateway/client cases), plus
-  the Wasm/adapter checks in `sh tools/check-port.sh`.
-- Fresh fetch of the pinned port and framework into a temporary directory;
-  supplied framework patch application and an idempotent second run.
-- A full browser build from those newly fetched sources, with no native-build
-  libwebp override. This reused the installed Emscripten SDK and tooling; a
-  completely fresh SDK download/installation was not repeated.
-- Separate installation of the pinned CMake/Ninja/Capstone wheels into a
-  temporary directory and executable version checks for CMake and Ninja.
-- English launcher inspection at the default desktop viewport and 390 × 844;
-  translated labels fit and the decorative vector loads.
-- Repository content checks: no disc/save/build/dependency artifacts, Cyrillic
-  text or machine-specific home paths among tracked files; authored Markdown
-  links resolve; missing-disc errors explain setup.
+## Automated checks
 
-Tests use loopback servers. Temporary launcher/relay processes were stopped
-and ports 8000–8003 were clear after verification. No internet endpoint was
-started. The clean-source build was compiled, not independently race-qualified.
+```sh
+node --test web/*.test.mjs
+npm test --prefix research/network
+python3 tools/test-emulator-view.py
+python3 tools/test-emulator-server.py
+```
 
-## Still unverified or unsupported
+The release passed 15 browser-module tests, 15 networking tests, three synthetic
+HTTP-handler tests and the native C presentation assertions. Python syntax and
+JavaScript syntax checks also passed.
 
-- Separate devices over the internet, high latency, browser suspension and
-  long-running/reconnection behavior under real networks.
-- Physical gamepads, audible audio quality, mobile gameplay, Linux/Windows
-  qualification and track-wide compatibility beyond the local race evidence.
-- Four independent full-screen cameras. Three/four players and software retain
-  the original split-screen presentation.
-- Rollback, persistent rooms/saves, host migration and automatic racer insertion
-  into an already-running native race.
-- Other regions/disc revisions, standalone ISO/CHD and PS2 Sled Storm.
+Coverage includes invitation validation, public URL construction, frame gating,
+state canonicalization, real loopback WebSocket exchange, compact history,
+asset-route restrictions and disc policies. Native checks cover viewport bounds,
+canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
+restoration, interrupted HUD execution and native menu bypass. The native test
+requires a C compiler and the pinned source checkout from the build.
 
-A local file check or a passing compiler build does not remove these limits.
+## Remaining limits
 
-## Cloudflare endpoint verification — 2026-11-06
+- Separate physical computers, remote latency, long sessions and reconnects
+  have not been comprehensively tested.
+- Audible soundtrack quality, hidden/background tabs, physical gamepads,
+  Chrome-specific behavior, mobile gameplay and Linux/Windows are unqualified.
+- Course/weather coverage is limited; three-player racing was not separately
+  qualified as a full race. Three and four players share the same presentation
+  path, and the four-player path was exercised.
+- World geometry and detail follow the original multiplayer mode.
+- Late joining replays history and pauses the room; the slowest client can slow
+  everyone down. Snapshot joining is experimental and disabled.
+- Rollback, host migration, persistent room recovery and durable saves are not
+  implemented. Other game regions, standalone ISO/CHD and PS2 Sled Storm are not
+  supported by this setup.
 
-The one-command online helper was used to start a real Quick Tunnel to the
-private gateway. HTTPS checks through the public hostname verified:
-
-- Unauthorized requests return 401; the private access route grants an HttpOnly,
-  Secure cookie and redirects to the launcher.
-- COOP/COEP isolation headers survive the proxy; the gateway requires local disc
-  selection, and the manifest describes all 12 local disc files.
-- Compiled JS/Wasm and OpenBIOS are reachable after authorization; `/disc/*`,
-  `.git` and `.cache` paths remain blocked.
-- Two synthetic WSS clients created/joined a room and received identical rows
-  through ten controller-input frames; that test room was then closed.
-- One actual browser host selected its local CUE/BIN files, loaded the runtime
-  through the public origin and reached the original main menu with controller 1.
-
-The host session and tunnel were left running for participant testing. No live
-hostname, token or session invitation is recorded in this repository. This is
-public transport and single-host boot evidence; a two-device internet race,
-latency, reconnect behavior and gameplay reliability remain unverified.
-
-## Host-disc mode — 0.2.0 (2026-11-06)
-
-- All 12 Node relay/gateway/client tests, 3 settings tests and 3 real Python
-  HTTP-handler tests passed. HTTP-handler fixtures contain synthetic tracks.
-- The existing Wasm disc adapter passed remote extent and local Blob checks,
-  including reporting remote transfer bytes without counting local Blob reads.
-- Through a live Cloudflare endpoint, an authenticated 4 KiB disc extent matched
-  the host's bytes exactly. Unauthorized, unbounded, oversized, out-of-file and
-  private-path requests were refused. A local-files gateway against the same
-  runtime still blocked host disc reads and advertised local selection.
-- Two actual Chrome tabs created/joined a shared-mode room without selecting any
-  CUE/BIN files. Both booted the native frontend and reported matching core state
-  through verified frame 2,550 and reached the original language-selection screen.
-- The native startup scans the approximately 283 MiB data track; shared-mode
-  startup took several minutes through the test tunnel. A transfer counter and
-  loading overlay were added for that phase. It is not video streaming or a
-  guarantee of low startup bandwidth.
-
-Both browser clients ran on the same Mac through the public HTTPS origin.
-This verifies the no-file-selection path and controller synchronization, not a
-race on two separate computers. Direct offline LAN access is not part of this
-helper. Both modes retain the previous native game build; no C/C++ changed.
+Core-step measurements do not measure distinct displayed images or audio
+underruns. Passing source/transport tests does not replace real gameplay and
+listening checks on the intended devices.

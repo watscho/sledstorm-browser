@@ -2,7 +2,7 @@
 
 Keep repository-owned UI, comments and documentation in English. Keep game
 images, BIOS, cards, downloaded sources, generated output and private links out
-of Git. Follow [the emulator guide](docs/browser-emulator.md) for the default
+of Git. Follow [the emulator guide](docs/browser-emulator.md) for the
 runtime and [third-party notices](THIRD_PARTY_NOTICES.md) for license boundaries.
 
 The native build pins PCSX-ReARMed, RetroArch and Emscripten. Make source changes
@@ -40,15 +40,7 @@ player counts, independent controller input, original menu proportions and state
 agreement. Presentation changes also need full-state before/after checks; add
 `?dev=1` for loopback diagnostics or `?verifyView=1` for sampled isolation checks.
 Do not weaken checksums to accommodate unexplained divergence. Record exact
-scope and limits in [the verification record](docs/browser-emulator.md).
-
-## Retained recompiled target
-
-Its adapters live under `research/wasm/`, with audited transformations in
-`tools/prepare-browser-main.py`. Its original dependency/build instructions are
-in [the legacy setup guide](docs/setup.md). For changes affecting that target,
-run its focused checks and `sh tools/check-port.sh`; C/C++ changes also require
-`sh tools/build-port-web.sh`. Run its tunnel with `--engine recompiled`.
+scope and limits in [the verification record](docs/verification.md).
 
 ## Before a commit
 
