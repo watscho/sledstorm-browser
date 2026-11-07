@@ -30,6 +30,19 @@ installs the Node relay dependencies, and compiles the native adapters. Download
 sources and output stay in ignored `vendor/` and `.cache/` folders. No game data
 is downloaded. Keep the terminal open until both commands finish successfully.
 
+## Upgrade an existing installation
+
+Stop the hosting helper with **Ctrl+C**. From the project directory, update
+the source and rebuild the emulator for v0.7.0:
+
+```sh
+git pull --ff-only
+python3 tools/build-emulator.py
+```
+
+Start the hosting helper again and send the new invitation. If you prefer the
+creator's browser to host the room, pass `--browser-hosted`.
+
 ## Add the game files
 
 Put exactly one PAL SLES-02194 CUE and all eleven referenced BIN tracks in
@@ -55,11 +68,11 @@ supported by this setup.
 For dedicated internet play, with Chrome and `cloudflared` installed:
 
 ```sh
-python3 tools/play-online.py --dedicated
+python3 tools/play-online.py
 ```
 
 Open [the launcher](http://127.0.0.1:8000/) after **Host launcher** appears.
-Click **Start game**, then **Copy link**. Follow the
+Click **Start game**, then **Copy invite link**. Follow the
 [friends guide](multiplayer.md) for the native multiplayer menus.
 
 For play only on this computer:
@@ -70,7 +83,7 @@ python3 server.py
 
 Open the same localhost address. This starts the runtime and relay without an
 internet tunnel. Its invitations work only on this computer.
-Add `--dedicated` to test the roster and controller recovery locally.
+Add `--dedicated` to test controller indicators and controller recovery locally.
 
 > [!TIP]
 > **Stop:** press **Ctrl+C** in the terminal that started hosting. The online
@@ -125,14 +138,15 @@ single-player HUD by default.
 | cloudflared not found | Install it, or set `CLOUDFLARED_BIN` to its executable path. |
 | Chrome not found for dedicated hosting | Install Chrome on the host, or set `SLED_CHROME_BIN` to its executable path. |
 | Friend cannot open the invitation | Copy the complete generated HTTPS invitation, keep hosting running, and check internet access. |
+| This room is no longer available | Copy a fresh invitation from the host's running game. A previous room link stops working when that room expires or the server restarts. |
 | Invitation begins with 127.0.0.1 | Start the online helper, wait for its tunnel, then start a fresh game and copy its invitation. |
-| Slow first join | Wait for the disc to load and RetroArch to apply the host's current state. In shared-disc mode, guests first download all tracks. |
+| Slow first join | Wait for the game data download to finish. **Synchronizing with the room** appears once RetroArch starts receiving the current game state. |
 | Guest joins the room but has no rider | Register that controller in the game's multiplayer menu before starting a new race. Rejoining a live race uses an existing racer. |
-| Browser-hosted room waiting for a player | Bring the affected game window back to the foreground. If the connection closed, guests can select **Rejoin room** to return to the invitation. |
-| Catching up to the live race | Wait for the browser to catch up. The dedicated server keeps advancing. If the connection closes, use **Rejoin room** to reclaim your controller. |
+| Browser-hosted room waiting for a player | Bring the affected game window back to the foreground. If the connection closed, guests can reopen the invitation. Local-file guests select their files again. |
+| Catching up to the live race | Wait for the browser to catch up. The dedicated server keeps advancing. If the connection closes, reopen the invitation in the same browser and select **Join game**. |
 | Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
-| Guests download the disc on every launch | This is expected for temporary Quick Tunnel addresses in shared-disc mode. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
+| Guests download the disc on every launch | In Chrome with a Quick Tunnel, keep **Keep or choose game data** checked and use **Use existing ZIP** to select the same archive. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |
 
 Private helper logs are in `.cache/online/`. Do not publish access links, room

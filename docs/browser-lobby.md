@@ -20,6 +20,7 @@ locked to the invitation.
 | Separate cameras | Full personal camera and original single-player HUD for two to four racers. Enabled by default. | Yes; guests inherit it. |
 | Optional PlayStation BIOS | Dedicated rooms use the built-in BIOS. In a browser-hosted room, select your own BIOS or leave it empty for HLE. | Every player in a browser-hosted room must use the same choice/file. |
 | Game files (local-file mode) | Select the CUE and all eleven BIN tracks. | Every player supplies matching contents. |
+| Keep or choose game data (shared-disc invitations) | With a Quick Tunnel, **Join game** offers to open or save a ZIP. Turning the option off skips the picker. On a permanent address, turning off **Keep game data** clears the browser's cached copy after startup. | No; personal. |
 
 All launcher controls are disabled once the game starts, including personal
 volume and image settings. Set them before launching. Create a new room to
@@ -55,7 +56,7 @@ The browser frontend cannot bypass these local device preferences.
 
 ## After launch
 
-**Copy link** in the session toolbar copies the complete invitation and briefly
+**Copy invite link** in the session toolbar copies the complete invitation and briefly
 shows **Copied**. The URL stays off screen.
 When the online helper is running, the host's localhost launcher generates the
 public HTTPS link automatically. A guest can copy and reshare the same room
@@ -64,14 +65,10 @@ invitation. A new game launched from the root page creates a different room.
 The emulator hover toolbar is hidden, and the pointer is hidden over the game.
 Use the session toolbar above the game for fullscreen and returning to the lobby.
 
-In a dedicated room, **Players** shows the four controller slots. Set your
-name and select **Mark ready** to let others know you are ready. Readiness
-is informational. Player 1 still starts the race in the game's own menu.
-Use **Test gamepad** to check which buttons the browser sees. Gamepad input
-stays in the tester while it is open.
-
-Keep **Copy recovery link** for yourself if you want to reclaim your controller
-from another browser. Share **Copy link** when inviting someone to a free slot.
+Four controller indicators below the game light up when the corresponding
+player is connected. In a dedicated room, reopen the invitation in the same
+browser and at the same address to rejoin a running race. **Controls** in the launcher shows detected gamepads
+before starting.
 
 Click the game to focus it. With Classic controls, use arrows, **S** for
 confirm/accelerate, **Enter** for Start/pause and **W** for triangle/back. The
@@ -110,11 +107,12 @@ frame and completed console steps. Loading, synchronization and errors appear
 above the game. PAL targets 50 console steps/s. The counter measures console
 steps, while audio and displayed frame pacing need separate checks. A
 browser-hosted room can wait for a suspended player. In dedicated mode the
-server advances independently of browser input. If your browser falls behind,
+server advances independently of browser input. If your browser falls far
+behind or cannot catch up during ordinary play,
 **Catching up to the live race…** appears while it temporarily skips personal
 camera rendering and mutes the game. The live view and audio return when the
-browser catches up. After a closed connection, select **Rejoin room** to reopen
-the same invitation.
+browser catches up. After a closed connection, reopen the invitation and select
+**Join game**.
 
 To stop the servers and tunnel, return to the hosting terminal and press
 **Ctrl+C**. This closes dedicated rooms as well as the launcher.

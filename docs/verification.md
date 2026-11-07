@@ -1,5 +1,18 @@
 # Verification and known limits
 
+## v0.7.0 release checks — 2026-11-07
+
+- 21 browser-module tests, 19 network tests, three HTTP handler tests and
+  the native presentation checks passed. The relay checks cover controller
+  indicators after synchronization, saved controller replacement and
+  out-of-order recovery of three reserved controllers.
+- The native build record matched the current adapter sources and the cached
+  JavaScript and WebAssembly binaries.
+- Chrome on macOS opened a test ZIP through the system file picker and launched
+  without downloading it again. The system Save As flow wrote a byte-for-byte
+  copy of the test ZIP. Joining without saving also launched successfully.
+  These checks used a local fixture and a test archive.
+
 ## v0.6.0 dedicated rooms — 2026-11-07
 
 - 20 browser-module tests, 19 network tests, three HTTP handler tests and the
@@ -121,9 +134,9 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.6.0
+## Current limits for v0.7.0
 
-- The Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
+- The v0.6.0 Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
   computers and networks, sustained sessions and remote latency remain open.
 - The native camera was checked on Pine Valley, Hard Pack and Kodiak Canyon.
   Full race completion, other courses and weather combinations remain open.
@@ -131,7 +144,8 @@ requires a C compiler and the pinned source checkout from the build.
   the server is running. A server restart requires a new room and invitation.
   In browser-hosted mode the room lasts as long as the host stays connected.
 - The dedicated Cloudflare tests used local CUE/BIN files in the clients.
-  Shared-disc delivery through Cloudflare was exercised in earlier builds.
+  Shared-disc delivery through Cloudflare was exercised in earlier builds. The
+  v0.7.0 ZIP picker checks used a local fixture.
 - Physical gamepads, sustained background-tab play, soundtrack quality,
   mobile gameplay and Linux/Windows still need hands-on verification.
 - This setup targets PAL SLES-02194 with CUE/BIN tracks.

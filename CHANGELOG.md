@@ -3,6 +3,21 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning and do not refer to the original game or upstream port.
 
+## 0.7.0 - 2026-11-07
+
+- Replaced the player roster with four compact controller indicators below the game.
+- Made dedicated hosting the default for the online launcher in shared-disc mode.
+- Rejoining a running race uses the saved controller for that room and browser.
+  New lobby assignments replace older credentials.
+- Copy invite link requires a public HTTPS address and uses the current tunnel.
+- Check invitations before downloading the disc and show download progress
+  separately from game synchronization.
+- Keep the game visible behind synchronization and catch-up messages, and give
+  suspended browser tabs more time to resume their connection.
+- Preserve the PAL points popup on each player's personal HUD after an award.
+- Let guests reuse a verified ZIP across temporary tunnel addresses, save a
+  new ZIP before joining, or join with a download for the current session.
+
 ## 0.6.0 - 2026-11-07
 
 - Added dedicated RetroArch rooms that keep running when the creator leaves.

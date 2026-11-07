@@ -82,11 +82,7 @@ export function initControls() {
   let signature;
   const updateGamepads = () => {
     let devices;
-    const feedback = $('#room-gamepad-status');
-    const report = message => {
-      $('#gamepad-state').textContent = message;
-      if (feedback && !feedback.hidden && feedback.textContent !== message) feedback.textContent = message;
-    };
+    const report = message => { $('#gamepad-state').textContent = message; };
     try { devices = Array.from(navigator.getGamepads?.() || []).filter(Boolean); }
     catch { report('Controller access is unavailable. Keyboard controls still work.'); return; }
     const select = $('#gamepad-device');

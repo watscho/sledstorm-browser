@@ -14,6 +14,12 @@
 
 #define LIMIT 16384
 #define VRAM_BYTES (1024 * 512 * 2)
+#define RACER_BASE 0x800dae20u
+#define RACER_SIZE 0x530u
+#define RACER_AWARD 0x514u
+#define AWARD_LATCH 0x800c2f80u
+#define AWARD_DISPLAY 0x800c2f88u
+#define AWARD_TICKS 0x800e3928u
 typedef struct { uint32_t words[16], env[8]; unsigned count; } Primitive;
 static Primitive primitives[LIMIT];
 static uint16_t private_vram[1024 * 512];
@@ -21,6 +27,7 @@ static unsigned seat, enabled, recording, replaying, used, overflow, drawn, fram
 static unsigned last_clip, first_clip;
 static uint32_t hud_words[256][9];
 static unsigned hud_count, hud_error;
+static int awards_advanced;
 static unsigned char hud_ram[0x200000];
 static unsigned native_frames, native_error, native_pc, native_cursor, native_packets;
 static unsigned char render_ram[0x200000], render_scratch[0x400];
@@ -38,6 +45,7 @@ static uint32_t ram32(unsigned address) {
 static void *ram(unsigned address) { return psxM + (address & 0x1fffff); }
 static void word(unsigned address, uint32_t value) { memcpy(ram(address), &value, 4); }
 static unsigned half(unsigned address) { uint16_t value; memcpy(&value, ram(address), 2); return value; }
+static void set_half(unsigned address, uint16_t value) { memcpy(ram(address), &value, 2); }
 static int guest_call(psxRegisters *regs, uint32_t target) {
   const uint32_t end = 0x80053e24;
   regs->GPR.n.ra = end; regs->pc = target;
@@ -143,6 +151,37 @@ restore:
   return !native_error;
 }
 
+/* Preserve the PAL award state from 0x80060dec when replacing the stock HUD.
+ * Advance the countdown at the start of the next draw so the last tick is
+ * still visible to this frame's private renderer. */
+static void advance_award_popups(unsigned players) {
+  for (unsigned slot = 0; slot < players; ++slot) {
+    const int32_t event = (int32_t)ram32(RACER_BASE + slot * RACER_SIZE + RACER_AWARD);
+    const unsigned timer = AWARD_TICKS + slot * 4;
+    const unsigned latch = AWARD_LATCH + slot * 2;
+    const unsigned display = AWARD_DISPLAY + slot * 2;
+    unsigned ticks = ram32(timer);
+    if (ticks) --ticks;
+    if (event < 0 && !ticks) {
+      word(timer, 0);
+      continue;
+    }
+    int value = (int16_t)event;
+    if (event > 0) {
+      set_half(latch, value);
+      ticks = 20;
+    }
+    if (value < 0) value = (int16_t)half(latch);
+    const int next = (int16_t)half(display) + 25;
+    if (next < value && value < 500) {
+      value = next;
+      ticks = 20;
+    }
+    set_half(display, value);
+    word(timer, ticks);
+  }
+}
+
 int sled_view_pc(psxRegisters *regs) {
   if (sled_view_transaction) {
     if (native_single_view) {
@@ -202,11 +241,13 @@ int sled_view_pc(psxRegisters *regs) {
       || ram32(0x800c3ca0) != 0 || ram32(0x800c34e0)) return 0;
   /* The original multiplayer HUD is replaced at presentation. Building four
    * single-player HUDs canonically would overflow the game's 256 UI slots. */
+  advance_award_popups(players);
+  awards_advanced = 1;
   regs->pc = regs->GPR.n.ra;
   return 1;
 }
 static void build_local_hud(void) {
-  const unsigned gp = 0x800c1f18, racer = 0x800dae20;
+  const unsigned gp = 0x800c1f18;
   unsigned table = ram32(0x800c1f58), context = ram32(0x800c3cb8), rank = ram32(gp + 0x1ff0);
   hud_count = hud_error = 0;
   if (table < 0x80000000 || table > 0x801f0000 - 256 * 80 || context < 0x80000000
@@ -222,8 +263,19 @@ static void build_local_hud(void) {
   sled_view_transaction = 1;
   psxRegs.GPR.n.gp = gp; psxRegs.GPR.n.sp = 0x801ff000;
   psxRegs.CP0.n.SR &= ~1u;
-  memcpy(ram(racer), hud_ram + (racer & 0x1fffff) + seat * 0x530, 0x530);
-  uint16_t zero = 0; memcpy(ram(gp + 0x205a), &zero, 2);
+  memcpy(ram(RACER_BASE), hud_ram + (RACER_BASE & 0x1fffff) + seat * RACER_SIZE, RACER_SIZE);
+  const int32_t event = (int32_t)ram32(RACER_BASE + RACER_AWARD);
+  const unsigned display = half(AWARD_DISPLAY + seat * 2);
+  const unsigned ticks = ram32(AWARD_TICKS + seat * 4);
+  set_half(AWARD_LATCH, half(AWARD_LATCH + seat * 2));
+  set_half(AWARD_DISPLAY, display);
+  word(AWARD_TICKS, ticks);
+  if (awards_advanced) {
+    // Give the original digit renderer the already advanced value for this racer.
+    word(AWARD_TICKS, 0);
+    word(RACER_BASE + RACER_AWARD, event >= 0 || ticks ? display : UINT32_MAX);
+  }
+  set_half(gp + 0x205a, 0);
   memset(ram(0x800de648), 0, 256);
   unsigned ot = context + 0x70;
   for (unsigned index = 0; index <= rank; index++) word(ot + index * 4, index ? (ot + (index - 1) * 4) & 0xffffff : 0xffffff);
@@ -268,6 +320,7 @@ unsigned sled_view_status(unsigned field) {
 void sled_view_begin(void) {
   used = overflow = drawn = 0;
   render_captured = 0;
+  awards_advanced = 0;
   unsigned players = ram32(0x800d6a10);
 #ifdef __EMSCRIPTEN__
   const int skip_presentation = EM_ASM_INT({

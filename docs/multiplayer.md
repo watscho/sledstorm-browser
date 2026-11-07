@@ -6,24 +6,27 @@ Complete the [one-time setup](setup.md), add your PAL CUE/BIN files to `game/`,
 and install Chrome and `cloudflared` on the host. From the project folder:
 
 ```sh
-python3 tools/play-online.py --dedicated
+python3 tools/play-online.py
 ```
 
 1. Wait for **Host launcher** in the terminal.
 2. Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) on the host computer.
 3. Choose settings and click **Start game**.
-4. Click **Copy link** in the session toolbar and send the complete
+4. Click **Copy invite link** in the session toolbar and send the complete
    invitation to each friend.
 
 The invitation automatically uses the private HTTPS tunnel address. The host
-reads its disc locally. Keep the terminal open and the computer awake.
+reads its disc locally. For online invitations, start the tunnel with the command above. The copy
+button reports when the tunnel is unavailable.
+Keep the terminal open and the computer awake.
 No router port forwarding is needed.
 
 ## Friend: join
 
 1. Open the complete invitation in a desktop browser.
 2. Adjust volume, image filtering or [personal controls](browser-lobby.md#personal-controls) if desired.
-3. Click **Join game** and wait for disc loading and synchronization.
+3. Click **Join game**. The launcher checks the invitation, shows disc download
+   progress and then synchronizes the game.
 4. Click the game to focus keyboard input.
 
 The default mode uses the host's disc. Friends can join without installing tools
@@ -34,16 +37,24 @@ the same BIOS file or leave it empty for HLE.
 
 ## Disc downloads and browser storage
 
-The full disc includes all music tracks. On localhost or a permanent HTTPS
-hostname, the browser saves one copy for that address and reuses it in new rooms
-as long as the disc fingerprint matches and the saved copy is still available.
-When storage is unavailable, the download remains usable for the current launch.
+The full disc includes all music tracks. On a permanent HTTPS hostname or
+localhost, **Keep game data** is on by default where supported.
+The browser reuses its copy when the disc fingerprint matches.
 
-The hosting helper creates a temporary Quick Tunnel. Each shared-disc guest
-launch through a `trycloudflare.com` address downloads the disc for that session
-only. A custom deployment with the same HTTPS origin can reuse browser storage
-across restarts. See [Hosting details](#hosting-details) for gateway requirements
-and [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
+With a temporary Quick Tunnel in Chrome, **Keep or choose game data** is checked
+by default. Press **Join game** to see the available sources:
+
+- **Use existing ZIP** opens an individual archive, including one in Downloads.
+  The launcher verifies it and shows **Game data found**. Press **Join game**
+  again to play. Select that ZIP again on a new tunnel address.
+- **Save a ZIP and join** opens the system save dialog. The launcher downloads
+  the archive, writes it to the selected file and joins the room.
+
+Choose **Join without saving** or uncheck **Keep or choose game data** to use a
+download for the current session. ZIPs selected with **Use existing ZIP** remain
+available for future sessions.
+See [Hosting details](#hosting-details) and
+[Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
 for permanent hostnames.
 
 Copies saved by earlier builds on temporary addresses can still occupy disk
@@ -72,7 +83,7 @@ reserve controllers for returning players.
 ## Dedicated rooms
 
 Install Chrome on the machine serving the game. Start the local launcher with
-`python3 server.py --dedicated`, or use `python3 tools/play-online.py --dedicated`
+`python3 server.py --dedicated`, or use `python3 tools/play-online.py`
 to make invitations available through the private tunnel. On systems where the
 launcher cannot locate Chrome, set `SLED_CHROME_BIN` to its executable path.
 Dedicated rooms use shared-disc mode and the built-in BIOS.
@@ -80,22 +91,23 @@ Dedicated rooms use shared-disc mode and the built-in BIOS.
 The server starts a separate headless RetroArch runtime for each room. Play and
 share the invitation as usual. The room stays online when its creator closes
 their browser. The next connected player becomes room owner and keeps their
-controller number. The **Players** panel shows all four controller slots,
-player names and readiness. Use **Test gamepad** to check your controller before
-the race. Buttons pressed during the test are kept out of the game. Select
-riders and tracks in the original game menu.
+controller number. Four controller icons below the game light up as the
+players synchronize. Select riders and tracks in the original game menu.
 
-Reopen the room address from your address bar in the same browser to reclaim
-your controller. A host who started on localhost can return to that localhost
-address. To switch browser, device or address, use **Copy recovery link** and
-keep that link private.
-Disconnected controllers are reserved during an active race. In the lobby they
-are reserved for 60 seconds. A room without any players closes after 60 seconds.
+To rejoin a running race, open the invitation again in the same browser at
+the same address and select **Join game**. The browser saves a controller
+credential per room. During a race, the server reserves the disconnected
+controller for that credential. In the lobby, a new assignment replaces the
+saved credential. If the host joined on localhost, they can return using
+the room address from their own address bar. A room without any connected
+players closes after 60 seconds unless a guest has already checked their
+invitation and is loading the disc. That gives the guest up to five minutes
+to join the empty room.
+
 The dedicated runtime keeps advancing when a controller stops sending input.
-It releases held buttons after 150 ms and normally disconnects the controller
-after two seconds. A client applying a race snapshot gets additional time.
-**Rejoin room** restores the current race state and reserved controller without
-reloading the game for players who stayed connected.
+It releases held buttons after 150 ms and allows up to eight seconds without
+input before disconnecting the controller.
+Reconnecting reuses the disc if the browser can access a matching saved copy.
 Keep the hosting process and tunnel running while friends are playing.
 
 ## Stop hosting
@@ -112,8 +124,8 @@ A stopped tunnel's temporary link cannot be reused.
 
 | Mode | Start command | What players provide |
 | --- | --- | --- |
-| Host disc, dedicated room | `python3 tools/play-online.py --dedicated` | Host supplies one CUE/BIN set. Guests download it automatically. |
-| Host disc, browser-hosted room | `python3 tools/play-online.py` | Host supplies one CUE/BIN set and keeps their browser tab open. |
+| Host disc, dedicated room | `python3 tools/play-online.py` | Host supplies one CUE/BIN set. Guests download it automatically. |
+| Host disc, browser-hosted room | `python3 tools/play-online.py --browser-hosted` | Host supplies one CUE/BIN set and keeps their browser tab open. |
 | Local files, browser-hosted room | `python3 tools/play-online.py --disc-mode local` | Each player selects matching CUE/BIN files in their browser; host disc downloads are blocked. |
 
 Both modes use the same HTTPS invitation flow, including when players share a Wi-Fi network.
@@ -132,7 +144,7 @@ the room's current state and synchronizes controller input. Register every
 racer in the game's multiplayer setup before starting. Rejoining a running
 race resumes an existing racer.
 
-Dedicated rooms tie reserved seats to a private recovery credential. In
+Dedicated rooms save the controller credential in browser storage. In
 browser-hosted rooms, a returning tab prefers its previous slot if it is
 still free. Another guest can take that slot, and closing the host tab ends
 the room. Both modes require matching disc data, BIOS and emulator build.

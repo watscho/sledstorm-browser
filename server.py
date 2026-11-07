@@ -15,6 +15,7 @@ import os
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.cache'
 IDENTITY = {}
+DISC_CHUNK_SIZE = 8 * 1024 * 1024
 DISC_MODE = 'shared'
 RETROARCH_LAB_TOKEN = None
 
@@ -110,7 +111,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         self.send_header('X-Content-Type-Options', 'nosniff')
-        if not self.path.startswith(('/emulator/', '/disc.zip')):
+        if self.path == '/session-info':
+            self.send_header('Cache-Control', 'no-store')
+        elif not self.path.startswith(('/emulator/', '/disc.zip')):
             self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
 
@@ -164,12 +167,19 @@ def shared_identity():
     signature = (CACHE / 'disc.json').read_text()
     identity_path = CACHE / 'emulator-disc-identity.json'
     previous = json.loads(identity_path.read_text()) if identity_path.exists() else {}
-    if previous.get('signature') != signature:
+    if previous.get('signature') != signature or 'archive' not in previous:
         sha = hashlib.sha256()
+        chunks = []
         with archive.open('rb') as source:
-            for block in iter(lambda: source.read(1024 * 1024), b''):
+            for block in iter(lambda: source.read(DISC_CHUNK_SIZE), b''):
                 sha.update(block)
-        previous = {'signature': signature, 'sha256': sha.hexdigest()}
+                chunks.append(hashlib.sha256(block).hexdigest())
+        if previous.get('signature') != signature:
+            previous = {'signature': signature}
+        previous['archive'] = {
+            'sha256': sha.hexdigest(), 'size': archive.stat().st_size,
+            'chunkSize': DISC_CHUNK_SIZE, 'chunks': chunks,
+        }
         identity_path.write_text(json.dumps(previous))
     if 'pal' not in previous:
         cue = next(ROOT.glob('*/*.cue'))
@@ -192,7 +202,7 @@ def shared_identity():
             manifest.append([path.name, path.stat().st_size, sha.hexdigest()])
         previous['content_sha256'] = hashlib.sha256(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
         identity_path.write_text(json.dumps(previous))
-    return {'disc': previous['content_sha256'], 'pal': previous['pal']}
+    return {'disc': previous['content_sha256'], 'pal': previous['pal'], 'archive': previous['archive']}
 
 
 if __name__ == '__main__':
@@ -219,6 +229,7 @@ if __name__ == '__main__':
         raise RuntimeError('Native frame hooks are required. Run python3 tools/build-emulator.py first.')
     IDENTITY = {**(shared_identity() if DISC_MODE == 'shared' else {'disc': None, 'pal': None}),
                 'discMode': DISC_MODE,
+                'roomCheck': True,
                 'core': json.loads((ROOT / 'emulator.lock.json').read_text())['files']['cores/pcsx_rearmed-wasm.data'],
                 'adapter': 'pcsx-frame-gate-v3'}
     IDENTITY['native'] = json.loads(native_build.read_text())['files']

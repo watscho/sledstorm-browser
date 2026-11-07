@@ -21,9 +21,10 @@ uncompressed `.cache/disc.zip`, including CD audio. This avoids JavaScript
 inflation at each join. The archive is reused until source filenames, sizes or
 modification times change. Each guest loads the complete archive. On localhost
 and permanent hostnames, the launcher stores one archive per browser origin
-using Cache Storage and checks the disc fingerprint before reusing it. Quick
-Tunnel launches use the session download so changing hostnames does not leave
-behind additional saved copies.
+using Cache Storage and checks the disc fingerprint before reusing it. In Chrome
+on a Quick Tunnel, the launcher can reuse an archive selected by the player
+instead of storing separate copies per temporary hostname. It verifies the ZIP
+against the host's chunk hashes before loading it.
 
 Local-file mode reads browser-selected CUE/BIN files and blocks `/disc.zip` at
 both server and gateway. Disc identity hashes every track, including audio, in
@@ -182,4 +183,4 @@ real game, audio or internet checks.
 
 `python3 server.py --retroarch-lab` also enables the standalone two-player
 diagnostic at `/retroarch-lab` in shared-disc mode. It isolates the WebSocket
-adapter from the lobby. For ordinary play, use the root launcher and **Copy link**.
+adapter from the lobby. For ordinary play, use the root launcher and **Copy invite link**.

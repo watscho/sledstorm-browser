@@ -4,26 +4,34 @@ import { canonicalStateDigest, encodeState, decodeState, captureState, restoreCo
 import { unlockPal } from './pal-profile.js';
 import { selectedDisc } from '/local-disc.js';
 import { identifyDisc } from './disc-identity.js';
-import { parseInvitation, invitationUrl, recoveryUrl } from './invitation.js';
-import { prepareNetplay, driveRetroPad } from './retroarch-netplay.js';
+import { parseInvitation, invitationUrl, onlineInvitationUrl } from './invitation.js';
+import { checkNetplayInvitation, prepareNetplay, driveRetroPad } from './retroarch-netplay.js';
 import { initLobby } from './lobby-ui.js';
+import {
+  canChooseGameArchive, openGameArchive, chooseGameArchiveDestination, matchingGameArchive, saveGameArchive,
+} from './game-data-folder.js';
 
 const launch = document.querySelector('#launch');
 const status = document.querySelector('#status');
 const game = document.querySelector('#game');
-const roster = document.querySelector('#room-roster');
-const playerName = document.querySelector('#player-name');
-const playerReady = document.querySelector('#player-ready');
-const gamepadTest = document.querySelector('#test-room-gamepad');
-const gamepadFeedback = document.querySelector('#room-gamepad-status');
+const controllerSlots = document.querySelector('#room-seats');
+const gameDataSettings = document.querySelector('#game-data-settings');
+const keepGameData = document.querySelector('#keep-game-data');
+const gameDataHelp = document.querySelector('#game-data-help');
+const gameDataState = document.querySelector('#game-data-state');
+const changeGameData = document.querySelector('#change-game-data');
+const gameDataDialog = document.querySelector('#game-data-dialog');
+const gameDataDialogStatus = document.querySelector('#game-data-dialog-status');
+const gameDataDialogActions = [...gameDataDialog.querySelectorAll('button[data-source]')];
+const quickTunnel = location.hostname.endsWith('.trycloudflare.com');
+let discardGameData;
+let archiveSelection;
 let biosUrl;
 let session, sync;
-let inviteLink = '';
+let sharedRoom;
 let roomOptions, launchInfo;
 let viewChecks = 0;
-let invitation;
-let rosterRacing = false;
-let testingGamepad = false;
+let invitation, invitationError;
 const lobby = initLobby();
 try {
   invitation = parseInvitation(location.hash);
@@ -33,7 +41,7 @@ try {
     document.querySelector('#progress').disabled = document.querySelector('#camera').disabled = true;
     lobby.guest();
   }
-} catch (error) { status.textContent = error.message; launch.disabled = true; }
+} catch (error) { invitationError = error; status.textContent = error.message; }
 const solo = new URLSearchParams(location.search).has('solo');
 const dedicatedWorker = location.origin === 'http://127.0.0.1:8000' && window.sledDedicatedWorker;
 if (dedicatedWorker) {
@@ -49,56 +57,176 @@ const retroArch = !solo && !lab && !localConsole && (invitation ? invitation.v =
 let retroRoom;
 const diagnostics = new URLSearchParams(location.search).has('diagnostics');
 const developerTools = new URLSearchParams(location.search).has('dev');
-const showStatus = text => { status.textContent = text; };
+const showStatus = text => {
+  status.textContent = text;
+  if (game.classList.contains('joining-room')) game.dataset.joinProgress = text;
+};
+function describeGameData() {
+  let help;
+  let state = '';
+  if (!quickTunnel) {
+    help = keepGameData.checked
+      ? 'The first download is kept in this browser for future rooms at this address.'
+      : 'Play without saving. An existing browser copy is used once, then cleared.';
+  } else if (archiveSelection) {
+    state = archiveSelection.file ? 'Game data found' : 'Save location selected';
+    help = archiveSelection.file
+      ? `“${archiveSelection.file.name}” is ready to use.`
+      : `Game data will be saved as “${archiveSelection.destination.name}”.`;
+  } else {
+    help = keepGameData.checked
+      ? 'Use a saved ZIP or save a new copy when you join.'
+      : 'Game data will be downloaded for this session.';
+  }
+  gameDataState.textContent = state;
+  gameDataState.hidden = !state;
+  gameDataState.classList.toggle('is-ready', Boolean(archiveSelection?.file));
+  gameDataHelp.textContent = help;
+  changeGameData.hidden = !archiveSelection;
+}
+
+keepGameData.addEventListener('change', () => describeGameData());
+function showGameDataDialog() {
+  gameDataDialogStatus.textContent = '';
+  gameDataDialog.returnValue = '';
+  gameDataDialog.showModal();
+}
+changeGameData.addEventListener('click', showGameDataDialog);
+gameDataDialog.addEventListener('close', () => {
+  if (gameDataDialog.returnValue !== 'session') return;
+  keepGameData.checked = false;
+  describeGameData();
+  launch.click();
+});
+for (const button of gameDataDialogActions) {
+  button.addEventListener('click', async () => {
+    const source = button.dataset.source;
+    let startAfterSelection = false;
+    for (const action of gameDataDialogActions) action.disabled = true;
+    gameDataDialogStatus.textContent = '';
+    try {
+      // Start the native picker in the click handler to preserve user activation.
+      if (source === 'open') {
+        const file = await openGameArchive();
+        gameDataDialogStatus.textContent = 'Verifying the selected ZIP…';
+        if (!await matchingGameArchive(file, availableArchive))
+          throw new Error('This ZIP does not match the room. Choose a different ZIP or save a new copy.');
+        archiveSelection = { file };
+      } else {
+        archiveSelection = { destination: await chooseGameArchiveDestination(availableArchive) };
+        keepGameData.checked = true;
+        startAfterSelection = true;
+      }
+      gameDataDialog.close();
+      describeGameData();
+      showStatus('');
+    } catch (error) {
+      if (error.name !== 'AbortError') gameDataDialogStatus.textContent = error.message;
+    } finally {
+      for (const action of gameDataDialogActions) action.disabled = false;
+    }
+    if (startAfterSelection) launch.click();
+  });
+}
+let availableArchive;
 const launcherInfo = fetch('/session-info').then(async response => {
   if (!response.ok) throw new Error('Could not read launcher settings.');
   const info = await response.json();
   lobby.discMode(info.discMode);
-  if (!launch.disabled) showStatus('');
+  if (invitation && !solo && info.discMode === 'shared' &&
+      (quickTunnel ? canChooseGameArchive && info.archive : Boolean(window.caches))) {
+    if (quickTunnel) availableArchive = info.archive;
+    describeGameData();
+    gameDataSettings.hidden = false;
+    if (!quickTunnel) document.querySelector('#keep-game-data-label').textContent = 'Keep game data';
+    document.querySelector('#launch-hint').hidden = true;
+  }
+  if (!invitationError) {
+    launch.disabled = false;
+    showStatus('');
+  }
   return info;
 });
 launcherInfo.catch(error => { showStatus(error.message); launch.disabled = true; });
 if (dedicatedWorker) launcherInfo.then(() => launch.click()).catch(() => {});
-async function sharedDiscFile(fingerprint) {
+async function sharedDiscFile({ disc: fingerprint }, keep) {
   const url = '/disc.zip';
   // Each Quick Tunnel hostname has its own storage that later tunnels cannot clear.
-  const cacheAllowed = fingerprint && !location.hostname.endsWith('.trycloudflare.com');
+  const cacheAllowed = fingerprint && !quickTunnel;
   let cache;
+  if (archiveSelection?.file) {
+    try {
+      await archiveSelection.file.slice(0, 1).arrayBuffer();
+      return archiveSelection.file;
+    } catch (error) {
+      console.warn('Could not read the selected ZIP.', error);
+    }
+  }
   if (cacheAllowed) try {
     cache = await window.caches.open('sledstorm-disc-v1');
     const saved = await cache.match(url);
     if (saved?.headers.get('x-sledstorm-disc') === fingerprint) {
       showStatus('Reading cached game data…');
       const blob = await saved.blob();
-      if (blob.size > 0) return new File([blob], 'disc.zip');
+      if (blob.size > 0) {
+        if (!keep) discardGameData = async () => {
+          const current = await cache.match(url);
+          if (current?.headers.get('x-sledstorm-disc') === fingerprint) await cache.delete(url);
+        };
+        return new File([blob], 'disc.zip');
+      }
     }
   } catch {
     // Private browsing or cleared storage can make the cached copy unavailable.
   }
 
   showStatus('Downloading game data…');
-  const response = await fetch(url, { cache: 'no-store' });
-  if (response.status !== 200) throw new Error('Could not download the game disc. Return to the lobby and try again.');
-  const expectedSize = Number(response.headers.get('content-length'));
-  let received = 0, lastUpdate = 0;
-  const stream = response.body?.pipeThrough(new TransformStream({
-    transform(chunk, controller) {
-      received += chunk.byteLength;
-      const now = performance.now();
-      if (now - lastUpdate >= 350) {
-        lastUpdate = now;
-        const progress = expectedSize ? `${Math.min(100, Math.floor(received * 100 / expectedSize))}%`
-          : `${Math.floor(received / 1048576)} MiB`;
-        showStatus(`Downloading game data · ${progress}`);
-      }
-      controller.enqueue(chunk);
-    },
-  }));
-  const blob = stream ? await new Response(stream).blob() : await response.blob();
-  if (!blob.size || (expectedSize && blob.size !== expectedSize)) {
-    throw new Error('The game disc download is incomplete. Return to the lobby and try again.');
+  const transfer = new AbortController();
+  let deadline, blob, expectedSize;
+  const resetDeadline = () => {
+    clearTimeout(deadline);
+    deadline = setTimeout(() => transfer.abort(), 45_000);
+  };
+  try {
+    resetDeadline();
+    const response = await fetch(url, { cache: 'no-store', signal: transfer.signal });
+    if (response.status !== 200) throw new Error('Could not download the game disc. Reload the invitation to try again.');
+    expectedSize = Number(response.headers.get('content-length'));
+    let received = 0, lastUpdate = 0;
+    const stream = response.body?.pipeThrough(new TransformStream({
+      transform(chunk, controller) {
+        received += chunk.byteLength;
+        const now = performance.now();
+        if (now - lastUpdate >= 350) {
+          resetDeadline();
+          lastUpdate = now;
+          const progress = expectedSize ? `${Math.min(100, Math.floor(received * 100 / expectedSize))}%`
+            : `${Math.floor(received / 1048576)} MiB`;
+          showStatus(`Downloading game data · ${progress}`);
+        }
+        controller.enqueue(chunk);
+      },
+    }));
+    blob = stream ? await new Response(stream).blob() : await response.blob();
+  } catch (error) {
+    if (transfer.signal.aborted) throw new Error('Game data stopped downloading. Reload the invitation to try again.');
+    if (error instanceof TypeError) throw new Error('The game data download was interrupted. Reload the invitation to try again.');
+    throw error;
+  } finally {
+    clearTimeout(deadline);
   }
-  if (cache) {
+  if (!blob.size || (expectedSize && blob.size !== expectedSize)) {
+    throw new Error('The game disc download is incomplete. Reload the invitation to try again.');
+  }
+  if (keep && archiveSelection?.destination) {
+    showStatus('Saving game data…');
+    try {
+      await saveGameArchive(archiveSelection.destination, blob);
+    } catch (error) {
+      console.warn('Could not save Sled Storm game data.', error);
+    }
+  }
+  if (keep && cache) {
     showStatus('Saving game data in this browser…');
     try {
       await cache.put(url, new Response(blob, { headers: { 'x-sledstorm-disc': fingerprint } }));
@@ -110,7 +238,13 @@ async function sharedDiscFile(fingerprint) {
 }
 
 launch.addEventListener('click', async () => {
+  const keep = gameDataSettings.hidden || keepGameData.checked;
+  if (quickTunnel && !gameDataSettings.hidden && keep && !archiveSelection) {
+    showGameDataDialog();
+    return;
+  }
   launch.disabled = true;
+  changeGameData.disabled = true;
   roomOptions = { progress: document.querySelector('#progress').value, camera: document.querySelector('#camera').checked };
   let discFiles;
   try {
@@ -119,10 +253,13 @@ launch.addEventListener('click', async () => {
       ? invitation.nativeCamera === true
       : new URLSearchParams(location.search).get('nativeCamera') !== '0');
     if (retroArch && launchInfo.dedicated && roomOptions.camera && nativeCamera) roomOptions.nativeCamera = true;
-    if (invitation?.recovery && !launchInfo.dedicated) throw new Error('This recovery link requires a dedicated room.');
     if (invitation?.nativeCamera && !roomOptions.nativeCamera) throw new Error('This room requires the dedicated native camera.');
     if (retroArch && launchInfo.dedicated && document.querySelector('#bios').files.length)
       throw new Error('Dedicated rooms use the built-in BIOS. Remove the custom BIOS before joining.');
+    if (retroArch && invitation && launchInfo.roomCheck) {
+      showStatus('Checking the invitation…');
+      await checkNetplayInvitation(invitation);
+    }
     if (launchInfo.discMode === 'local') {
       discFiles = await selectedDisc(document.querySelector('#disc-files').files);
       if (!discFiles) throw new Error('Select your CUE and all eleven BIN tracks.');
@@ -130,7 +267,11 @@ launch.addEventListener('click', async () => {
     }
     if (!solo && roomOptions.progress === 'all' && !launchInfo.pal) throw new Error('The unlock preset requires the verified PAL SLES-02194 disc. Select Original progression.');
     if (!solo && roomOptions.camera && !launchInfo.pal) throw new Error('Separate camera hooks require the verified PAL SLES-02194 disc.');
-  } catch (error) { showStatus(error.message); launch.disabled = false; return; }
+  } catch (error) {
+    showStatus(error.message);
+    launch.disabled = changeGameData.disabled = false;
+    return;
+  }
   const bios = document.querySelector('#bios').files[0];
   for (const input of document.querySelectorAll('#setup input, #setup select')) input.disabled = true;
   if (retroArch && invitation) game.classList.add('joining-room');
@@ -171,7 +312,7 @@ launch.addEventListener('click', async () => {
             const { identity, shareInvitation } = await invitationSettings(bios);
             retroRoom = await prepareNetplay(this, {
               invitation, identity, onInvite: shareInvitation, onClose: netplayFailed,
-              onRoster: renderRoster,
+              onRoster: renderControllerSlots,
               dedicated: launchInfo.dedicated, worker: dedicatedWorker, options: roomOptions,
             });
             start.apply(this, args);
@@ -187,6 +328,8 @@ launch.addEventListener('click', async () => {
       }
     },
     EJS_onGameStart: () => {
+      discardGameData?.().catch(error => console.warn('Could not remove the saved Sled Storm archive.', error));
+      discardGameData = undefined;
       if (localConsole) startLocalConsole().catch(error => showStatus(error.message));
       else if (lab) restoreLab().catch(error => showStatus(error.message));
       else if (solo) showStatus('Emulator started. Click the game to focus your controls.');
@@ -198,10 +341,10 @@ launch.addEventListener('click', async () => {
   lobby.start();
   document.querySelector('#game').classList.add('active');
   document.querySelector('#game').scrollIntoView({ block: 'start' });
-  status.textContent = 'Loading emulator and disc…';
+  showStatus('Loading emulator and disc…');
   if (!solo && launchInfo.discMode === 'shared') {
     try {
-      window.EJS_gameUrl = dedicatedWorker ? '/disc.zip' : await sharedDiscFile(launchInfo.disc);
+      window.EJS_gameUrl = dedicatedWorker ? '/disc.zip' : await sharedDiscFile(launchInfo, keep);
     } catch (error) {
       if (retroArch) netplayFailed(error.message);
       else showStatus(error.message);
@@ -212,7 +355,7 @@ launch.addEventListener('click', async () => {
   const script = document.createElement('script');
   script.src = '/emulator/loader.js';
   script.onerror = () => {
-    status.textContent = 'Could not load the emulator. Restart the page and check the local server.';
+    showStatus('Could not load the emulator. Reload the invitation and try again.');
   };
   document.body.append(script);
 });
@@ -272,19 +415,13 @@ async function restoreFixture(module) {
 }
 
 async function invitationSettings(bios) {
-  const response = await fetch('/session-info');
   const info = launchInfo;
-  const invitePath = response.headers.get('x-invite-path') || '/';
-  const inviteOrigin = response.headers.get('x-invite-origin');
   const biosHash = bios ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())), x => x.toString(16).padStart(2, '0')).join('') : 'HLE';
   const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, retroArch ? 'retroarch-netplay-v7' : 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
   const shareInvitation = room => {
-    const url = invitationUrl(location.href, invitePath, room, roomOptions, inviteOrigin);
-    const localUrl = new URL(url).origin === location.origin ? url : invitationUrl(location.href, '/', room, roomOptions);
-    history.replaceState(null, '', localUrl);
-    inviteLink = url;
+    history.replaceState(null, '', invitationUrl(location.href, '/', room, roomOptions));
+    sharedRoom = room;
     document.querySelector('#copy-invite').hidden = false;
-    document.querySelector('#copy-recovery').hidden = !retroRoom?.controllerKey;
   };
   return { identity, shareInvitation };
 }
@@ -297,80 +434,30 @@ function netplayFailed(message) {
     clearTimeout(retroRoom.syncDeadline);
     retroRoom.socket.close();
     window.EJS_emulator.Module.sledBeforeFrame = () => false;
-    playerReady.disabled = true;
-    setGamepadTest(false);
+    renderControllerSlots({ seats: [] });
   }
-  if (invitation || (launchInfo?.dedicated && inviteLink)) {
+  if (invitation || (launchInfo?.dedicated && sharedRoom)) {
     game.classList.add('joining-room', 'join-failed');
-    game.dataset.joinProgress = message;
-    document.querySelector('#retry-netplay').hidden = false;
   }
   showStatus(message);
 }
 
-document.querySelector('#retry-netplay').addEventListener('click', () => location.reload());
-
-function renderRoster({ seats, racing }, localSlot) {
-  roster.hidden = false;
-  if (racing !== rosterRacing) {
-    roster.open = !racing;
-    rosterRacing = racing;
-    if (racing) setGamepadTest(false);
+function renderControllerSlots({ seats }) {
+  if (!retroArch || dedicatedWorker) return;
+  controllerSlots.hidden = false;
+  for (const [slot, item] of Array.from(controllerSlots.children).entries()) {
+    const connected = seats.some(seat => seat.slot === slot && seat.status === 'connected');
+    item.classList.toggle('is-connected', connected);
+    item.firstElementChild.textContent = `Controller ${slot + 1} ${connected ? 'connected' : 'disconnected'}`;
   }
-  gamepadTest.disabled = racing;
-  const count = seats.filter(seat => seat.status === 'connected').length;
-  document.querySelector('#roster-count').textContent = `${count}/4 connected`;
-  const currentSeat = seats.find(seat => seat.slot === localSlot);
-  const ready = currentSeat?.ready === true;
-  playerReady.disabled = racing || currentSeat?.status !== 'connected';
-  playerReady.setAttribute('aria-pressed', String(ready));
-  playerReady.textContent = ready ? 'Ready ✓' : 'Mark ready';
-  document.querySelector('#room-seats').replaceChildren(...seats.map(seat => {
-    const row = document.createElement('li');
-    const name = document.createElement('strong');
-    const controller = document.createElement('span');
-    const status = document.createElement('span');
-    controller.textContent = `Controller ${seat.slot + 1}`;
-    name.textContent = seat.name || (seat.status === 'empty' ? 'Open seat' : `Player ${seat.slot + 1}`);
-    status.textContent = ({ empty: 'Available', loading: 'Synchronizing', reconnecting: 'Reconnecting' })[seat.status]
-      || (racing ? 'In race' : seat.ready ? 'Ready' : 'In lobby');
-    if (seat.slot === localSlot) status.textContent += ' · You';
-    if (seat.owner) status.textContent += ' · Owner';
-    row.append(controller, name, status);
-    return row;
-  }));
 }
-
-try { playerName.value = localStorage.getItem('sled-player-name') || ''; } catch { /* Optional preference. */ }
-playerName.addEventListener('change', () => {
-  try { localStorage.setItem('sled-player-name', playerName.value); } catch { /* Optional preference. */ }
-  retroRoom?.updatePlayer?.({ name: playerName.value });
-});
-playerReady.addEventListener('click', () => {
-  const ready = playerReady.getAttribute('aria-pressed') !== 'true';
-  playerReady.setAttribute('aria-pressed', String(ready));
-  playerReady.textContent = ready ? 'Ready ✓' : 'Mark ready';
-  retroRoom?.updatePlayer?.({ ready });
-});
-function setGamepadTest(enabled) {
-  testingGamepad = enabled;
-  gamepadTest.setAttribute('aria-pressed', String(enabled));
-  gamepadTest.textContent = enabled ? 'Finish gamepad test' : 'Test gamepad';
-  gamepadFeedback.hidden = !enabled;
-  if (enabled) gamepadFeedback.textContent = document.querySelector('#gamepad-state').textContent;
-}
-gamepadTest.addEventListener('click', () => setGamepadTest(!testingGamepad));
-roster.addEventListener('toggle', () => { if (!roster.open) setGamepadTest(false); });
 
 function startRetroArchRoom() {
   const emulator = window.EJS_emulator;
   const { Module: module, gameManager: manager } = emulator;
   const { slot } = retroRoom;
   module.sledDedicatedClient = launchInfo.dedicated && !dedicatedWorker;
-  const inputs = lobby.inputOptions();
-  const drive = dedicatedWorker ? () => {} : driveRetroPad(emulator, {
-    ...inputs, gamepadIndex: () => testingGamepad ? -1 : inputs.gamepadIndex(),
-  });
+  const drive = dedicatedWorker ? () => {} : driveRetroPad(emulator, lobby.inputOptions());
   // Asset and HUD hooks affect the emulated console. The headless runtime
   // applies the same hooks as every player while skipping local rendering.
   const view = roomOptions.camera ? 2 | (roomOptions.nativeCamera ? 16 : 0) : 0;
@@ -383,6 +470,7 @@ function startRetroArchRoom() {
   if (!dedicatedWorker) showStatus('Synchronizing with the room…');
   let ready = false;
   let stalledSince = null;
+  let behindSince = null;
   let waiting = false;
   let reportedRace = false;
   module.sledBeforeFrame = () => { drive(); return true; };
@@ -393,21 +481,26 @@ function startRetroArchRoom() {
   module.sledAfterFrame = () => {
     if (retroRoom.failed) return;
     if (dedicatedWorker) {
-      if (launchInfo.pal && retroRoom.socket.readyState === WebSocket.OPEN) {
-        const ram = new DataView(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000);
-        const players = ram.getUint32(0xd6a10, true);
-        const racing = ram.getUint32(0xd6980, true) === 1 && players >= 2 && players <= 4;
-        if (racing !== reportedRace) {
-          reportedRace = racing;
-          retroRoom.socket.send(racing ? 'race' : 'lobby');
-        }
+      if (!launchInfo.pal || retroRoom.socket.readyState !== WebSocket.OPEN) return;
+      const ram = new DataView(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000);
+      const players = ram.getUint32(0xd6a10, true);
+      const racing = ram.getUint32(0xd6980, true) === 1 && players >= 2 && players <= 4;
+      if (racing !== reportedRace) {
+        reportedRace = racing;
+        retroRoom.socket.send(racing ? 'race' : 'lobby');
       }
       return;
     }
     if (ready) {
       if (module.sledDedicatedClient) {
         const behind = module._sled_netplay_status(5);
-        const catchingUp = behind >= (module.sledCatchup ? 4 : 12);
+        const now = performance.now();
+        if (behind < 12) behindSince = null;
+        else behindSince ??= now;
+        // Ignore short frame bursts. A larger backlog still needs immediate recovery.
+        const catchingUp = module.sledCatchup
+          ? behind > 6
+          : behind >= 35 || (behindSince !== null && now - behindSince >= 400);
         if (catchingUp !== Boolean(module.sledCatchup)) {
           module.sledCatchup = catchingUp;
           game.classList.toggle('catching-up', catchingUp);
@@ -434,9 +527,7 @@ function startRetroArchRoom() {
       if (invitation) emulator.setVolume(Number(document.querySelector('#volume').value) / 100);
       showStatus('');
       retroRoom.publish();
-      if (retroRoom.updatePlayer) {
-        retroRoom.updatePlayer({ synchronized: true, ...(playerName.value && { name: playerName.value }) });
-      }
+      retroRoom.markSynchronized?.();
     }
   };
 }
@@ -548,7 +639,9 @@ function copyRoomLink(id, getUrl) {
   const title = target.title;
   target.addEventListener('click', async event => {
     const button = event.currentTarget;
-    const url = getUrl();
+    let url;
+    try { url = await getUrl(); }
+    catch (error) { showStatus(error.message || 'Could not get an invitation.'); return; }
     if (!url) return;
     let copied = false;
     try { await navigator.clipboard.writeText(url); copied = true; }
@@ -572,9 +665,13 @@ function copyRoomLink(id, getUrl) {
     }, 2500);
   });
 }
-copyRoomLink('#copy-invite', () => inviteLink);
-copyRoomLink('#copy-recovery', () => inviteLink && retroRoom?.controllerKey
-  ? recoveryUrl(inviteLink, retroRoom.controllerKey) : '');
+copyRoomLink('#copy-invite', async () => {
+  if (!sharedRoom) return '';
+  const response = await fetch('/session-info', { cache: 'no-store' });
+  if (!response.ok) throw new Error('Could not read invitation settings.');
+  return onlineInvitationUrl(location.href, response.headers.get('x-invite-path'),
+    sharedRoom, roomOptions, response.headers.get('x-invite-origin'));
+});
 
 // Opt-in probe: count emulated frames, rather than browser animation callbacks.
 function startBenchmark() {
@@ -584,7 +681,7 @@ function startBenchmark() {
   const details = document.createElement('details');
   details.id = 'technical-details'; details.open = developerTools || lab || localConsole;
   const summary = document.createElement('summary'); summary.textContent = 'Technical details';
-  details.append(summary, output); document.querySelector('#game').after(details);
+  details.append(summary, output); document.querySelector('.game-bottom').after(details);
   if (developerTools && location.port === '8000') {
     const save = document.createElement('button');
     save.id = 'save-diagnostic';

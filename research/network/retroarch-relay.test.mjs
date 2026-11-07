@@ -23,23 +23,34 @@ test('private gateway carries three Netplay guest streams and reuses a freed con
     return ws;
   };
   const send = (ws, fields) => ws.send(JSON.stringify({ room, token, identity, ...fields }));
-  const message = async ws => (await once(ws, 'message'))[0];
+  const message = async (ws, match = () => true) => {
+    for (;;) {
+      const [data] = await once(ws, 'message');
+      if (match(data)) return data;
+    }
+  };
   try {
     assert.match(String((await once(connect(false), 'error'))[0]), /403/);
     const host = connect();
     await once(host, 'open');
-    send(host, { role: 'host' });
+    send(host, { role: 'host', roster: true });
     assert.deepEqual(JSON.parse(await message(host)), { type: 'ready', slot: 0 });
+    host.send('{"type":"synchronized"}');
+    assert.equal(JSON.parse(await message(host)).seats[0].status, 'connected');
     const attach = async (slot, preferredSlot) => {
-      const incoming = message(host);
+      const incoming = message(host, data => /^[a-f0-9]{48}$/.test(String(data)));
       const guest = connect();
       await once(guest, 'open');
-      send(guest, { role: 'guest', preferredSlot });
+      send(guest, { role: 'guest', preferredSlot, roster: true });
       const ready = message(guest);
       const stream = connect();
       await once(stream, 'open');
       send(stream, { role: 'accept', ticket: String(await incoming) });
       assert.deepEqual(JSON.parse(await ready), { type: 'ready', slot });
+      const indicator = message(host, data => JSON.parse(data).seats[slot].status === 'connected');
+      const guestRoster = message(guest, data => JSON.parse(data).seats[slot].status === 'connected');
+      guest.send('{"type":"synchronized"}');
+      await Promise.all([indicator, guestRoster]);
       const atHost = once(stream, 'message');
       const bytes = Buffer.from([slot, 0, 255]);
       guest.send(bytes);
@@ -89,7 +100,6 @@ test('dedicated room keeps controller 2 online and restores three reserved contr
   await once(relay, 'listening');
   const sockets = [];
   const room = 'b'.repeat(24), token = 'c'.repeat(64), identity = 'd'.repeat(64);
-  const seat1 = '1'.repeat(32), seat2 = '2'.repeat(32);
   async function connect(fields) {
     const ws = new WebSocket(`ws://127.0.0.1:${relay.address().port}/`, { origin: 'http://127.0.0.1:8000' });
     sockets.push(ws);
@@ -100,7 +110,7 @@ test('dedicated room keeps controller 2 online and restores three reserved contr
   const message = async ws => (await once(ws, 'message'))[0];
   try {
     const setup = new Promise(resolve => { workerSetup = resolve; });
-    const creator = await connect({ role: 'create', seatKey: seat1, progress: 'all' });
+    const creator = await connect({ role: 'create', progress: 'all', roster: true });
     const { workerKey } = await setup;
     const firstReady = message(creator);
     const worker = await connect({ role: 'worker', token: workerKey });
@@ -108,24 +118,37 @@ test('dedicated room keeps controller 2 online and restores three reserved contr
     const firstTicket = message(worker);
     worker.send('listening');
     const firstStream = await connect({ role: 'accept', ticket: String(await firstTicket) });
-    assert.equal(JSON.parse(await firstReady).slot, 0);
-    async function attach(seatKey, slot) {
+    const first = JSON.parse(await firstReady);
+    assert.equal(first.slot, 0);
+    creator.send('{"type":"synchronized"}');
+    async function attach(previousSeatKey, slot) {
       const ticket = message(worker);
-      const guest = await connect({ role: 'guest', seatKey });
+      const guest = await connect({ role: 'guest', previousSeatKey, roster: true });
       const ready = message(guest);
       const stream = await connect({ role: 'accept', ticket: String(await ticket) });
-      assert.equal(JSON.parse(await ready).slot, slot);
-      return { guest, stream };
+      const assigned = JSON.parse(await ready);
+      assert.equal(assigned.slot, slot);
+      if (previousSeatKey) assert.equal(assigned.seatKey, previousSeatKey);
+      guest.send('{"type":"synchronized"}');
+      return { guest, stream, key: assigned.seatKey };
     }
-    const second = await attach(seat2, 1);
-    const seat3 = '3'.repeat(32), seat4 = '4'.repeat(32);
-    const third = await attach(seat3, 2);
-    const fourth = await attach(seat4, 3);
+    const second = await attach(undefined, 1);
+    const third = await attach(undefined, 2);
+    const fourth = await attach(undefined, 3);
+    const nextMessageOfType = async (ws, type) => {
+      for (;;) {
+        const event = JSON.parse(await message(ws));
+        if (event.type === type) return event;
+      }
+    };
+    const raceReady = nextMessageOfType(creator, 'roster');
+    worker.send('race');
+    await raceReady;
     const dropped = once(firstStream, 'close');
-    const ownership = message(second.guest);
+    const ownership = nextMessageOfType(second.guest, 'ownership');
     creator.close();
     await dropped;
-    assert.deepEqual(JSON.parse(await ownership), { type: 'ownership', owner: true });
+    assert.deepEqual(await ownership, { type: 'ownership', owner: true });
     const bytes = Buffer.from([2, 255, 0]);
     const received = once(second.stream, 'message');
     second.guest.send(bytes);
@@ -134,11 +157,11 @@ test('dedicated room keeps controller 2 online and restores three reserved contr
     third.guest.close();
     fourth.guest.close();
     await Promise.all(othersDropped);
-    const unknown = await connect({ role: 'guest', seatKey: '5'.repeat(32) });
+    const unknown = await connect({ role: 'guest' });
     assert.equal(String((await once(unknown, 'close'))[1]), 'All controllers are connected or reserved');
-    await attach(seat4, 3);
-    await attach(seat1, 0);
-    await attach(seat3, 2);
+    await attach(fourth.key, 3);
+    await attach(first.seatKey, 0);
+    await attach(third.key, 2);
   } finally {
     relay.stopDedicated();
     for (const socket of sockets) socket.terminate();
@@ -146,9 +169,7 @@ test('dedicated room keeps controller 2 online and restores three reserved contr
   }
 });
 
-test('the dedicated roster retains a private controller reservation past the lobby grace period during a race', { timeout: 6000 }, async t => {
-  let now = Date.now();
-  t.mock.method(Date, 'now', () => now);
+test('dedicated controller indicators light after sync and a lobby join replaces a saved controller key', { timeout: 6000 }, async () => {
   let giveWorkerSetup;
   const setup = new Promise(resolve => { giveWorkerSetup = resolve; });
   const relay = createRetroArchRelay({
@@ -160,7 +181,7 @@ test('the dedicated roster retains a private controller reservation past the lob
   });
   await once(relay, 'listening');
   const sockets = [];
-  const room = 'b'.repeat(24), token = 'c'.repeat(64), identity = 'd'.repeat(64), key = '1'.repeat(32);
+  const room = 'b'.repeat(24), token = 'c'.repeat(64), identity = 'd'.repeat(64);
   async function connect(fields) {
     const ws = new WebSocket(`ws://127.0.0.1:${relay.address().port}/`, { origin: 'http://127.0.0.1:8000' });
     sockets.push(ws);
@@ -178,27 +199,35 @@ test('the dedicated roster retains a private controller reservation past the lob
   }
   const type = name => value => value.startsWith('{"type":"' + name + '"');
   try {
-    const original = await connect({ role: 'create', seatKey: key, progress: 'all', roster: true });
+    const original = await connect({ role: 'create', progress: 'all', roster: true });
     const worker = await connect({ role: 'worker', token: (await setup).workerKey });
     await worker.next(type('ready'));
     worker.ws.send('listening');
     const stream = await connect({ role: 'accept', ticket: await worker.next() });
-    await original.next(type('ready'));
-    original.ws.send(JSON.stringify({ type: 'player', synchronized: true, ready: true, name: 'Rider' }));
-    const roster = predicate => value => type('roster')(value) && predicate(JSON.parse(value));
-    await original.next(roster(message => message.seats[0].ready && message.seats[0].name === 'Rider'));
-    worker.ws.send('race');
-    await original.next(roster(message => message.racing));
+    const first = JSON.parse(await original.next(type('ready')));
+    const valid = await connect({ role: 'check' });
+    const [code, reason] = await once(valid.ws, 'close');
+    assert.equal(code, 1000);
+    assert.equal(String(reason), 'Room available');
+    const wrongToken = await connect({ role: 'check', token: '0'.repeat(64) });
+    assert.equal(String((await once(wrongToken.ws, 'close'))[1]), 'Invalid invitation');
+    const stale = await connect({ role: 'check', room: '0'.repeat(24) });
+    assert.match(String((await once(stale.ws, 'close'))[1]), /fresh invitation/);
+    const roster = (slot, status) => value => type('roster')(value) &&
+      JSON.parse(value).seats[slot].status === status;
+    await original.next(roster(0, 'loading'));
+    original.ws.send(JSON.stringify({ type: 'synchronized' }));
+    await original.next(roster(0, 'connected'));
     const closed = once(stream.ws, 'close');
     original.ws.close();
     await closed;
-    now += 90_000;
-    const returned = await connect({ role: 'guest', seatKey: key, recover: true, roster: true });
+    const returned = await connect({ role: 'guest', previousSeatKey: first.seatKey, roster: true });
     await connect({ role: 'accept', ticket: await worker.next() });
-    assert.equal(JSON.parse(await returned.next(type('ready'))).slot, 0);
-    await returned.next(roster(message => message.racing && message.seats[0].name === 'Rider'));
-    const invalid = await connect({ role: 'guest', seatKey: '9'.repeat(32), recover: true });
-    assert.match(String((await once(invalid.ws, 'close'))[1]), /no longer has a reserved controller/);
+    const assignment = JSON.parse(await returned.next(type('ready')));
+    assert.equal(assignment.slot, 0);
+    assert.notEqual(assignment.seatKey, first.seatKey);
+    const duplicate = await connect({ role: 'guest', previousSeatKey: assignment.seatKey });
+    assert.match(String((await once(duplicate.ws, 'close'))[1]), /already connected/);
   } finally {
     relay.stopDedicated();
     for (const socket of sockets) socket.terminate();

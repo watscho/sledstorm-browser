@@ -4,6 +4,28 @@ const port = 55435;
 const toRetroPad = [2, null, null, 3, 4, 7, 5, 6, 12, 13, 10, 11, 9, 8, 0, 1];
 const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 
+function netplayEndpoint() {
+  const endpoint = new URL('/netplay', location.href);
+  endpoint.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  if (location.port === '8000') { endpoint.port = '8006'; endpoint.pathname = '/'; }
+  return endpoint;
+}
+
+export function checkNetplayInvitation({ room, token }) {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(netplayEndpoint());
+    const deadline = setTimeout(() => socket.close(), 8000);
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({ role: 'check', room, token }));
+    }, { once: true });
+    socket.addEventListener('close', event => {
+      clearTimeout(deadline);
+      if (event.code === 1000 && event.reason === 'Room available') resolve();
+      else reject(new Error(event.reason || 'Could not reach the room. Check the connection and try again.'));
+    }, { once: true });
+  });
+}
+
 export async function prepareNetplay(emulator, { invitation, identity, onInvite, onClose, onRoster, dedicated, worker, options }) {
   const room = worker ? { room: worker.room, token: worker.workerKey, v: 7 } : invitation ?? {
     room: hex(crypto.getRandomValues(new Uint8Array(12))),
@@ -13,25 +35,20 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
   const role = worker ? 'worker' : invitation ? 'guest' : dedicated ? 'create' : 'host';
   const client = role === 'guest' || role === 'create';
   const seatKey = `sled-netplay-seat:${room.room}`;
-  const storageKey = `sled-controller-key:${room.room}`;
-  let controllerKey;
-  if (dedicated && client) {
-    controllerKey = hex(crypto.getRandomValues(new Uint8Array(16)));
+  const controllerStorage = `sled-controller-key:${room.room}`;
+  let previousSeatKey;
+  if (dedicated && invitation) {
     try {
-      controllerKey = invitation?.recovery || sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || controllerKey;
-      if (!invitation?.recovery) {
-        if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, controllerKey);
-        sessionStorage.setItem(storageKey, controllerKey);
-      }
-    } catch { /* A connection without persistent storage can still play. */ }
+      const saved = sessionStorage.getItem(controllerStorage) ?? localStorage.getItem(controllerStorage);
+      if (/^[a-f0-9]{32}$/.test(saved ?? '')) previousSeatKey = saved;
+    } catch { /* A browser without storage can still use a free controller. */ }
   }
+  let rememberController = true;
   let preferredSlot;
   if (invitation) {
     try { preferredSlot = Number(sessionStorage.getItem(seatKey)); } catch { /* A free seat still works. */ }
   }
-  const endpoint = new URL('/netplay', location.href);
-  endpoint.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  if (location.port === '8000') { endpoint.port = '8006'; endpoint.pathname = '/'; }
+  const endpoint = netplayEndpoint();
   let socket;
   function connect() {
     socket = new WebSocket(endpoint);
@@ -47,7 +64,7 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
       }
       socket.addEventListener('open', () => {
         socket.send(JSON.stringify({ role, room: room.room, token: room.token, identity, preferredSlot,
-          seatKey: controllerKey, ...options, recover: Boolean(invitation?.recovery), roster: Boolean(dedicated && client) }));
+          previousSeatKey, ...options, roster: !worker }));
       }, { signal });
       socket.addEventListener('close', event => finish(new Error(event.reason || 'Could not connect to the room.')), { signal });
       socket.addEventListener('message', event => {
@@ -61,40 +78,51 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
   }
   try {
     let ready;
-    try {
-      ready = await connect();
-    } catch (error) {
-      if (!dedicated || role !== 'guest' || invitation?.recovery || error.message !== 'Controller is already connected') throw error;
-      controllerKey = hex(crypto.getRandomValues(new Uint8Array(16)));
-      try { sessionStorage.setItem(storageKey, controllerKey); } catch { /* A second tab can still play. */ }
-      ready = await connect();
-    }
-    const { slot } = ready;
-    if (invitation?.recovery && controllerKey) {
+    for (let attempt = 0; ; attempt++) {
       try {
-        if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, controllerKey);
-        sessionStorage.setItem(storageKey, controllerKey);
-      } catch { /* The personal link remains available to the player. */ }
+        ready = await connect();
+        break;
+      } catch (error) {
+        if (!previousSeatKey || error.message !== 'Controller is already connected') throw error;
+        if (attempt === 0) {
+          // A recently closed tab may still be releasing its connection.
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          previousSeatKey = undefined;
+          rememberController = false;
+        }
+      }
     }
-    const connection = { slot, socket, controllerKey, owner: ready.owner, publish: () => onInvite(room) };
-    if (dedicated && client) connection.updatePlayer = fields => {
-      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'player', ...fields }));
-    };
-    if (dedicated && client) socket.addEventListener('message', event => {
-      if (typeof event.data !== 'string') return;
-      event.stopImmediatePropagation();
-      let message;
-      try { message = JSON.parse(event.data); } catch { return; }
-      if (message?.type === 'ownership') connection.owner = message.owner === true;
-      else if (message?.type === 'roster' && Array.isArray(message.seats)) onRoster?.(message, slot);
-    });
-    if (invitation) {
+    const { slot, seatKey: controllerKey } = ready;
+    const connection = { slot, socket, owner: ready.owner, publish: () => onInvite(room) };
+    if (!worker) {
+      connection.markSynchronized = () => {
+        if (socket.readyState === WebSocket.OPEN) socket.send('{"type":"synchronized"}');
+      };
+      socket.addEventListener('message', event => {
+        if (typeof event.data !== 'string') return;
+        let message;
+        try { message = JSON.parse(event.data); } catch { return; }
+        if (message?.type === 'ownership') connection.owner = message.owner === true;
+        else if (message?.type === 'roster' && Array.isArray(message.seats)) onRoster?.(message);
+        else return;
+        event.stopImmediatePropagation();
+      });
+    }
+    if (controllerKey) {
+      try { sessionStorage.setItem(controllerStorage, controllerKey); } catch { /* Optional. */ }
+      if (rememberController) {
+        try { localStorage.setItem(controllerStorage, controllerKey); } catch { /* Optional. */ }
+      }
+    }
+    if (invitation && !dedicated) {
       try { sessionStorage.setItem(seatKey, String(slot)); } catch { /* A free seat still works. */ }
     }
     const { Module: module, gameManager: manager } = emulator;
     if (!module.sledInstallNetplay || !module._sled_netplay_status) throw new Error('RetroArch Netplay core is missing. Rebuild the emulator.');
     module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room);
-    socket.addEventListener('close', event => onClose(event.reason || 'Disconnected from the room.'), { once: true });
+    socket.addEventListener('close', event => onClose(event.reason ||
+      'Disconnected from the room. Open the invitation again to rejoin.'), { once: true });
     const config = '/home/web_user/.config/retroarch/retroarch.cfg';
     const existing = module.FS.readFile(config, { encoding: 'utf8' });
     module.FS.writeFile(config, existing + '\nnetplay_public_announce = "false"\nnetplay_nat_traversal = "false"\n'

@@ -38,7 +38,8 @@ replace actual game or internet verification.
 Gameplay changes require matching clients through the affected race modes and
 player counts, independent controller input, original menu proportions and state
 agreement. Dedicated-room changes also require checking creator departure,
-private recovery in a fresh browser and out-of-order returns to reserved slots.
+returning to a reserved controller during a race and replacing a saved
+controller assignment in the lobby.
 Presentation changes also need full-state before/after checks. Add
 `?dev=1` for loopback diagnostics or `?verifyView=1` for sampled isolation checks.
 Do not weaken checksums to accommodate unexplained divergence. Record exact
@@ -57,7 +58,8 @@ original contribution licensing separate from derived output.
 Use semantic versions for this wrapper, independently of the game and upstream
 components. Keep `VERSION`, `research/network/package.json` and its lockfile
 root/package versions in sync with the release labels in `README.md` and
-`web/index.html`. Record changes in `CHANGELOG.md` with an ISO
-release date; use Unreleased while working. Never record private tunnel domains,
+`web/index.html`, including the launcher script's version parameter. Record
+changes in `CHANGELOG.md` with an ISO release date and use Unreleased while
+working. Never record private tunnel domains,
 access tokens, disc paths or invitation fragments. Distinguish an internet-path
 check on one computer from a test with players on separate remote computers.

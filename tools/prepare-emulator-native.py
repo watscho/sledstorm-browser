@@ -237,9 +237,9 @@ unsigned sled_netplay_status(unsigned field)
     text = once(text, '         /* This is a slave connection. First, should we do anything at all? If', '''#ifdef __EMSCRIPTEN__
          /* Keep the authoritative clock independent of browser scheduling.
           * Retain input across ordinary jitter, then release held buttons.
-          * A suspended client eventually rejoins from a fresh checkpoint. */
+          * Give a background tab time to resume before closing its connection. */
          const retro_time_t age = dedicated ? now - connection->sled_last_input_at : 0;
-         if (dedicated && age >= 2000000 && now >= connection->sled_sync_grace_until)
+         if (dedicated && age >= 8000000 && now >= connection->sled_sync_grace_until)
          {
             netplay_hangup(netplay, connection);
             continue;

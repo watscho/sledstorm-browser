@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.6.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.7.0 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -18,8 +18,8 @@ Original game artwork is not covered by the wrapper's MIT license.*
 
 > [!IMPORTANT]
 > **Only the host installs and runs this project.** Friends open an invitation
-> in their browsers. With the default settings, one CUE/BIN set on the host is
-> enough; friends do not select game files or install development tools.
+> in their browsers. One CUE/BIN set on the host is enough. Guests can download
+> the shared archive for the session or reuse a ZIP they saved earlier.
 
 ### 1. Set up once
 
@@ -50,24 +50,30 @@ You only need to repeat the build after updating emulator or native adapter code
 Open a terminal in the project folder and run:
 
 ```sh
-python3 tools/play-online.py --dedicated
+python3 tools/play-online.py
 ```
 
 Wait until the terminal prints **Host launcher**, then:
 
 1. Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** on the host computer.
 2. Choose your settings and click **Start game**.
-3. Click **Copy link** in the session toolbar and send the complete link
+3. Click **Copy invite link** in the session toolbar and send the complete link
    to your friends. It automatically uses the public HTTPS address.
-4. Each friend opens the link and clicks **Join game**. Wait for synchronization.
+4. Each friend opens the link and clicks **Join game**. In the game data dialog,
+   choose an existing ZIP, save a new ZIP and join, or join without saving.
+   Wait for synchronization.
 
-Use **Copy recovery link** to save your controller across browsers or devices.
-Keep that link private.
+The four indicators below the game light up as controllers connect. If you
+lose your connection during a race, reopen the room from the same browser
+and address to resume your controller.
 
-Keep the terminal open and the host computer awake. Guests using a temporary
-Quick Tunnel download the full disc, including music, on each launch. Localhost
-and permanent hostnames can reuse a saved browser copy. Each new game started
-from the launcher gets its own room. See [disc downloads and browser storage](docs/multiplayer.md#disc-downloads-and-browser-storage).
+Keep the terminal open and the host computer awake. With a Quick Tunnel in
+Chrome, **Join game** lets you open an existing ZIP or choose where to save one
+when **Keep or choose game data** is checked. Select the same ZIP on a new tunnel
+address to reuse the full disc, including music. You can also join without
+saving. A permanent HTTPS address reuses its browser copy
+automatically. Each new game started from the launcher gets its own room.
+See [disc downloads and browser storage](docs/multiplayer.md#disc-downloads-and-browser-storage).
 
 ### 3. Enter a race together
 
@@ -109,8 +115,8 @@ from the current race state once their game files load.
 
 | What you want | Command |
 | --- | --- |
-| Dedicated internet room with persistent controller slots | `python3 tools/play-online.py --dedicated` |
-| Internet play hosted by the creator's browser | `python3 tools/play-online.py` |
+| Dedicated internet room with persistent controller slots | `python3 tools/play-online.py` |
+| Internet play hosted by the creator's browser | `python3 tools/play-online.py --browser-hosted` |
 | Internet play; each player selects matching CUE/BIN files | `python3 tools/play-online.py --disc-mode local` |
 | Play only on this computer, without a tunnel | `python3 server.py` |
 | Test a dedicated room locally | `python3 server.py --dedicated` |
@@ -147,9 +153,10 @@ controller inputs and emulator state through RetroArch Netplay.
 - **Presentation.** Dedicated rooms use the original full-size world renderer
   and single-player HUD for each controller. Pause menus are shared.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
-- **Test coverage.** A four-player Chrome race through Cloudflare verified
-  separate cameras, the original HUD, and mid-race reconnection on one Mac. Remote races between separate computers, physical
-  gamepads and soundtrack quality still need hands-on testing. [Verification record](docs/verification.md)
+- **Test coverage.** A four-player Chrome race in v0.6.0 verified separate
+  cameras, the original HUD and mid-race reconnection through Cloudflare on
+  one Mac. Remote races between separate computers, physical gamepads and
+  soundtrack quality still need hands-on testing. [Verification record](docs/verification.md)
 
 ## Documentation
 

@@ -13,6 +13,8 @@ s8 *psxH;
 R3000Acpu *psxCpu;
 psxRegisters psxRegs;
 static unsigned calls, offset, first_xy, hud_draws, fail_guest;
+static int check_award;
+static uint32_t expected_award;
 static uint16_t canonical_vram[1024 * 512];
 static unsigned cache_saved;
 void sled_view_cache_save(int restore) {
@@ -43,6 +45,7 @@ static unsigned read_word(unsigned address) { unsigned value; memcpy(&value, psx
 static void simulate_hud(psxRegisters *regs, enum blockExecCaller caller) {
   assert(sled_view_transaction && regs->GPR.n.gp == 0x800c1f18);
   assert(regs->GPR.n.sp == 0x801ff000 && !(regs->CP0.n.SR & 1));
+  if (check_award) assert(read_word(0x800dae20 + 0x514) == expected_award);
   regs->cycle += 1234; regs->interrupt ^= 123;
   psxM[42] = 99;
   if (fail_guest) return;
@@ -105,6 +108,35 @@ int main(void) {
     assert(sled_view_status(7) == (fail_guest ? 2 : 0));
     assert(!sled_view_transaction && !cache_saved && !memcmp(&psxRegs, &saved_regs, sizeof(psxRegs)));
     assert(!memcmp(psxM, saved_ram, 0x200000) && !memcmp(&gpu, &saved, sizeof(gpu)));
+  }
+  fail_guest = 0;
+  check_award = 1;
+  const unsigned award = 0x800dae20 + 0x514, timer = 0x800e3928;
+  for (unsigned seat = 0; seat < 4; ++seat) word(award + seat * 0x530, UINT32_MAX);
+  for (unsigned frame = 0; frame <= 22; ++frame) {
+    word(award + 2 * 0x530, frame ? UINT32_MAX : 100);
+    sled_view_configure(2, 3);
+    sled_view_begin();
+    psxRegs.pc = 0x800650fc;
+    psxRegs.GPR.n.ra = 0x8006c7b0;
+    assert(sled_view_pc(&psxRegs));
+    assert(read_word(timer) == 0);
+    assert(read_word(timer + 8) == (frame < 3 ? 20 : 22 - frame));
+    expected_award = frame == 22 ? UINT32_MAX : frame < 3 ? (frame + 1) * 25 : 100;
+    memcpy(saved_ram, psxM, 0x200000);
+    pane(0, 255, 128, 255);
+    sled_view_present();
+    assert(sled_view_status(7) == 0);
+    assert(!memcmp(psxM, saved_ram, 0x200000));
+    // The same frame viewed from controller 1 cannot show controller 3's award.
+    if (!frame) {
+      const unsigned previous_draws = hud_draws;
+      expected_award = UINT32_MAX;
+      sled_view_configure(0, 3);
+      pane(0, 255, 0, 127);
+      sled_view_present();
+      assert(hud_draws == previous_draws + 1);
+    }
   }
   free(saved_ram);
   word(0x800c34e0, 1); calls = 0;
