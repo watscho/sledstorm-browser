@@ -56,13 +56,14 @@ Wait until the terminal prints **Host launcher**, then:
 
 1. Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** on the host computer.
 2. Choose your settings and click **Start game**.
-3. Click **Copy invite link** under **Invite friends** and send the complete link
+3. Click **Copy link** in the session toolbar and send the complete link
    to your friends. It automatically uses the public HTTPS address.
 4. Each friend opens the link and clicks **Join game**. Wait for synchronization.
 
-Keep the terminal open and the host computer awake. The first guest download
-includes the full disc and music, so loading depends on the host's upload speed.
-Each new game started from the launcher gets its own room.
+Keep the terminal open and the host computer awake. Guests using a temporary
+Quick Tunnel download the full disc, including music, on each launch. Localhost
+and permanent hostnames can reuse a saved browser copy. Each new game started
+from the launcher gets its own room. See [disc downloads and browser storage](docs/multiplayer.md#disc-downloads-and-browser-storage).
 
 ### 3. Enter a race together
 

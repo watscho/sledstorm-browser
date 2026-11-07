@@ -5,7 +5,28 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ## [Unreleased]
 
+### Disc loading
+
+- Reuse one saved disc per browser origin on localhost and permanent hostnames
+  when the disc fingerprint matches. Quick Tunnel launches download for the
+  current session to avoid accumulating copies across temporary hostnames.
+
 ### Interface
+
+- Simplified the lobby heading and session toolbar. **Copy link** copies the
+  invitation directly. Controller and synchronization counters appear in
+  **Technical details**. The emulator hover toolbar and pointer stay out of the
+  game view.
+
+- Fullscreen now shows only the game, without invitations, session toolbars or
+  the emulator control bar; Escape restores the normal session view.
+
+- Styled native select fields for the icy palette with an inset caret and compact
+  keyboard focus indicator.
+- Added personal Classic/WASD/custom key bindings, conflict swapping and browser
+  persistence, plus gamepad detection, input status, device selection and a
+  keyboard-only mode. Routed emulator input through the synchronized sampler
+  so frontend gamepad callbacks cannot bypass the chosen device policy.
 
 - Restored the tabbed launch interface, responsive settings/summary layout,
   PAL cover artwork, keyboard tab navigation and reset action for the emulator.

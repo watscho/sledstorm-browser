@@ -1,6 +1,6 @@
 // Frame gate around the pinned Emscripten loop. No timers drive emulation here.
 export class FrameSync {
-  constructor({ module, manager, session, onStatus, digest, beforeFrame = () => {} }) {
+  constructor({ module, manager, session, onStatus, digest, beforeFrame = () => {}, externalInput = false }) {
     this.module = module;
     this.manager = manager;
     this.session = session;
@@ -18,6 +18,7 @@ export class FrameSync {
     const localBits = [14, 15, 0, 3, 4, 6, 7, 5, 13, 12, 10, 11, 8, 9, 1, 2];
     this.session.pad ??= 65535;
     this.manager.simulateInput = (_seat, button, pressed) => {
+      if (externalInput) return; // BrowserSession owns keyboard and controller sampling.
       const bit = localBits[button];
       if (bit !== undefined) this.session.pad = pressed ? this.session.pad & ~(1 << bit) : this.session.pad | (1 << bit);
     };

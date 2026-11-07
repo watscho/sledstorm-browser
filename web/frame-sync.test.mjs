@@ -85,3 +85,11 @@ test('native mode counts real core callbacks rather than frontend iterations', a
   assert.equal(f.module.sledCoreBefore(), true); coreFrame++; f.module.sledCoreAfter();
   assert.equal(f.sync.tick, 1); assert.equal(f.manager.getFrameNum(), 1);
 });
+
+test('external input ownership prevents frontend gamepad callbacks from bypassing local preferences', () => {
+  const session = { pad: 65535, fail() {} };
+  const manager = { setKeyboardEnabled() {}, toggleFastForward() {}, toggleSlowMotion() {}, functions: {} };
+  new FrameSync({ module: {}, manager, session, externalInput: true, onStatus() {}, digest: () => 0 });
+  manager.simulateInput(0, 0, true);
+  assert.equal(session.pad, 65535);
+});

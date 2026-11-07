@@ -10,11 +10,14 @@
 <body>
 <a class="skip-link" href="#setup">Skip to game settings</a>
 <header class="site-header">
-  <a class="brand" href="/" aria-label="Sled Storm — back to lobby"><span class="brand-mark" aria-hidden="true">S<span>S</span></span><span>SLED STORM<small>BROWSER EDITION</small></span></a>
+  <a class="brand" href="/" aria-label="Sled Storm — back to lobby">
+    <img class="brand-logo" src="/sled-storm-logo.png" alt="" width="400" height="224">
+    <span class="brand-edition">BROWSER EDITION<span>PLAYSTATION / 1999</span></span>
+  </a>
   <span class="build-label"><i class="status-dot" aria-hidden="true"></i> Up to 4 players <span class="desktop-only">/ PS1 · 1999</span></span>
 </header>
 <main>
-  <div class="page-heading"><div><p class="eyebrow">LOBBY / RACE PREPARATION</p><h1>Before the race<span>.</span></h1><p class="intro" id="intro">Start the game and share its link with friends.</p></div><button class="text-button" id="reset-settings" type="button">Reset settings <span aria-hidden="true">↺</span></button></div>
+  <div class="page-heading"><h1 id="lobby-title">Lobby</h1><button class="text-button" id="reset-settings" type="button">Reset settings <span aria-hidden="true">↺</span></button></div>
   <p id="status" class="game-status" role="status" aria-live="polite">Preparing launcher…</p>
   <div class="lobby-layout" id="setup" tabindex="-1">
     <section class="configuration" aria-label="Launch settings">
@@ -39,9 +42,13 @@
         <p class="capability">PlayStation · WebAssembly · WebGL2</p>
       </div>
       <div class="settings-panel" id="panel-controls" role="tabpanel" aria-labelledby="tab-controls" tabindex="0" hidden>
-        <div class="section-title"><h2>Keyboard controls</h2><span>03 / 04</span></div>
-        <dl class="controls-list"><div><dt>Steer / navigate</dt><dd><kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd></div><div><dt>Accelerate / confirm</dt><dd><kbd>X</kbd></dd></div><div><dt>Start / pause</dt><dd><kbd>Enter</kbd></dd></div><div><dt>Triangle / back</dt><dd><kbd>A</kbd></dd></div></dl>
-        <p class="field-help">Click the game to focus your controls. Each browser controls one player.</p><p class="room-note">Join everyone before starting a race, then choose Multiplayer in the game.</p>
+        <div class="section-title"><h2>Your controls</h2><button class="text-button" id="reset-controls" type="button">Reset controls ↺</button></div>
+        <div class="field"><label for="control-preset">Keyboard layout</label><select id="control-preset"><option value="classic">Classic · arrows + X</option><option value="wasd">WASD · space to accelerate</option><option value="custom">Custom</option></select></div>
+        <div class="key-bindings" id="key-bindings"></div>
+        <p class="field-help" id="binding-status" role="status">Saved in this browser. Click a key to change it; Escape cancels.</p>
+        <details class="more-bindings"><summary>Other PlayStation buttons</summary><div class="key-bindings" id="extra-bindings"></div></details>
+        <div class="gamepad-state"><i class="status-dot" id="gamepad-indicator" aria-hidden="true"></i><div><strong id="gamepad-name">No controller detected</strong><p id="gamepad-state">Connect a controller and press a button.</p></div></div>
+        <div class="field"><label for="gamepad-device">Controller</label><select id="gamepad-device"><option value="auto">Automatic · first standard controller</option><option value="off">Keyboard only</option></select><p class="field-help">Left stick / D-pad: steer · A / ×: accelerate · Y / △: back · Start / Options: pause. Your keyboard also stays active.</p></div>
       </div>
       <div class="settings-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" tabindex="0" hidden>
         <div class="section-title"><h2>Game files</h2><span>04 / 04</span></div>
@@ -56,10 +63,9 @@
     </aside>
   </div>
   <section id="game-stage" class="game-stage" aria-label="Game session" hidden>
-    <div class="stage-toolbar"><div><i class="status-dot" aria-hidden="true"></i><strong>Sled Storm</strong></div><div><button type="button" class="text-button" id="back-lobby">Return to lobby</button><button type="button" class="secondary-button" id="fullscreen">Fullscreen ⛶</button></div></div>
-    <section id="sharing" class="invite-box" aria-label="Session invitation" hidden><strong>Invite friends</strong><p>Send the complete link. Friends join as the next controllers.</p><div class="invite-actions"><label class="sr-only" for="invite">Invite friends</label><input id="invite" readonly><button class="secondary-button" id="copy-invite" type="button">Copy invite link</button></div></section>
-    <div id="game" aria-label="Game screen"></div>
-    <div class="game-bottom"><p>Arrows to steer · X to accelerate · Enter for Start · A to go back</p><span>Keep all connected tabs active.</span></div>
+    <div class="stage-toolbar"><div><i class="status-dot" aria-hidden="true"></i><strong>Sled Storm</strong></div><div><button type="button" class="secondary-button" id="copy-invite" hidden title="Copy a link to invite friends" aria-live="polite">Copy link</button><button type="button" class="text-button" id="back-lobby">Return to lobby</button><button type="button" class="secondary-button" id="fullscreen">Fullscreen ⛶</button></div></div>
+    <div id="game" aria-label="Game screen" tabindex="0"></div>
+    <div class="game-bottom"><p id="play-controls">Arrows to steer · X to accelerate · Enter for Start · A to go back</p><span>Keep all connected tabs active.</span></div>
   </section>
 </main>
 <footer><span>SLED STORM / BROWSER EDITION</span><span>PS1 · 1999 / experimental build</span></footer>

@@ -63,6 +63,15 @@ retrieved on 2026-11-06 for identification and illustration. The artwork and
 Electronic Arts / PlayStation marks belong to their respective rights holders
 and are outside the wrapper's MIT license.
 
+## Header logo
+
+`web/sled-storm-logo.png` is the existing 400 × 224 transparent Sled Storm
+logo asset from [HFS DB](https://db.hfsplay.fr/games/87858-sled-storm?lang=en),
+[original PNG](https://db.hfsplay.fr/files/2019/09/04/Sled_Storm_274TiZl.png),
+retrieved on 2026-11-07. It is used unchanged, rather than recreated with a font.
+The game logo remains the property of its respective rights holders and is
+outside the wrapper's MIT license.
+
 ## Game content and distribution
 
 Sled Storm game code, graphics, music, disc contents and trademarks belong to

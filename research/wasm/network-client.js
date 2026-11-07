@@ -15,6 +15,7 @@ export class BrowserSession {
     this.verified = -1;
     this.active = false;
     this.keyMap = options.keyMap || KEY_BITS;
+    this.gamepadIndex = options.gamepadIndex;
     this.endpoint = options.endpoint;
     this.metrics = { buffered: 0, waits: 0, waitMs: 0 };
     this.onSnapshotRequest = options.onSnapshotRequest;
@@ -98,7 +99,10 @@ export class BrowserSession {
   }
   samplePad() {
     let pad = this.pad;
-    const gamepad = Array.from(navigator.getGamepads?.() || []).find((pad) => pad?.mapping === 'standard');
+    const selected = this.gamepadIndex?.();
+    let devices = [];
+    try { devices = Array.from(navigator.getGamepads?.() || []); } catch { /* Keyboard remains usable. */ }
+    const gamepad = selected === -1 ? null : devices.find(pad => pad?.mapping === 'standard' && (selected == null || pad.index === selected));
     if (gamepad?.mapping === 'standard') {
       const map = [14, 13, 15, 12, 10, 11, 8, 9, 0, 3, 1, 2, 4, 6, 7, 5];
       for (let i = 0; i < map.length; ++i) if (gamepad.buttons[i]?.pressed) pad &= ~(1 << map[i]);

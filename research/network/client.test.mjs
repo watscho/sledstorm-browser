@@ -47,3 +47,27 @@ test('one live console admits three late peers, preserves CRC phase and four pad
     assert.deepEqual(last,[65534,65533,65531,65527]);assert.ok(clients.every(c=>c.verified>=75));
   } finally {clients.forEach(c=>c.fail('Test finished'));await new Promise(r=>relay.close(r));}
 });
+
+test('controller selection samples one standard device, supports keyboard-only and handles disconnect', () => {
+  globalThis.window = { addEventListener() {} };
+  let devices = [
+    { index: 0, mapping: 'standard', buttons: [{ pressed: true }], axes: [0, 0] },
+    { index: 2, mapping: 'standard', buttons: [{ pressed: false }, { pressed: true }], axes: [-.8, .8] },
+    { index: 3, mapping: '', buttons: [{ pressed: true }], axes: [0, 0] },
+  ];
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { getGamepads: () => devices } });
+  try {
+    let selected = null;
+    const client = new BrowserSession(() => {}, { gamepadIndex: () => selected });
+    assert.equal(client.samplePad(), 65535 & ~(1 << 14));
+    selected = 2;
+    assert.equal(client.samplePad(), 65535 & ~(1 << 13) & ~(1 << 7) & ~(1 << 6));
+    client.pad &= ~(1 << 3); selected = -1;
+    assert.equal(client.samplePad(), 65535 & ~(1 << 3));
+    selected = 3; assert.equal(client.samplePad(), client.pad, 'nonstandard devices cannot inject buttons');
+    selected = 2; devices = []; assert.equal(client.samplePad(), client.pad, 'disconnection releases controller input');
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'navigator', previous); else delete globalThis.navigator;
+  }
+});

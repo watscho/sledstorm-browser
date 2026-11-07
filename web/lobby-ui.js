@@ -1,6 +1,9 @@
+import { initControls } from './controls-ui.js';
+
 // Presentation controls only. Console state and room settings remain in app.js.
 export function initLobby() {
   const $ = selector => document.querySelector(selector);
+  const controls = initControls();
   $('.skip-link').addEventListener('click', event => { event.preventDefault(); $('#setup').focus(); });
   const tabs = [...document.querySelectorAll('[role=tab]')];
   const activate = tab => {
@@ -39,6 +42,7 @@ export function initLobby() {
     }
     if (!$('#camera').disabled) $('#camera').checked = true;
     $('#bios').value = ''; $('#disc-files').value = '';
+    controls.reset();
     refresh();
   });
   const dialog = $('#exit-dialog');
@@ -48,18 +52,28 @@ export function initLobby() {
   $('#fullscreen').addEventListener('click', async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
-      else await $('#game-stage').requestFullscreen();
+      else {
+        await $('#game').requestFullscreen();
+        $('#game').focus({ preventScroll: true });
+      }
     } catch { $('#status').textContent = 'Fullscreen is unavailable in this browser. You can continue in the window.'; }
   });
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.fullscreenElement) {
+      event.preventDefault();
+      document.exitFullscreen().catch(() => {});
+    }
+  }, true);
   document.addEventListener('fullscreenchange', () => {
     $('#fullscreen').textContent = document.fullscreenElement ? 'Exit fullscreen ⛶' : 'Fullscreen ⛶';
   });
   refresh();
   return {
+    inputOptions: () => controls.options(),
     guest() {
       $('#launch-label').textContent = 'Join game';
       $('#summary-session').textContent = 'Join existing room';
-      $('#intro').textContent = 'Your controller is ready. Join your friends.';
+      $('#lobby-title').textContent = 'Join game';
       $('#room-note').textContent = 'Progress and camera settings come from the host.';
       refresh();
     },
@@ -72,6 +86,7 @@ export function initLobby() {
         : 'The complete game and music load automatically. No file selection needed.';
     },
     start() {
+      controls.lock();
       document.body.classList.add('is-playing');
       $('#game-stage').hidden = false;
       $('#game-stage').prepend($('#status'));

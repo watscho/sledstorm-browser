@@ -11,6 +11,7 @@ const launch = document.querySelector('#launch');
 const status = document.querySelector('#status');
 let biosUrl;
 let session, sync;
+let inviteLink = '', copiedTimer;
 let roomOptions, launchInfo;
 let viewChecks = 0;
 let invitation;
@@ -36,10 +37,46 @@ const launcherInfo = fetch('/session-info').then(async response => {
   if (!response.ok) throw new Error('Could not read launcher settings.');
   const info = await response.json();
   lobby.discMode(info.discMode);
-  showStatus(info.discMode === 'local' ? 'Choose your local CUE and all BIN tracks before launching.' : 'Ready to play. Start the game, then copy its invitation.');
+  if (!launch.disabled) showStatus('');
   return info;
 });
 launcherInfo.catch(error => { showStatus(error.message); launch.disabled = true; });
+async function sharedDiscFile(fingerprint) {
+  const url = '/disc.zip';
+  // Each Quick Tunnel hostname has its own storage that later tunnels cannot clear.
+  if (!fingerprint || location.hostname.endsWith('.trycloudflare.com')) return url;
+
+  let cache;
+  try {
+    cache = await window.caches.open('sledstorm-disc-v1');
+    const saved = await cache.match(url);
+    if (saved?.headers.get('x-sledstorm-disc') === fingerprint) {
+      const blob = await saved.blob();
+      if (blob.size > 0) return new File([blob], 'disc.zip');
+    }
+  } catch {
+    // Private browsing or cleared storage can make the cached copy unavailable.
+  }
+
+  showStatus('Downloading game data…');
+  const response = await fetch(url, { cache: 'no-store' });
+  if (response.status !== 200) throw new Error('Could not download the game disc. Return to the lobby and try again.');
+  const blob = await response.blob();
+  const expectedSize = Number(response.headers.get('content-length'));
+  if (!blob.size || (expectedSize && blob.size !== expectedSize)) {
+    throw new Error('The game disc download is incomplete. Return to the lobby and try again.');
+  }
+  if (cache) {
+    showStatus('Saving game data in this browser…');
+    try {
+      await cache.put(url, new Response(blob, { headers: { 'x-sledstorm-disc': fingerprint } }));
+    } catch {
+      // The current download is still playable when the browser denies storage.
+    }
+  }
+  return new File([blob], 'disc.zip');
+}
+
 launch.addEventListener('click', async () => {
   launch.disabled = true;
   roomOptions = { progress: document.querySelector('#progress').value, camera: document.querySelector('#camera').checked };
@@ -102,6 +139,15 @@ launch.addEventListener('click', async () => {
   document.querySelector('#game').classList.add('active');
   document.querySelector('#game').scrollIntoView({ block: 'start' });
   status.textContent = 'Loading emulator and disc…';
+  if (!solo && launchInfo.discMode === 'shared') {
+    try {
+      window.EJS_gameUrl = await sharedDiscFile(launchInfo.disc);
+    } catch (error) {
+      showStatus(error.message);
+      return;
+    }
+    showStatus('Loading emulator and disc…');
+  }
   const script = document.createElement('script');
   script.src = '/emulator/loader.js';
   script.onerror = () => {
@@ -179,6 +225,7 @@ async function connectRoom(bios) {
   qualifyView(emulator.Module, emulator.gameManager);
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   session = new BrowserSession(showStatus, {
+    ...lobby.inputOptions(),
     endpoint: location.port === '8000' ? `${protocol}//${location.hostname}:8004` : `${protocol}//${location.host}/relay`,
     onSnapshotRequest: async tick => ({ data: encodeState(await sync.snapshot(tick)), checks: [...session.digests] }),
     onSnapshot: async message => {
@@ -213,7 +260,7 @@ async function connectRoom(bios) {
   const inviteOrigin = response.headers.get('x-invite-origin');
   const biosHash = bios ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())), x => x.toString(16).padStart(2, '0')).join('') : 'HLE';
   const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
-  sync = new FrameSync({ module: emulator.Module, manager: emulator.gameManager, session,
+  sync = new FrameSync({ externalInput: true, module: emulator.Module, manager: emulator.gameManager, session,
     beforeFrame: () => {
       if (roomOptions.progress === 'all') unlockPal(new Uint8Array(emulator.Module.HEAPU8.buffer, emulator.Module._sled_ram_pointer(), 0x200000));
     },
@@ -233,14 +280,14 @@ async function connectRoom(bios) {
     const url = invitationUrl(location.href, invitePath, room, roomOptions, inviteOrigin);
     const localUrl = new URL(url).origin === location.origin ? url : invitationUrl(location.href, '/', room, roomOptions);
     history.replaceState(null, '', localUrl);
-    document.querySelector('#invite').value = url;
-    document.querySelector('#sharing').hidden = false;
+    inviteLink = url;
+    document.querySelector('#copy-invite').hidden = false;
   };
   await session.connect(identity, invitation, shareInvitation);
   if (invitation) shareInvitation(invitation);
   emulator.Module._sled_view_configure(session.slot, roomOptions.camera ? 3 : 0);
   sync.start();
-  showStatus(`Controller ${session.slot + 1} connected. Enter the game's multiplayer menu to race together.`);
+  refreshRoomStatus();
 }
 
 function qualifyView(module, manager) {
@@ -267,14 +314,34 @@ function qualifyView(module, manager) {
 
 function refreshRoomStatus() {
   if (!session?.active || !sync || sync.failure) return;
-  if (session.replaying) showStatus(`Joining session · ${Math.min(100, Math.floor(sync.tick * 100 / session.replayTarget))}% · replaying ${sync.tick}/${session.replayTarget} frames`);
+  if (session.replaying) showStatus(`Synchronizing game · ${Math.min(100, Math.floor(sync.tick * 100 / session.replayTarget))}%`);
   else if (session.syncing) showStatus('Waiting for a joining player to synchronize. The race resumes automatically.');
-  else showStatus(`Controller ${session.slot + 1} · ${session.members || 1}/4 connected · synchronized frame ${sync.tick}`);
+  else showStatus('');
 }
 
-document.querySelector('#copy-invite').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(document.querySelector('#invite').value); showStatus('Invitation copied.'); }
-  catch { document.querySelector('#invite').select(); showStatus('Select and copy the invitation link.'); }
+document.querySelector('#copy-invite').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  if (!inviteLink) return;
+  let copied = false;
+  try { await navigator.clipboard.writeText(inviteLink); copied = true; }
+  catch {
+    // Keep the URL off screen even when the asynchronous clipboard is unavailable.
+    const previousFocus = document.activeElement;
+    const field = document.createElement('textarea');
+    field.value = inviteLink;
+    field.setAttribute('aria-hidden', 'true'); field.tabIndex = -1;
+    field.style.cssText = 'position:fixed;left:-10000px;top:0;opacity:0;pointer-events:none';
+    document.body.append(field); field.select();
+    try { copied = document.execCommand('copy'); } catch { /* Report failure below. */ }
+    finally { field.remove(); previousFocus?.focus({ preventScroll: true }); }
+  }
+  clearTimeout(copiedTimer);
+  button.textContent = copied ? 'Copied ✓' : 'Try again';
+  button.title = copied ? 'Invitation copied to clipboard' : 'Could not copy. Allow clipboard access and try again.';
+  if (!copied) showStatus('Could not copy the invitation. Allow clipboard access and try again.');
+  copiedTimer = setTimeout(() => {
+    button.textContent = 'Copy link'; button.title = 'Copy a link to invite friends';
+  }, 2500);
 });
 
 // Opt-in probe: count emulated frames, rather than browser animation callbacks.
@@ -310,7 +377,8 @@ function startBenchmark() {
       const hz = previousTime && frame >= previousFrame
         ? ((frame - previousFrame) * 1000 / (now - previousTime)).toFixed(1) : 'warming up';
       const heap = emulator.Module?.HEAPU8?.byteLength;
-      output.textContent = `PCSX-ReARMed · ${hz} emulated frames/s · frame ${frame}\n`
+      output.textContent = (session?.active ? `Controller ${session.slot + 1} · ${session.members || 1}/4 connected · synchronized frame ${sync.tick}\n` : '')
+        + `PCSX-ReARMed · ${hz} emulated frames/s · frame ${frame}\n`
         + `Wasm memory: ${heap ? (heap / 1048576).toFixed(0) + ' MiB' : 'unavailable'} · tab ${document.visibilityState}\n`
         + (sync ? `Network frame ${sync.tick} · verified ${session.verified} · ${session.replaying ? 'replaying' : 'live'}${sync.failure ? ' · ' + sync.failure : ''}\n` : '')
         + (lab || roomOptions?.camera ? `Camera replay: ${[0, 1, 2, 3, 4, 5, 6, 7].map(field => moduleViewStatus(emulator.Module, field)).join(' / ')}\n` : '')

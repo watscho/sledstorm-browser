@@ -12,7 +12,7 @@ python3 tools/play-online.py
 1. Wait for **Host launcher** in the terminal.
 2. Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) on the host computer.
 3. Choose settings and click **Start game**.
-4. Click **Copy invite link** under **Invite friends** and send the complete
+4. Click **Copy link** in the session toolbar and send the complete
    invitation to each friend.
 
 The invitation automatically uses the private HTTPS tunnel address. The host
@@ -26,11 +26,28 @@ tab active. No router port forwarding is needed.
 3. Click **Join game** and wait for disc loading and synchronization.
 4. Click the game to focus keyboard input.
 
-The default mode uses the host's disc. Friends do not install tools or select
-files. Each browser downloads the full disc, including music; the host's upload
-speed affects initial loading. If the host chose `--disc-mode local`, every
-player selects their own matching CUE and all eleven BIN tracks before joining.
-BIOS is optional; everyone must use the same BIOS or all leave it empty for HLE.
+The default mode uses the host's disc. Friends can join without installing tools
+or selecting files. If the host chose `--disc-mode local`, every player selects
+their own matching CUE and all eleven BIN tracks before joining. Everyone must
+use the same BIOS file or leave it empty for HLE.
+
+## Disc downloads and browser storage
+
+The full disc includes all music tracks. On localhost or a permanent HTTPS
+hostname, the browser saves one copy for that address and reuses it in new rooms
+as long as the disc fingerprint matches and the saved copy is still available.
+When storage is unavailable, the download remains usable for the current launch.
+
+The hosting helper uses a temporary Quick Tunnel by default. Each launch through
+a `trycloudflare.com` address downloads the disc for that session only. A permanent
+hostname keeps the same browser storage across tunnel restarts. See
+[Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
+for how to publish a permanent hostname.
+
+Copies saved by earlier builds on temporary addresses can still occupy disk
+space. In Chrome, open `chrome://settings/content/all`, search for
+`trycloudflare.com`, and remove site data for old game addresses. This removes
+their saved disc copies and other site data, such as access cookies.
 
 ## Start a race
 

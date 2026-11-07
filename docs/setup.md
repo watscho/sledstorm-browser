@@ -56,7 +56,7 @@ python3 tools/play-online.py
 ```
 
 Open [the launcher](http://127.0.0.1:8000/) after **Host launcher** appears.
-Click **Start game**, then **Copy invite link**. Follow the
+Click **Start game**, then **Copy link**. Follow the
 [friends guide](multiplayer.md) for the native multiplayer menus.
 
 For play only on this computer:
@@ -76,7 +76,9 @@ internet tunnel. Its invitations work only on this computer.
 
 On the first shared-disc launch, the server prepares `.cache/disc.zip` with all
 audio tracks and computes the disc identity. It reuses that cache until the
-source files change. Guest browsers download the complete disc before playing.
+source files change. Guest browsers load the complete disc before playing. See
+[disc downloads and browser storage](multiplayer.md#disc-downloads-and-browser-storage)
+for when a new download is needed.
 
 ## Each player supplies local files
 

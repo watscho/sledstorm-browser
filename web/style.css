@@ -1,11 +1,11 @@
 :root {
   color-scheme:dark;
-  --bg:#101516;
-  --surface:#182022;
-  --text:#edf1ed;
-  --muted:#9aa8a9;
-  --line:#303b3d;
-  --accent:#b7eddd;
+  --bg:#0c1528;
+  --surface:#14233c;
+  --text:#f0f7ff;
+  --muted:#a3b6d0;
+  --line:#2a3c58;
+  --accent:#b5e4ff;
   --error:#ffb4a9;
   font-family:Arial,Helvetica,sans-serif;
   font-synthesis:none
@@ -216,7 +216,7 @@ h1 span {
 }
 .section-title>span {
   font-size:9px;
-  color:#718082;
+  color:#8197b8;
   letter-spacing:1px
 }
 .setting-row {
@@ -256,7 +256,7 @@ h1 span {
   width:34px;
   height:20px;
   border-radius:20px;
-  background:#445052;
+  background:#3b5270;
   position:relative;
   transition:background .18s
 }
@@ -268,7 +268,7 @@ h1 span {
   width:14px;
   height:14px;
   border-radius:50%;
-  background:#d1d9d8;
+  background:#e0efff;
   transition:transform .18s
 }
 .switch-row input:checked+.switch {
@@ -276,7 +276,7 @@ h1 span {
 }
 .switch-row input:checked+.switch:after {
   transform:translateX(14px);
-  background:#1d302a
+  background:#153553
 }
 .switch-row input:focus-visible+.switch {
   outline:2px solid var(--accent);
@@ -332,7 +332,7 @@ h1 span {
   height:235px;
   position:relative;
   overflow:hidden;
-  background:#273631
+  background:#1b3150
 }
 .preview-image img {
   width:100%;
@@ -368,7 +368,7 @@ h1 span {
   font-size:8px;
   letter-spacing:1px;
   font-weight:400;
-  color:#d7e0de
+  color:#dcecff
 }
 .launch-summary {
   padding:23px
@@ -411,7 +411,7 @@ dd {
   width:100%;
   min-height:48px;
   background:var(--accent);
-  color:#172924;
+  color:#102c47;
   border:1px solid var(--accent);
   font-size:12px;
   font-weight:600;
@@ -422,8 +422,8 @@ dd {
   gap:20px
 }
 .primary-button:hover:not(:disabled) {
-  background:#d4fff0;
-  border-color:#d4fff0
+  background:#e0f4ff;
+  border-color:#e0f4ff
 }
 .primary-button:disabled {
   opacity:.65
@@ -442,7 +442,7 @@ dd {
   margin:15px 0 0;
   text-align:center;
   font-size:9px;
-  color:#78898a
+  color:#8ba4c5
 }
 .launch-error {
   border-left:2px solid var(--error);
@@ -471,8 +471,8 @@ dd {
 }
 select,input[type=url],input[readonly] {
   color:var(--text);
-  background:#1b2426;
-  border:1px solid #405052;
+  background:#15273f;
+  border:1px solid #3b5577;
   padding:11px 12px;
   width:100%;
   min-height:43px;
@@ -547,12 +547,12 @@ input[type=range] {
   font-size:11px;
   padding:4px 9px;
   color:var(--text);
-  background:#253032;
-  border:1px solid #445255;
+  background:#1b304c;
+  border:1px solid #456080;
   white-space:nowrap
 }
 .key-button:hover,.key-button[data-listening=true] {
-  background:#30483f;
+  background:#24476b;
   border-color:var(--accent)
 }
 .key-button[data-listening=true] {
@@ -616,8 +616,8 @@ input[type=file] {
 }
 input[type=file]::file-selector-button {
   padding:11px 14px;
-  background:#253532;
-  border:1px solid #617b72;
+  background:#1b3554;
+  border:1px solid #678cb3;
   border-radius:4px;
   color:var(--text);
   font-size:11px;
@@ -650,7 +650,7 @@ input[type=file]::file-selector-button {
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   font-size:10px;
-  background:#0a1011;
+  background:#091222;
   padding:16px
 }
 footer {
@@ -661,7 +661,7 @@ footer {
   justify-content:space-between;
   gap:20px;
   font-size:8px;
-  color:#78898a;
+  color:#8ba4c5;
   letter-spacing:1.2px
 }
 .game-stage {
@@ -689,17 +689,17 @@ footer {
   color:var(--muted)
 }
 .secondary-button {
-  background:#23302e;
-  border:1px solid #4c625b;
+  background:#1b3251;
+  border:1px solid #46668c;
   min-height:40px;
   padding:9px 14px;
   font-size:11px
 }
 .secondary-button:hover {
-  background:#31453d
+  background:#294b70
 }
 .canvas-wrap {
-  background:#050909;
+  background:#060d1b;
   position:relative;
   min-height:250px;
   aspect-ratio:16/9;
@@ -721,7 +721,7 @@ footer {
 .loading-overlay {
   position:absolute;
   inset:0;
-  background:#101a1b;
+  background:#101e35;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -777,7 +777,7 @@ footer {
   margin:0
 }
 .invite-box {
-  background:#20332c;
+  background:#172f4b;
   border-left:2px solid var(--accent);
   padding:18px;
   margin:20px 0
@@ -788,7 +788,7 @@ footer {
 }
 .invite-box p {
   font-size:11px;
-  color:#bdcdc7;
+  color:#c0d7ed;
   margin:4px 0 12px
 }
 .invite-actions {
@@ -799,7 +799,7 @@ footer {
   flex:1;
   min-width:0;
   font-size:11px;
-  background:#14211c
+  background:#10253d
 }
 .invite-actions button {
   white-space:nowrap
@@ -807,7 +807,7 @@ footer {
 .game-stage:fullscreen {
   width:100vw;
   height:100vh;
-  background:#060b0b;
+  background:#060d1b;
   display:flex;
   flex-direction:column;
   margin:0;
@@ -1118,18 +1118,18 @@ dialog .primary-button {
 #game.active { display:block; }
 #technical-details { margin-top:18px; border-top:1px solid var(--line); padding:12px 0; color:var(--muted); font-size:11px; }
 #technical-details summary { cursor:pointer; padding:10px 0; }
-#benchmark { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.7 ui-monospace,monospace; padding:16px; background:#0a1011; max-height:260px; overflow:auto; }
+#benchmark { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.7 ui-monospace,monospace; padding:16px; background:#091222; max-height:260px; overflow:auto; }
 .sound-symbol { color:var(--accent); font-size:24px; }
 .controls-list { margin-top:20px; }
 .controls-list>div { min-height:54px; align-items:center; }
-kbd { display:inline-block; min-width:29px; padding:4px 7px; border:1px solid #445255; border-bottom-width:3px; border-radius:4px; background:#253032; text-align:center; font:11px ui-monospace,monospace; }
+kbd { display:inline-block; min-width:29px; padding:4px 7px; border:1px solid #456080; border-bottom-width:3px; border-radius:4px; background:#1b304c; text-align:center; font:11px ui-monospace,monospace; }
 #save-diagnostic { background:var(--surface); color:var(--text); border:1px solid var(--line); padding:10px 14px; }
 .game-stage:fullscreen #game { flex:1; height:auto; min-height:0; border:0; }
 .game-stage:fullscreen #technical-details { display:none; }
 @media(max-width:760px) { .settings-tabs button { min-height:48px; } .preview-image { height:170px; } #game { min-height:240px; } .game-bottom { font-size:10px; } }
 
 /* Original PAL cover: retain its proportions and crop only the lower packaging. */
-.preview-image { height:auto; aspect-ratio:4/3; background:#151a24; }
+.preview-image { height:auto; aspect-ratio:4/3; background:#101e36; }
 .preview-image img { object-position:50% 0; filter:none; }
 .preview-image:after { display:none; }
 @media(max-width:760px) {
@@ -1138,3 +1138,67 @@ kbd { display:inline-block; min-width:29px; padding:4px 7px; border:1px solid #4
   .launch-preview #launch { position:fixed; left:22px; bottom:calc(14px + env(safe-area-inset-bottom)); width:calc(100% - 44px); z-index:10; box-shadow:0 0 0 10px var(--bg); }
   body.is-playing { padding-bottom:0; }
 }
+
+/* Original PAL-style game logo artwork and snow / ice / midnight-blue palette. */
+.site-header { background:#0b1426; border-bottom-color:#2c405e; }
+.brand { gap:24px; font-style:normal; letter-spacing:normal; }
+.brand-logo { display:block; width:146px; height:auto; flex-shrink:0; object-fit:contain; }
+.brand-edition { display:block; color:#e7f3ff; font-size:10px; font-weight:500; letter-spacing:3px; line-height:1.7; }
+.brand-edition>span { display:block; margin-top:4px; color:var(--muted); font-size:8px; letter-spacing:1.8px; }
+.preview-image { border-bottom:1px solid var(--line); }
+.launch-preview { border:1px solid #2c4263; }
+.primary-button { background:#b5e4ff; border-color:#b5e4ff; }
+.primary-button:hover:not(:disabled) { background:#e0f4ff; border-color:#e0f4ff; }
+@media(max-width:760px) { .brand { gap:15px; } .brand-logo { width:110px; } .brand-edition { font-size:8px; letter-spacing:1.6px; } .brand-edition>span { font-size:7px; letter-spacing:1px; } .build-label { font-size:8px; } }
+@media(max-width:420px) { .brand-edition>span { display:none; } .brand { gap:10px; } .brand-edition { max-width:65px; font-size:7px; letter-spacing:1.2px; } }
+/* Native selects with a consistent hit area, inset caret and quiet focus ring. */
+select { appearance:none; -webkit-appearance:none; min-height:46px; padding:11px 40px 11px 14px; border:1px solid #405b7b; border-radius:7px; font-size:13px; line-height:1.5; background-color:#172a43; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23b5cce5' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; transition:border-color .15s,background-color .15s; }
+select:hover:not(:disabled) { border-color:#7299bd; background-color:#1b304c; }
+select:focus-visible { outline:2px solid #a6dfff; outline-offset:2px; border-color:#a6dfff; }
+select option { color:var(--text); background:#172a43; }
+#panel-controls .section-title { margin-bottom:0; }
+#panel-controls .field { margin:14px 0; }
+#panel-controls .key-bindings { grid-template-columns:1fr 1fr; gap:0 22px; }
+#panel-controls .key-row { min-height:49px; gap:14px; }
+#panel-controls .key-button { min-width:48px; min-height:36px; font-size:12px; }
+#panel-controls .key-button[data-listening=true] { min-width:100px; }
+#panel-controls .gamepad-state { gap:12px; margin-top:22px; }
+#gamepad-indicator { margin-top:5px; background:#5c7390; transition:background .15s,box-shadow .15s; }
+#gamepad-indicator.input-active { background:var(--accent); box-shadow:0 0 0 4px #b5e4ff22; }
+@media(max-width:520px) { #panel-controls .key-bindings { grid-template-columns:1fr; } }
+
+.is-playing .brand-logo { width:112px; }
+
+/* Fullscreen contains only the game; Escape returns to the normal session UI. */
+#game:fullscreen { width:100vw; height:100vh; min-height:0; max-height:none; margin:0; padding:0; border:0; border-radius:0; background:#000; outline:none; }
+#game:fullscreen .ejs_menu_bar,
+#game:fullscreen .ejs_context_menu,
+#game:fullscreen .ejs_virtualGamepad_parent { display:none!important; }
+/* Keep the same presentation if a browser restores the session fullscreen target. */
+.game-stage:fullscreen { padding:0; background:#000; }
+.game-stage:fullscreen > :not(#game) { display:none!important; }
+.game-stage:fullscreen #game { margin:0; border-radius:0; }
+.game-stage:fullscreen .ejs_menu_bar,
+.game-stage:fullscreen .ejs_context_menu,
+.game-stage:fullscreen .ejs_virtualGamepad_parent { display:none!important; }
+
+/* Compact launcher heading: one label, one reset action, no repeated intro. */
+body:not(.is-playing) main { padding-top:24px; }
+.page-heading { align-items:center; min-height:40px; margin-bottom:16px; }
+.page-heading h1 { margin:0; font-size:26px; line-height:1.25; letter-spacing:-.7px; }
+#status:empty { display:none; }
+@media(max-width:760px) {
+  body:not(.is-playing) main { padding-top:20px; }
+  .page-heading { margin-bottom:12px; min-height:36px; }
+  .page-heading h1 { font-size:24px; }
+}
+@media(min-width:761px) and (max-height:800px) {
+  .site-header .brand-logo { width:118px; }
+}
+/* Keep emulator chrome and the pointer out of the game image in every view. */
+#game .ejs_menu_bar,
+#game .ejs_context_menu { display:none!important; }
+#game.active,
+#game.active * { cursor:none!important; }
+
+#copy-invite { min-width:100px; }

@@ -18,7 +18,11 @@ through the tunnel. Metadata is bound to that runtime PID and removed on stop.
 Shared mode packages the CUE and all eleven BIN tracks into an ignored,
 uncompressed `.cache/disc.zip`, including CD audio. This avoids JavaScript
 inflation at each join. The archive is reused until source filenames, sizes or
-modification times change. Each guest downloads the complete archive.
+modification times change. Each guest loads the complete archive. On localhost
+and permanent hostnames, the launcher stores one archive per browser origin
+using Cache Storage and checks the disc fingerprint before reusing it. Quick
+Tunnel launches use the session download so changing hostnames does not leave
+behind additional saved copies.
 
 Local-file mode reads browser-selected CUE/BIN files and blocks `/disc.zip` at
 both server and gateway. Disc identity hashes every track, including audio, in
