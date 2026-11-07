@@ -10,6 +10,9 @@ semantic versioning and do not refer to the original game or upstream port.
 - Unified setup, multiplayer, launcher, progression and verification guides
   around the current emulator, with a prominent start/invite/stop walkthrough.
 - Simplified README navigation and separated component notices from play instructions.
+- Audited all project guides against runtime code, corrected invitation encoding
+  and launch-setting behavior, completed local diagnostic steps, and added a
+  documentation index plus context for preserved upstream license texts.
 
 ## [0.3.0] - 2026-11-07
 

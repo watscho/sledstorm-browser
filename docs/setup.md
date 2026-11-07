@@ -5,7 +5,8 @@
 The host needs macOS or Linux, Python 3.10+, Git, Bash, make, Node.js 22+ with npm,
 bsdtar/libarchive, several GB of free disk space, and a desktop browser supporting
 WebAssembly and WebGL2. macOS has been tested; Linux and Windows/WSL have not
-been qualified. Internet hosting also needs `cloudflared`.
+been qualified. Internet hosting also needs
+[cloudflared](https://github.com/cloudflare/cloudflared#installing-cloudflared).
 
 Friends joining an internet room only need a compatible desktop browser and the
 complete invitation. They do not install this project.

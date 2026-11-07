@@ -2,13 +2,14 @@
 
 The browser launch page defaults to **All content unlocked**. Select
 **Original progression** before launch to use the game's original unlock state.
-A room invitation carries the unlock setting; the
+A room invitation carries the unlock setting; each
 guest inherits it, and the mode is part of the content identity checked before
 joining. All peers execute the same hooks and retain normal physics and timers.
 
 This is an in-memory session preset, applied after frontend initialization
 and reapplied if the game resets its unlock state. It does not edit the disc or
-persistent memory cards. It is not an imported memory-card save and does not invent best times, scores, or race records.
+persistent memory cards. It is not an imported memory-card save and does not
+invent best times, scores or race records.
 
 ## Audited PAL fields
 
@@ -24,6 +25,9 @@ Do not transplant these addresses to another game region or PS2 Sled Storm.
 | `800C2ECA` | Demo course availability = 1 |
 | `800C2ECC` | Mirror availability = 1 |
 | `800D6AE8` | Original eight-rider circular selector, all links restored |
+| `800C2EBC`, `800C2EBE` | Progression options = 1 |
+| `800C2EC0`, `800C2EC2` | Mountain and Snocross course counts = 8 and 6 |
+| `800D6AF8` | Fifteen-course circular selector, all links restored |
 
 `unlockPal` in [`web/pal-profile.js`](../web/pal-profile.js) runs before the
 console step and state check. It only writes in frontend

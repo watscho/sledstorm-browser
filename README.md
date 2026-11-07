@@ -132,6 +132,8 @@ quality, hidden tabs and all courses have not been comprehensively tested.
 
 ## Documentation
 
+[Browse all documentation](docs/README.md).
+
 - [Installation and troubleshooting](docs/setup.md)
 - [Playing with friends and hosting](docs/multiplayer.md)
 - [Launcher settings](docs/browser-lobby.md)

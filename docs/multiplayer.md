@@ -74,7 +74,8 @@ Starting from the root launcher creates a new private room. Its full invitation
 joins that room as a free controller. A room supports four players; the relay
 supports up to eight rooms. The invitation includes access capabilities and
 shared progression/camera settings. Keep it private: anyone holding the full
-link can occupy a free seat. Base64url encodes settings; it does not encrypt them.
+link can occupy a free seat. The URL fragment contains Base64-encoded JSON;
+it does not encrypt the room credentials or settings.
 
 Each browser runs its own emulator. Controller inputs are synchronized and state
 checks detect divergence. Guests replay input history from boot to catch up;
@@ -82,6 +83,9 @@ the room pauses at a fixed boundary during synchronization. Long-running rooms
 take longer to join. The slowest active peer can hold everyone up.
 
 Closing the final client deletes the room. Restarting the relay clears rooms.
+History is limited to 900,000 steps per room (five simulated hours at PAL 50 Hz);
+reaching that limit ends the session. Rooms also expire after 30 seconds without
+client messages.
 There is no persistent room recovery, rollback or host migration. State
 mismatches stop the room; restart with matching build, files and BIOS.
 

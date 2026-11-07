@@ -85,8 +85,7 @@ test also covers partial HUD execution failure, register/RAM restoration,
 canonical VRAM preservation, native viewport bounds and menu bypass.
 
 Pause menus bypass replay and retain native 4:3 presentation. World geometry,
-LOD and scenery remain those of the original multiplayer mode. Every course,
-weather and race phase is not comprehensively qualified. Turning the camera
+LOD and scenery remain those of the original multiplayer mode. Course, weather and race-phase coverage is not comprehensive. Turning the camera
 option off before starting restores original rendering.
 
 **All content unlocked** applies the audited PAL progress preset to initialized
@@ -96,10 +95,38 @@ settings. Image filtering and volume are local preferences. The preset has
 passed focused RAM tests and multiplayer menu/race flows; selecting every
 unlock individually remains unqualified.
 
-Local diagnostic artifacts are ignored under `.cache/`. `?dev=1` exposes a
-loopback-only snapshot button. A developer can copy an appropriate snapshot to
-`.cache/emulator-lab.state` and open `?lab=1&seat=0` or `?lab=1&seat=1` to restore it without joining a
-network room. Add `&hud=1` only for a fixture saved after the single-player HUD atlas loaded. `/lab-state` and snapshot upload are not public-gateway routes.
+## Local diagnostics
+
+Diagnostic files stay under ignored `.cache/`. These are developer tools; use
+the normal launcher for multiplayer play.
+
+1. Open [the local diagnostic launcher](http://127.0.0.1:8000/?dev=1) and start
+   a room. Wait until it is synchronized and reach the desired game state.
+2. Expand **Technical details** and click **Save local diagnostic snapshot**.
+   The server writes `.cache/emulator-state-3-1000.bin`.
+3. Copy that file to `.cache/emulator-lab.state` while keeping the server running:
+
+   ```sh
+   cp .cache/emulator-state-3-1000.bin .cache/emulator-lab.state
+   ```
+
+4. Open [the fixture console](http://127.0.0.1:8000/?console=1&dev=1&fixture=1),
+   then click **Start game**. It restores the snapshot without joining a room.
+   The controller selector changes the local input and camera seat.
+
+Without `fixture=1`, `?console=1&dev=1` starts a fresh diagnostic console. The
+saved snapshot must match the pinned core and relevant progress/camera setup.
+Developer mode also samples canonical state before and after presentation.
+`?verifyView=1` enables that check in a normal room without opening developer UI.
+
+The specialized `?lab=1&seat=0` and `?lab=1&seat=1` camera harness expects a
+two-player fixture paused by controller 2. Its keyboard controls controller 2;
+`seat` selects the camera. Add `&hud=1` only when the fixture already contains the
+single-player HUD atlas. Use the fixture console above for general diagnostics.
+
+Snapshot upload and `/lab-state` are loopback-only routes excluded from the
+public gateway. Diagnostic restoration does not qualify snapshot-based room
+joining; supported multiplayer joining uses history replay.
 
 ## Source provenance
 
@@ -136,8 +163,3 @@ python3 tools/test-emulator-server.py
 The native presentation check requires the pinned source checkout and a local C
 compiler. Protocol tests use synthetic controller rows and do not substitute for
 real game, audio or internet checks.
-
-For native controller diagnostics, loopback-only `?console=1&dev=1` starts one
-console without a network room and exposes a controller/camera selector. This
-is a developer tool for joining each native controller and saving race fixtures;
-it is not another user-facing play mode.
