@@ -37,7 +37,9 @@ replace actual game or internet verification.
 
 Gameplay changes require matching clients through the affected race modes and
 player counts, independent controller input, original menu proportions and state
-agreement. Presentation changes also need full-state before/after checks; add
+agreement. Dedicated-room changes also require checking creator departure,
+private recovery in a fresh browser and out-of-order returns to reserved slots.
+Presentation changes also need full-state before/after checks. Add
 `?dev=1` for loopback diagnostics or `?verifyView=1` for sampled isolation checks.
 Do not weaken checksums to accommodate unexplained divergence. Record exact
 scope and limits in [the verification record](docs/verification.md).

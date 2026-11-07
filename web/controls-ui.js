@@ -82,8 +82,13 @@ export function initControls() {
   let signature;
   const updateGamepads = () => {
     let devices;
+    const feedback = $('#room-gamepad-status');
+    const report = message => {
+      $('#gamepad-state').textContent = message;
+      if (feedback && !feedback.hidden && feedback.textContent !== message) feedback.textContent = message;
+    };
     try { devices = Array.from(navigator.getGamepads?.() || []).filter(Boolean); }
-    catch { $('#gamepad-state').textContent = 'Controller access is unavailable. Keyboard controls still work.'; return; }
+    catch { report('Controller access is unavailable. Keyboard controls still work.'); return; }
     const select = $('#gamepad-device');
     const next = devices.map(p => `${p.index}:${p.id}:${p.mapping}`).join('|');
     if (signature !== next) {
@@ -98,9 +103,9 @@ export function initControls() {
     $('#gamepad-name').textContent = pad ? pad.id : select.value === 'off' ? 'Keyboard only' : 'No supported controller detected';
     const active = pad && (pad.buttons.some(button => button.pressed) || pad.axes.some(axis => Math.abs(axis) > .4));
     $('#gamepad-indicator').classList.toggle('input-active', Boolean(active));
-    $('#gamepad-state').textContent = pad ? (active ? 'Input detected · controls your player in this browser.' : 'Connected · press a button or move the left stick to test.')
+    report(pad ? (active ? 'Input detected.' : 'Connected · press a button or move the left stick to test.')
       : select.value === 'off' ? 'Controller input is disabled for this browser.'
-      : devices.length ? 'This controller does not expose a standard browser mapping. Use the keyboard.' : 'Connect by USB or Bluetooth, then press a button to let the browser detect it.';
+      : devices.length ? 'This controller does not expose a standard browser mapping. Use the keyboard.' : 'Connect by USB or Bluetooth, then press a button to let the browser detect it.');
   };
   $('#gamepad-device').addEventListener('change', updateGamepads);
   window.addEventListener('gamepadconnected', updateGamepads);

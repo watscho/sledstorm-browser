@@ -18,7 +18,7 @@ locked to the invitation.
 | Image | Crisp or smooth filtering. | No; personal. |
 | Volume | Browser audio volume. | No; personal. |
 | Separate cameras | Full personal camera and original single-player HUD for two to four racers. Enabled by default. | Yes; guests inherit it. |
-| Optional PlayStation BIOS | Select your own BIOS, or leave empty for HLE. | Every player must independently use the same choice/file. |
+| Optional PlayStation BIOS | Dedicated rooms use the built-in BIOS. In a browser-hosted room, select your own BIOS or leave it empty for HLE. | Every player in a browser-hosted room must use the same choice/file. |
 | Game files (local-file mode) | Select the CUE and all eleven BIN tracks. | Every player supplies matching contents. |
 
 All launcher controls are disabled once the game starts, including personal
@@ -64,6 +64,15 @@ invitation. A new game launched from the root page creates a different room.
 The emulator hover toolbar is hidden, and the pointer is hidden over the game.
 Use the session toolbar above the game for fullscreen and returning to the lobby.
 
+In a dedicated room, **Players** shows the four controller slots. Set your
+name and select **Mark ready** to let others know you are ready. Readiness
+is informational. Player 1 still starts the race in the game's own menu.
+Use **Test gamepad** to check which buttons the browser sees. Gamepad input
+stays in the tester while it is open.
+
+Keep **Copy recovery link** for yourself if you want to reclaim your controller
+from another browser. Share **Copy link** when inviting someone to a free slot.
+
 Click the game to focus it. With Classic controls, use arrows, **S** for
 confirm/accelerate, **Enter** for Start/pause and **W** for triangle/back. The
 remaining Classic bindings are **A** (Square), **D** (Circle), **Q/E** (L1/R1),
@@ -73,10 +82,11 @@ shared console, so all players see it in the original 4:3 proportions.
 
 ## Presentation and progress
 
-Separate cameras replay the local player's geometry into a private framebuffer
-and render the original single-player HUD in an isolated pass. Multiplayer
-world detail remains that of the original game. Turning this setting off uses
-the game's original shared-screen presentation. See the
+Dedicated rooms render each racer's camera with the game's full-size
+renderer and original single-player HUD in an isolated pass. Browser-hosted
+rooms replay the local racer's geometry into a private framebuffer. Turning
+**Separate cameras** off uses the game's original shared-screen presentation.
+See the
 [architecture guide](browser-emulator.md) for implementation details.
 
 The [all-content preset](unlocked-profile.md) changes session memory, including
@@ -86,16 +96,25 @@ persistent single-player cards and disc files are unchanged.
 Use **Fullscreen** above the game to show only the game, hiding invitations,
 toolbars and emulator controls. Press **Escape** to return to the normal view.
 **Return to lobby**
-asks before disconnecting your controller. Leaving as the host ends the room.
+asks before disconnecting your controller. A dedicated room continues while
+others are connected. Leaving a browser-hosted room as its host ends the room.
 
 ## Loading and status
 
-The launcher covers the guest's game while RetroArch receives and applies the
-host's current state and keeps guest audio muted during that step. The
+The launcher reports disc download progress when it has a download size,
+then shows when it is preparing the emulator or synchronizing the room. It
+covers the guest's game and mutes guest audio until RetroArch applies the
+current room state. The
 **Technical details** panel shows the controller, player count, synchronized
 frame and completed console steps. Loading, synchronization and errors appear
 above the game. PAL targets 50 console steps/s. The counter measures console
-steps, while audio and displayed frame pacing need separate checks. Keep peer tabs active to avoid browser suspension.
+steps, while audio and displayed frame pacing need separate checks. A
+browser-hosted room can wait for a suspended player. In dedicated mode the
+server advances independently of browser input. If your browser falls behind,
+**Catching up to the live race…** appears while it temporarily skips personal
+camera rendering and mutes the game. The live view and audio return when the
+browser catches up. After a closed connection, select **Rejoin room** to reopen
+the same invitation.
 
 To stop the servers and tunnel, return to the hosting terminal and press
-**Ctrl+C**. Closing the host page ends its room. The terminal continues serving the launcher.
+**Ctrl+C**. This closes dedicated rooms as well as the launcher.

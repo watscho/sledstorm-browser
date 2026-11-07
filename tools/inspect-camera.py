@@ -82,6 +82,8 @@ def main():
               'entry': hex(entry), 'load': hex(load), 'text_size': text_size,
               'candidates': {'view_layout': '0x8005aea0', 'frame_loop': '0x80053a90',
                              'view0': '0x800e2cb0', 'view_stride': '0x224',
+                             'race_render_callsite': '0x80014e90',
+                             'race_renderer': '0x80051010',
                              'camera_state0': '0x800e27f0', 'camera_state_stride': '0x110'},
               'rejected_candidates': {'0x80078110': 'mutates object lists; not a pure world-render entry'},
               'independent_camera_implemented': False}
@@ -96,6 +98,8 @@ def main():
     for name, address, size in [('view_layout', 0x8005AEA0, 2244),
                                 ('object_list_rejected', 0x80078110, 0x1000),
                                 ('frame_loop', 0x80053A90, 1020),
+                                ('race_render_callsite', 0x80014E20, 0xB4),
+                                ('race_renderer', 0x80051010, 0x520),
                                 ('view_creation', 0x8005BC70, 0x500),
                                 ('pause-state', 0x8006D004, 0x1E4),
                                 ('hud-resource-select', 0x8005F344, 0x180)]:

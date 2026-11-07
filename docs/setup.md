@@ -8,6 +8,8 @@ WebAssembly and WebGL2. macOS has been tested; Linux and Windows/WSL have not
 been qualified. Internet hosting also needs
 [cloudflared](https://github.com/cloudflare/cloudflared#installing-cloudflared).
 
+Dedicated hosting also needs Chrome on the host to run the room emulator.
+
 Friends joining an internet room only need a compatible desktop browser and the
 complete invitation. They can join with the host's disc in the default mode.
 In local-file mode, every player supplies a matching CUE/BIN set.
@@ -50,10 +52,10 @@ supported by this setup.
 
 ## Start and stop
 
-For internet play, with `cloudflared` installed:
+For dedicated internet play, with Chrome and `cloudflared` installed:
 
 ```sh
-python3 tools/play-online.py
+python3 tools/play-online.py --dedicated
 ```
 
 Open [the launcher](http://127.0.0.1:8000/) after **Host launcher** appears.
@@ -68,6 +70,7 @@ python3 server.py
 
 Open the same localhost address. This starts the runtime and relay without an
 internet tunnel. Its invitations work only on this computer.
+Add `--dedicated` to test the roster and controller recovery locally.
 
 > [!TIP]
 > **Stop:** press **Ctrl+C** in the terminal that started hosting. The online
@@ -92,7 +95,8 @@ python3 tools/play-online.py --disc-mode local
 For local-only hosting, use `python3 server.py --disc-mode local`. In this mode,
 the server can start without a game folder. Each browser selects the CUE and all
 eleven BIN files before launch; all track contents must match. Files are read
-inside that browser. Host disc downloads are blocked.
+inside that browser. Host disc downloads are blocked. This mode uses
+browser-hosted rooms. The creator's tab must stay open.
 
 ## Updating
 
@@ -105,7 +109,8 @@ python3 tools/build-emulator.py
 ```
 
 Start hosting again and send a new invitation. Everyone in the room uses the
-same served build. The v0.5.0 lobby uses RetroArch Netplay for new rooms.
+same served build. New dedicated rooms enable the native full-size camera and
+single-player HUD by default.
 
 ## Troubleshooting
 
@@ -118,11 +123,13 @@ same served build. The v0.5.0 lobby uses RetroArch Netplay for new rooms.
 | Missing BIN or disc mismatch | Keep every referenced track, preserve names, and use matching PAL files. |
 | Port already in use | Press Ctrl+C in the terminal running the existing server before starting another. |
 | cloudflared not found | Install it, or set `CLOUDFLARED_BIN` to its executable path. |
+| Chrome not found for dedicated hosting | Install Chrome on the host, or set `SLED_CHROME_BIN` to its executable path. |
 | Friend cannot open the invitation | Copy the complete generated HTTPS invitation, keep hosting running, and check internet access. |
 | Invitation begins with 127.0.0.1 | Start the online helper, wait for its tunnel, then start a fresh game and copy its invitation. |
 | Slow first join | Wait for the disc to load and RetroArch to apply the host's current state. In shared-disc mode, guests first download all tracks. |
 | Guest joins the room but has no rider | Register that controller in the game's multiplayer menu before starting a new race. Rejoining a live race uses an existing racer. |
-| Pauses or choppy playback | Keep all peers awake with active tabs; try fewer participants and check the slowest device. |
+| Browser-hosted room waiting for a player | Bring the affected game window back to the foreground. If the connection closed, guests can select **Rejoin room** to return to the invitation. |
+| Catching up to the live race | Wait for the browser to catch up. The dedicated server keeps advancing. If the connection closes, use **Rejoin room** to reclaim your controller. |
 | Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
 | Guests download the disc on every launch | This is expected for temporary Quick Tunnel addresses in shared-disc mode. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |

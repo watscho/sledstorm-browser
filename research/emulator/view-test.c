@@ -9,6 +9,7 @@
 
 struct psx_gpu gpu;
 s8 *psxM;
+s8 *psxH;
 R3000Acpu *psxCpu;
 psxRegisters psxRegs;
 static unsigned calls, offset, first_xy, hud_draws, fail_guest;
@@ -27,6 +28,10 @@ int do_cmd_list(uint32_t *words, int count, int *sum, int *cycles, int *command)
   first_xy = words[1];
   gpu.vram[0] = 0xffff;
   return count;
+}
+long GPUdmaChain(uint32_t *ram, uint32_t start, uint32_t *progress, int32_t *cycles) {
+  assert(0 && "native renderer must be explicitly enabled");
+  return 0;
 }
 int vout_update(void) {
   assert(gpu.vram != canonical_vram);
@@ -72,6 +77,12 @@ int main(void) {
     assert(sled_view_status(1) == 1 && sled_view_status(2) == 0);
   }
   word(0x800d6a10, 4);
+  calls = 0;
+  sled_view_configure(0, 2 | 16); sled_view_begin();
+  pane(0, 255, 256, 383); sled_view_present();
+  assert(calls == 0 && sled_view_status(0) == 0);
+  psxRegs.pc = 0x8004a41c;
+  assert(sled_view_pc(&psxRegs) && psxRegs.pc == 0x8004a424);
   for (unsigned seat = 0; seat < 4; seat++) {
     calls = 0; sled_view_configure(seat, 1); sled_view_begin();
     pane(0, 255, 256, 383); pane(258, 511, 256, 383);

@@ -1227,8 +1227,9 @@ body:not(.is-playing) main { padding-top:24px; }
 
 #copy-invite { min-width:100px; }
 
-/* Cover the emulator until the guest has completed the first live room frame. */
-#game.joining-room::after {
+/* Cover the emulator until the local client is ready to show the live view. */
+#game.joining-room::after,
+#game.catching-up::after {
   content:"Synchronizing with the room…";
   position:absolute;
   inset:0;
@@ -1240,5 +1241,17 @@ body:not(.is-playing) main { padding-top:24px; }
   color:var(--text);
   text-align:center;
 }
+#game.catching-up::after { content:"Catching up to the live race…"; pointer-events:none; }
 #game.joining-room[data-join-progress]::after { content:attr(data-join-progress); }
 #game.join-failed.joining-room:not([data-join-progress])::after { content:"Could not join the room. Return to the lobby to try again."; }
+
+.room-roster { margin: 0 0 16px; border-block: 1px solid var(--line, #2b3c54); padding: 10px 0; }
+.room-roster[hidden] { display: none; }
+.room-roster summary { cursor: pointer; font-weight: 600; }
+.room-roster summary span { margin-inline-start: 8px; font-weight: 400; color: #a8bed5; }
+#room-seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin: 14px 0; padding: 0; list-style: none; }
+#room-seats li { display: grid; gap: 3px; min-width: 0; padding: 8px 12px; border-inline-start: 2px solid #8bd9ec; }
+#room-seats strong { overflow-wrap: anywhere; }
+#room-seats span { color: #a8bed5; font-size: .86rem; }
+.room-profile { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.room-profile input { width: min(100%, 14rem); padding: 8px 10px; color: inherit; background: #14243a; border: 1px solid #49627d; border-radius: 5px; }

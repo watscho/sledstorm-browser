@@ -3,6 +3,21 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning and do not refer to the original game or upstream port.
 
+## 0.6.0 - 2026-11-07
+
+- Added dedicated RetroArch rooms that keep running when the creator leaves.
+  The four-seat roster shows player names, readiness and reconnecting players.
+- Added private controller recovery links. Dedicated rooms reserve disconnected
+  controllers during a race and release held inputs when a browser stops sending.
+- Added shared-disc download progress and a gamepad tester in the player panel.
+- Dedicated clients temporarily skip personal rendering while catching up to
+  the live race. The server and other players keep advancing.
+- Enabled the original full-size PAL camera renderer and single-player HUD
+  in dedicated rooms. Rejoining sends the current snapshot only to the
+  returning client.
+- Verified four-player controller recovery through Cloudflare and checked the
+  native camera on Pine Valley, Hard Pack and Kodiak Canyon.
+
 ## 0.5.0 - 2026-11-07
 
 ### Online play

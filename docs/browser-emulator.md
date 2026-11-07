@@ -41,7 +41,15 @@ A loopback relay pairs each guest stream with its host stream. The private HTTPS
 gateway forwards the same binary traffic at `/netplay` through Cloudflare.
 The relay issues a one-time ticket to the host to pair each guest stream.
 
-Guests load matching content locally before the handshake. The game becomes
+In dedicated mode, the relay starts a headless Chrome/RetroArch runtime for
+each room. That runtime owns the console clock and committed controller input.
+The relay owns seat reservations, readiness and room ownership. A player can
+become owner while keeping their existing controller number. When a client
+joins or requests resynchronization, the runtime sends the current snapshot
+to that client. Existing clients continue receiving the live input stream.
+Clients that fall behind temporarily skip personal presentation to catch up.
+
+Guests load matching content before the handshake. The game becomes
 visible after the guest receives the host state and RetroArch assigns the
 controller. The browser uses the same controller slot for its camera and HUD.
 Sled Storm requires racers to be registered in the multiplayer menu before the
@@ -59,8 +67,14 @@ qualification limits.
 
 ## Cameras, progression and technical settings
 
-**Separate cameras** is enabled by default. The adapter replays the selected
-player's GPU geometry into private VRAM. Two-player panes gain a wider clip;
+**Separate cameras** is enabled by default. Dedicated rooms use the original
+PAL full-size world renderer in a private pass, with the assigned racer's camera
+and render buffers. The adapter restores the canonical multiplayer state before
+the next console step. The GPU replay path serves as a fallback if a native
+render pass fails. Pause menus bypass the private pass.
+
+Browser-hosted rooms use the GPU replay path. The adapter replays the selected
+player's geometry into private VRAM. Two-player panes gain a wider clip;
 three/four-player geometry is rerasterized at full viewport size, preserving
 texture coordinates. It does not stretch a framebuffer crop. The PAL right
 pane starts at X=258, and the lower panes start at Y=129; both native divider
@@ -83,9 +97,10 @@ and after presentation passed while switching cameras. The native isolation
 test also covers partial HUD execution failure, register/RAM restoration,
 canonical VRAM preservation, native viewport bounds and menu bypass.
 
-Pause menus bypass replay and retain native 4:3 presentation. World geometry,
-LOD and scenery remain those of the original multiplayer mode. Course, weather and race-phase coverage is not comprehensive. Turning the camera
-option off before starting restores original rendering.
+Pause menus retain native 4:3 presentation. The world and asset selection
+still use the game's multiplayer session. Course, weather and race-phase
+coverage is limited to the scenarios in the verification record. Turn
+**Separate cameras** off before starting to use the game's shared screen.
 
 **All content unlocked** applies the audited PAL progress preset to initialized
 menu RAM on every peer. It leaves disc and persistent memory cards untouched.

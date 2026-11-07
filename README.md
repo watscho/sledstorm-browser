@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.5.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.6.0 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -26,7 +26,8 @@ Original game artwork is not covered by the wrapper's MIT license.*
 On macOS or Linux, install **Python 3.10+, Git, Bash, make, Node.js 22+ with
 npm**, and **bsdtar/libarchive** (`tar` on macOS). Internet play also requires
 [cloudflared](https://github.com/cloudflare/cloudflared#installing-cloudflared).
-Use a desktop browser with WebAssembly and WebGL2. macOS has been tested;
+Install Chrome on the host for dedicated rooms. Use a desktop browser with
+WebAssembly and WebGL2 to play. macOS has been tested;
 Linux setup has not been qualified.
 
 Clone the project and build it from the terminal:
@@ -49,7 +50,7 @@ You only need to repeat the build after updating emulator or native adapter code
 Open a terminal in the project folder and run:
 
 ```sh
-python3 tools/play-online.py
+python3 tools/play-online.py --dedicated
 ```
 
 Wait until the terminal prints **Host launcher**, then:
@@ -59,6 +60,9 @@ Wait until the terminal prints **Host launcher**, then:
 3. Click **Copy link** in the session toolbar and send the complete link
    to your friends. It automatically uses the public HTTPS address.
 4. Each friend opens the link and clicks **Join game**. Wait for synchronization.
+
+Use **Copy recovery link** to save your controller across browsers or devices.
+Keep that link private.
 
 Keep the terminal open and the host computer awake. Guests using a temporary
 Quick Tunnel download the full disc, including music, on each launch. Localhost
@@ -97,7 +101,7 @@ from the current race state once their game files load.
 > Wait for **Online stack stopped.** This stops the game server, relay, gateway
 > and Cloudflare Tunnel started by the helper. Then close the game tabs.
 >
-> Closing the host's tab ends the room. The hosting terminal can still serve
+> In browser-hosted mode, closing the host's tab ends the room. The hosting terminal can still serve
 > the launcher. To play again after stopping the tunnel, restart the helper
 > and send the new invitation.
 
@@ -105,9 +109,11 @@ from the current race state once their game files load.
 
 | What you want | Command |
 | --- | --- |
-| Internet play; host supplies the disc | `python3 tools/play-online.py` |
+| Dedicated internet room with persistent controller slots | `python3 tools/play-online.py --dedicated` |
+| Internet play hosted by the creator's browser | `python3 tools/play-online.py` |
 | Internet play; each player selects matching CUE/BIN files | `python3 tools/play-online.py --disc-mode local` |
 | Play only on this computer, without a tunnel | `python3 server.py` |
+| Test a dedicated room locally | `python3 server.py --dedicated` |
 
 Run only one hosting command at a time. Stop it with **Ctrl+C** before changing
 modes. For local-only play, use the same localhost address; its invitation only
@@ -134,11 +140,12 @@ controller inputs and emulator state through RetroArch Netplay.
 - **Room behavior.** RetroArch sends the current emulator state to guests
   once they load the disc. Register each rider in the game's multiplayer menu
   before starting the race. A returning controller can resume its existing
-  racer. Keep game tabs active. Closing the host ends the room.
+  racer. In a dedicated room, the server keeps the race moving while browsers
+  catch up or reconnect. A room stays available while the hosting process runs
+  and players remain connected.
   [Rooms and synchronization](docs/multiplayer.md#rooms-and-synchronization)
-- **Presentation.** Separate cameras give each player a full view with the
-  original single-player HUD. The course geometry and scenery detail follow
-  the game's multiplayer mode. Pause menus are shared.
+- **Presentation.** Dedicated rooms use the original full-size world renderer
+  and single-player HUD for each controller. Pause menus are shared.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
 - **Test coverage.** A four-player Chrome race through Cloudflare verified
   separate cameras, the original HUD, and mid-race reconnection on one Mac. Remote races between separate computers, physical

@@ -20,7 +20,8 @@ relicense those materials.
 [emulator.lock.json](emulator.lock.json). `tools/build-emulator.py` fetches exact
 core/frontend sources and an isolated SDK, then applies anchor-checked hooks
 from `tools/prepare-emulator-native.py` and `research/emulator/`. The hooks add
-console-step gating, state access and isolated camera/HUD presentation. Generated
+console-step gating, state access, dedicated Netplay synchronization and
+isolated camera/HUD presentation. Generated
 manifests record source pins and output hashes; the core archive retains bundled
 license metadata and notices. See [architecture](docs/browser-emulator.md).
 
@@ -34,7 +35,11 @@ The controller in the Controls panel uses [playstation controller by MatthewHenn
 The [Openclipart CC0 dedication](https://openclipart.org/share) applies to the illustration.
 The local SVG is cropped, with a simplified Circle symbol and editor metadata removed.
 
-## Optional hosting tool
+## Hosting tools
+
+Dedicated mode launches a separately installed Chrome executable to run the
+server-owned emulator. Chrome is provided by the host and carries its own
+license and component notices.
 
 `tools/play-online.py` runs a separately installed
 [cloudflare/cloudflared](https://github.com/cloudflare/cloudflared) executable

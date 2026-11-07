@@ -81,7 +81,14 @@ bool sled_unserialize_checkpoint(const void *data, size_t size)
     text = once(text, 'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {',
                 '#include "../frontend/sled-view.h"\n\nstatic inline void execI_(u8 **memRLUT, psxRegisters *regs) {')
     text = once(text, 'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {\n\tu32 pc = regs->pc;',
-                'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {\n\tu32 pc = regs->pc;\n\tif ((pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu) && sled_view_pc(regs)) return;')
+                '''static inline void execI_(u8 **memRLUT, psxRegisters *regs) {
+	u32 pc = regs->pc;
+	if ((pc == 0x80014e88u || pc == 0x80014e90u || pc == 0x80014e98u ||
+	     pc == 0x80053e68u || pc == 0x8004a41cu || pc == 0x8004c700u ||
+	     pc == 0x8004ac84u || pc == 0x80051e38u || pc == 0x80051af0u ||
+	     pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu) &&
+	    sled_view_pc(regs))
+		return;''')
     text = once(text, '} ICache[256];', '''} ICache[256];
 static struct cache_entry sled_saved_icache[256];
 void sled_view_cache_save(int restore) {
@@ -94,6 +101,17 @@ void sled_view_cache_save(int restore) {
     text = original(path)
     text = once(text, 'void psxBranchTest() {',
                 '#include "../frontend/sled-view.h"\n\nvoid psxBranchTest() {\n\tif (sled_view_transaction) return;')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'libpcsxcore/psxhw.c'
+    text = original(path)
+    text = once(text, 'u8 psxHwRead8(u32 add) {',
+                '#include "../frontend/sled-view.h"\n\nu8 psxHwRead8(u32 add) {')
+    for bits in (8, 16, 32):
+        read = f'u{bits} psxHwRead{bits}(u32 add) {{'
+        write = f'void psxHwWrite{bits}(u32 add, u32 value) {{'
+        text = once(text, read, read + '\n\tif (sled_view_transaction == 2) { sled_view_hardware_access = 1; return 0; }')
+        text = once(text, write, write + '\n\tif (sled_view_transaction == 2) { sled_view_hardware_access = 1; return; }')
     if path.read_text() != text:
         path.write_text(text)
     for name in ('sled-view.c', 'sled-view.h'):
@@ -153,11 +171,25 @@ void sled_view_cache_save(int restore) {
     if path.read_text() != text:
         path.write_text(text)
     path = FRONTEND / 'network/netplay/netplay_private.h'
-    text = once(original(path), '   bool force_rewind;', '   bool force_rewind;\n   bool sled_received_state;')
+    text = once(original(path), '   bool force_rewind;', '''   bool force_rewind;
+   bool sled_received_state;
+#ifdef __EMSCRIPTEN__
+   bool sled_targeted_savestate;
+#endif''')
+    text = once(text, '   retro_time_t ping_timer;', '''   retro_time_t ping_timer;
+#ifdef __EMSCRIPTEN__
+   retro_time_t sled_last_input_at;
+   retro_time_t sled_sync_grace_until;
+   bool sled_needs_savestate;
+#endif''')
     if path.read_text() != text:
         path.write_text(text)
     path = FRONTEND / 'network/netplay/netplay_frontend.c'
-    text = once(original(path), 'static net_driver_state_t networking_driver_st = {0};', """static net_driver_state_t networking_driver_st = {0};
+    text = once(original(path), 'static net_driver_state_t networking_driver_st = {0};', """#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
+static net_driver_state_t networking_driver_st = {0};
 #ifdef __EMSCRIPTEN__
 unsigned sled_netplay_status(unsigned field)
 {
@@ -168,14 +200,176 @@ unsigned sled_netplay_status(unsigned field)
       return (unsigned)__builtin_popcount(netplay->connected_players);
    if (field == 2)
       return netplay->run_frame_count;
-   if (netplay->self_mode != NETPLAY_CONNECTION_PLAYING ||
+   if (field == 3)
+      return netplay->is_replay;
+   if (field == 4)
+      return netplay->stall == NETPLAY_STALL_RUNNING_FAST || netplay->remote_paused;
+   if (field == 5)
+      return !netplay->is_server && netplay->self_mode == NETPLAY_CONNECTION_SLAVE &&
+         netplay->sled_received_state && netplay->server_frame_count > netplay->run_frame_count
+         ? netplay->server_frame_count - netplay->run_frame_count : 0;
+   if ((netplay->self_mode != NETPLAY_CONNECTION_PLAYING &&
+        netplay->self_mode != NETPLAY_CONNECTION_SLAVE) ||
        (!netplay->is_server && (!netplay->sled_received_state || netplay->force_rewind)))
       return 0;
    return netplay->self_devices;
 }
 #endif""")
+    text = once(text, '                  connection->mode = NETPLAY_CONNECTION_SLAVE;', '''                  connection->mode = NETPLAY_CONNECTION_SLAVE;
+#ifdef __EMSCRIPTEN__
+                  connection->sled_last_input_at = cpu_features_get_time_usec();
+                  connection->sled_sync_grace_until = connection->sled_last_input_at + 5000000;
+#endif''')
+    text = once(text, '            /* Slaves may go through several packets of data in the same frame', '''#ifdef __EMSCRIPTEN__
+            if (connection->mode == NETPLAY_CONNECTION_SLAVE)
+               connection->sled_last_input_at = cpu_features_get_time_usec();
+#endif
+
+            /* Slaves may go through several packets of data in the same frame''')
+    text = once(text, 'static void netplay_handle_slaves(netplay_t *netplay)\n{\n   struct delta_frame *frame = &netplay->buffer[netplay->self_ptr];\n   size_t i;', '''static void netplay_handle_slaves(netplay_t *netplay)
+{
+   struct delta_frame *frame = &netplay->buffer[netplay->self_ptr];
+   size_t i;
+#ifdef __EMSCRIPTEN__
+   const bool dedicated = EM_ASM_INT({ return !!Module.sledDedicatedHost; });
+   const retro_time_t now = dedicated ? cpu_features_get_time_usec() : 0;
+#endif''')
+    text = once(text, '         /* This is a slave connection. First, should we do anything at all? If', '''#ifdef __EMSCRIPTEN__
+         /* Keep the authoritative clock independent of browser scheduling.
+          * Retain input across ordinary jitter, then release held buttons.
+          * A suspended client eventually rejoins from a fresh checkpoint. */
+         const retro_time_t age = dedicated ? now - connection->sled_last_input_at : 0;
+         if (dedicated && age >= 2000000 && now >= connection->sled_sync_grace_until)
+         {
+            netplay_hangup(netplay, connection);
+            continue;
+         }
+#endif
+
+         /* This is a slave connection. First, should we do anything at all? If''')
+    text = once(text, '               /* Start with blank input */\n               if (!istate_in)', '''               /* Start with blank input, or release a stale browser pad. */
+               if (!istate_in
+#ifdef __EMSCRIPTEN__
+                     || (dedicated && age >= 150000)
+#endif
+                  )''')
+    text = once(text, '''   /* Resolve and/or simulate the input if we don't have real input. */
+   netplay_resolve_input(netplay, netplay->run_ptr, false);
+
+   /* Handle slaves. */
+   if (netplay->is_server && netplay->connected_slaves)
+      netplay_handle_slaves(netplay);
+''', '''   bool dedicated = false;
+#ifdef __EMSCRIPTEN__
+   dedicated = netplay->is_server && EM_ASM_INT({ return !!Module.sledDedicatedHost; });
+#endif
+   if (!dedicated)
+      netplay_resolve_input(netplay, netplay->run_ptr, false);
+
+   if (netplay->is_server && netplay->connected_slaves)
+      netplay_handle_slaves(netplay);
+
+   /* Resolve against the exact inputs committed and sent by this server. */
+   if (dedicated)
+      netplay_resolve_input(netplay, netplay->run_ptr, false);
+''')
+    text = once(text, '''      /* Send them the savestate */
+      netplay->force_send_savestate = true;''', '''      /* Send them the savestate */
+#ifdef __EMSCRIPTEN__
+      connection->sled_needs_savestate = true;
+#endif
+      netplay->force_send_savestate = true;''')
+    text = once(text, '''         /* Delay until next frame so we don't send the savestate after the
+          * input */
+         netplay->force_send_savestate = true;''', '''         /* Delay until next frame so we don't send the savestate after the
+          * input */
+#ifdef __EMSCRIPTEN__
+         connection->sled_needs_savestate = true;
+#endif
+         netplay->force_send_savestate = true;''')
+    text = once(text, '''               /* Send this along to the other side. */
+               netplay_load_savestate(netplay, &serial_info, false);''', '''               /* Dedicated peers follow the server frame stream. Loading
+                * a new peer must not reload the game for existing peers. */
+#ifdef __EMSCRIPTEN__
+               netplay->sled_targeted_savestate = EM_ASM_INT({ return !!Module.sledDedicatedHost; });
+#endif
+               netplay_load_savestate(netplay, &serial_info, false);
+#ifdef __EMSCRIPTEN__
+               netplay->sled_targeted_savestate = false;
+#endif''')
+    text = once(text, '''      /* Catastrophe! */
+      for (i = 0; i < netplay->connections_size; i++)
+         netplay_hangup(netplay, &netplay->connections[i]);''', '''      /* Catastrophe! */
+      for (i = 0; i < netplay->connections_size; i++)
+      {
+#ifdef __EMSCRIPTEN__
+         if (netplay->sled_targeted_savestate && !netplay->connections[i].sled_needs_savestate)
+            continue;
+#endif
+         netplay_hangup(netplay, &netplay->connections[i]);
+      }''')
+    text = once(text, '''            ||  (connection->compression_supported != cx))
+            continue;
+
+         if (  !netplay_send''', '''            ||  (connection->compression_supported != cx))
+            continue;
+#ifdef __EMSCRIPTEN__
+         if (netplay->sled_targeted_savestate && !connection->sled_needs_savestate)
+            continue;
+#endif
+
+         if (  !netplay_send''')
+    text = once(text, '''                 connection->fd, netplay->zbuffer, wn))
+            netplay_hangup(netplay, connection);''', '''                 connection->fd, netplay->zbuffer, wn))
+            netplay_hangup(netplay, connection);
+#ifdef __EMSCRIPTEN__
+         else
+         {
+            connection->sled_needs_savestate = false;
+            if (connection->mode == NETPLAY_CONNECTION_SLAVE)
+               /* Keep slow clients connected while applying the snapshot.
+                * Stale buttons are still released. */
+               connection->sled_sync_grace_until = cpu_features_get_time_usec() + 5000000;
+         }
+#endif''')
     text = once(text, '            /* Force a rewind to the relevant frame. */',
                 '            netplay->sled_received_state = true;\n            /* Force a rewind to the relevant frame. */')
+    text = once(text, '      if (!netplay->remote_paused)\n      {\n         retro_time_t delta',
+                '''#ifdef __EMSCRIPTEN__
+      /* The browser may suspend a live peer's frame loop. The WebSocket
+       * transport detects a dead peer independently of frame delivery. */
+      if (EM_ASM_INT({ return Module.sledNetplayActive && !Module.sledDedicatedHost; }) &&
+          (netplay->is_server || netplay->sled_received_state))
+         netplay->stall_time = now;
+      else
+#endif
+      if (!netplay->remote_paused)
+      {
+         retro_time_t delta''')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = FRONTEND / 'frontend/drivers/platform_emulatorjs.c'
+    text = once(original(path),
+                '   return (emscripten_platform_data->gl_context_lost || (emscripten_platform_data->window_hidden && emscripten_platform_data->raf_interval));',
+                '''   return emscripten_platform_data->gl_context_lost ||
+      (emscripten_platform_data->window_hidden && emscripten_platform_data->raf_interval &&
+       !EM_ASM_INT({ return !!Module.sledNetplayActive; }));''')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = FRONTEND / 'libretro-common/net/net_socket.c'
+    text = original(path)
+    # Browser WebSocket callbacks cannot run while WASM spins in a blocking
+    # POSIX shim. Fail the affected socket operation on backpressure.
+    for name in ('socket_receive_all_blocking', 'socket_send_all_blocking'):
+        start = text.index('bool ' + name + '(')
+        end = text.index('\nbool ' + name + '_with_timeout(', start)
+        function = text[start:end]
+        function = once(function, '         if (!isagain((int)ret))',
+                        '#if defined(__EMSCRIPTEN__)\n         return false;\n#endif\n         if (!isagain((int)ret))')
+        if name == 'socket_send_all_blocking':
+            function = once(function, '      if (!ret)\n         continue;',
+                            '#if defined(__EMSCRIPTEN__)\n      if (!ret)\n         return false;\n#else\n      if (!ret)\n         continue;\n#endif')
+        text = text[:start] + function + text[end:]
     if path.read_text() != text:
         path.write_text(text)
     path = FRONTEND / 'Makefile.emulatorjs'

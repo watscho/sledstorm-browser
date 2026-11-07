@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { invitationUrl, parseInvitation } from './invitation.js';
+import { invitationUrl, parseInvitation, recoveryUrl } from './invitation.js';
 
 test('guest resharing restores private access after the gateway redirect', () => {
   const room = { room: 'a'.repeat(24), token: 'b'.repeat(64) };
@@ -29,4 +29,25 @@ test('a loopback host shares the private HTTPS room without downloading through 
   assert.equal(shared.pathname, path);
   assert.deepEqual(parseInvitation(shared.hash), { ...room, ...options });
   assert.throws(() => invitationUrl('http://127.0.0.1:8000/', path, room, options, 'http://game.example'), /Invalid public/);
+});
+
+test('a private controller recovery link is never included in a reshared invitation', () => {
+  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) };
+  const options = { progress: 'all', camera: true };
+  const shared = invitationUrl('https://game.example/', '/', room, options);
+  const key = '4'.repeat(32);
+  const personal = recoveryUrl(shared, key);
+  const recovered = parseInvitation(new URL(personal).hash);
+  assert.equal(recovered.recovery, key);
+  assert.equal(invitationUrl(personal, '/', recovered, options), shared);
+  assert.throws(() => parseInvitation(new URL(recoveryUrl(shared, 'bad')).hash), /Invalid or outdated/);
+});
+
+test('the experimental native camera setting travels with the room invitation', () => {
+  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) };
+  const options = { progress: 'all', camera: true, nativeCamera: true };
+  const link = invitationUrl('https://game.example/?nativeCamera=1', '/', room, options);
+  assert.deepEqual(parseInvitation(new URL(link).hash), { ...room, ...options });
+  const invalid = invitationUrl(link, '/', room, { ...options, camera: false });
+  assert.throws(() => parseInvitation(new URL(invalid).hash), /Invalid or outdated/);
 });

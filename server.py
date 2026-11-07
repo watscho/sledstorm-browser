@@ -7,6 +7,7 @@ import zipfile
 import hashlib
 import subprocess
 import shutil
+import signal
 import sys
 import argparse
 import os
@@ -16,6 +17,10 @@ CACHE = ROOT / '.cache'
 IDENTITY = {}
 DISC_MODE = 'shared'
 RETROARCH_LAB_TOKEN = None
+
+
+def stop_launcher(_signum, _frame):
+    raise KeyboardInterrupt
 
 
 def prepare_disc():
@@ -194,8 +199,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--disc-mode', choices=['shared', 'local'], default='shared')
     parser.add_argument('--retroarch-lab', action='store_true', help='Enable the loopback RetroArch Netplay lab')
+    parser.add_argument('--dedicated', action='store_true', help='Run rooms in server-owned headless Chrome')
     args = parser.parse_args()
     DISC_MODE = args.disc_mode
+    chrome = None
+    if args.dedicated:
+        if DISC_MODE != 'shared':
+            parser.error('--dedicated requires shared disc mode')
+        mac_chrome = Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+        chrome = (os.environ.get('SLED_CHROME_BIN') or shutil.which('google-chrome') or
+                  shutil.which('chromium') or (str(mac_chrome) if mac_chrome.is_file() else None))
+        if not chrome or not os.access(chrome, os.X_OK):
+            parser.error('Install Chrome or set SLED_CHROME_BIN to an executable path')
     if args.retroarch_lab and DISC_MODE != 'shared':
         parser.error('--retroarch-lab requires shared disc mode')
     CACHE.mkdir(exist_ok=True)
@@ -207,6 +222,8 @@ if __name__ == '__main__':
                 'core': json.loads((ROOT / 'emulator.lock.json').read_text())['files']['cores/pcsx_rearmed-wasm.data'],
                 'adapter': 'pcsx-frame-gate-v3'}
     IDENTITY['native'] = json.loads(native_build.read_text())['files']
+    if chrome:
+        IDENTITY['dedicated'] = True
     subprocess.run([sys.executable, str(ROOT / 'tools/prepare-emulator.py'), '--native'], check=True)
     node = shutil.which('node')
     if not node:
@@ -218,8 +235,12 @@ if __name__ == '__main__':
         subprocess.run([sys.executable, str(ROOT / 'tools/prepare-emulator.py'), '--native', '--retroarch-lab'], check=True)
         lab = subprocess.Popen([node, str(ROOT / 'research/network/retroarch-lab.mjs')], cwd=ROOT,
                                env={**os.environ, 'SLED_RETROARCH_LAB_TOKEN': RETROARCH_LAB_TOKEN})
-    relay = subprocess.Popen([node, str(ROOT / 'research/network/emulator-relay.mjs')], cwd=ROOT)
+    relay_env = {key: value for key, value in os.environ.items() if key != 'SLED_DEDICATED_CHROME'}
+    if chrome:
+        relay_env['SLED_DEDICATED_CHROME'] = chrome
+    relay = subprocess.Popen([node, str(ROOT / 'research/network/emulator-relay.mjs')], cwd=ROOT, env=relay_env)
     try:
+        signal.signal(signal.SIGTERM, stop_launcher)
         server = LauncherServer(('127.0.0.1', 8000), Handler)
         print('Open http://127.0.0.1:8000 — Ctrl+C to stop.', flush=True)
         if lab:

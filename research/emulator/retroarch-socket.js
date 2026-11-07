@@ -1,6 +1,30 @@
 // Loaded into the Emscripten module closure by prepare-emulator.py.
 // The WebSocket is already open when synchronous POSIX connect() runs.
 Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
+  Module.sledNetplayActive = true;
+  Module.sledDedicatedHost = role === 'worker';
+  const animationFrame = MainLoop.requestAnimationFrame;
+  let scheduled;
+  const schedule = callback => {
+    scheduled?.cancel();
+    const catchup = Module.sledCatchup;
+    const timed = document.hidden || catchup;
+    const run = () => { scheduled = undefined; callback(); };
+    const id = timed ? setTimeout(run, catchup ? 0 : 1000 / 60) : requestAnimationFrame(run);
+    scheduled = { callback, cancel: () => timed ? clearTimeout(id) : cancelAnimationFrame(id) };
+  };
+  const reschedule = () => {
+    if (!scheduled) return;
+    schedule(scheduled.callback);
+  };
+  MainLoop.requestAnimationFrame = schedule;
+  document.addEventListener('visibilitychange', reschedule);
+  socket.addEventListener('close', () => {
+    Module.sledNetplayActive = false;
+    document.removeEventListener('visibilitychange', reschedule);
+    MainLoop.requestAnimationFrame = animationFrame;
+  }, { once: true });
+
   const ops = SOCKFS.websocket_sock_ops;
   const connect = ops.connect;
   const listen = ops.listen;
@@ -35,7 +59,7 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
   };
 
   ops.listen = (sock, backlog) => {
-    if (used || role !== 'host' || sock.type !== 1 || sock.sport !== netplayPort) {
+    if (used || role === 'guest' || sock.type !== 1 || sock.sport !== netplayPort) {
       return listen(sock, backlog);
     }
     used = true;
@@ -50,7 +74,7 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
     };
     socket.addEventListener('message', event => {
       if (typeof event.data !== 'string' || !/^[a-f0-9]{48}$/.test(event.data)) return;
-      if (pending.size + sock.pending.length >= 3) return;
+      if (pending.size + sock.pending.length >= (role === 'worker' ? 4 : 3)) return;
       const ws = new WebSocket(endpoint);
       pending.add(ws);
       ws.addEventListener('close', () => pending.delete(ws), { once: true });
@@ -65,5 +89,6 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
         SOCKFS.emit('connection', sock.stream.fd);
       }, { once: true });
     });
+    if (role === 'worker') socket.send('listening');
   };
 };

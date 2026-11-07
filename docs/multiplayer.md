@@ -3,10 +3,10 @@
 ## Host: start and invite
 
 Complete the [one-time setup](setup.md), add your PAL CUE/BIN files to `game/`,
-and install `cloudflared`. From the project folder:
+and install Chrome and `cloudflared` on the host. From the project folder:
 
 ```sh
-python3 tools/play-online.py
+python3 tools/play-online.py --dedicated
 ```
 
 1. Wait for **Host launcher** in the terminal.
@@ -16,8 +16,8 @@ python3 tools/play-online.py
    invitation to each friend.
 
 The invitation automatically uses the private HTTPS tunnel address. The host
-reads its disc locally. Keep the terminal open, the computer awake and the game
-tab active. No router port forwarding is needed.
+reads its disc locally. Keep the terminal open and the computer awake.
+No router port forwarding is needed.
 
 ## Friend: join
 
@@ -28,8 +28,9 @@ tab active. No router port forwarding is needed.
 
 The default mode uses the host's disc. Friends can join without installing tools
 or selecting files. If the host chose `--disc-mode local`, every player selects
-their own matching CUE and all eleven BIN tracks before joining. Everyone must
-use the same BIOS file or leave it empty for HLE.
+their own matching CUE and all eleven BIN tracks before joining. Dedicated
+rooms use the built-in BIOS. In browser-hosted rooms, everyone must use
+the same BIOS file or leave it empty for HLE.
 
 ## Disc downloads and browser storage
 
@@ -63,9 +64,39 @@ their saved disc copies and other site data, such as access cookies.
 The room acts like one console with up to **four controllers**. Each browser
 has its own camera and original single-player HUD when **Separate cameras** is
 enabled. Native pause/options menus are shared and keep their 4:3 proportions.
-To return to a race, reopen the same invitation while the host is still
-playing. RetroArch restores the current state after the disc loads. An open
-controller slot can resume its existing racer.
+RetroArch restores the current race state after the disc loads. In a
+browser-hosted room, the host must stay connected and a returning player can
+resume their racer if the corresponding slot is free. Dedicated rooms
+reserve controllers for returning players.
+
+## Dedicated rooms
+
+Install Chrome on the machine serving the game. Start the local launcher with
+`python3 server.py --dedicated`, or use `python3 tools/play-online.py --dedicated`
+to make invitations available through the private tunnel. On systems where the
+launcher cannot locate Chrome, set `SLED_CHROME_BIN` to its executable path.
+Dedicated rooms use shared-disc mode and the built-in BIOS.
+
+The server starts a separate headless RetroArch runtime for each room. Play and
+share the invitation as usual. The room stays online when its creator closes
+their browser. The next connected player becomes room owner and keeps their
+controller number. The **Players** panel shows all four controller slots,
+player names and readiness. Use **Test gamepad** to check your controller before
+the race. Buttons pressed during the test are kept out of the game. Select
+riders and tracks in the original game menu.
+
+Reopen the room address from your address bar in the same browser to reclaim
+your controller. A host who started on localhost can return to that localhost
+address. To switch browser, device or address, use **Copy recovery link** and
+keep that link private.
+Disconnected controllers are reserved during an active race. In the lobby they
+are reserved for 60 seconds. A room without any players closes after 60 seconds.
+The dedicated runtime keeps advancing when a controller stops sending input.
+It releases held buttons after 150 ms and normally disconnects the controller
+after two seconds. A client applying a race snapshot gets additional time.
+**Rejoin room** restores the current race state and reserved controller without
+reloading the game for players who stayed connected.
+Keep the hosting process and tunnel running while friends are playing.
 
 ## Stop hosting
 
@@ -81,8 +112,9 @@ A stopped tunnel's temporary link cannot be reused.
 
 | Mode | Start command | What players provide |
 | --- | --- | --- |
-| Host disc (default) | `python3 tools/play-online.py` | Host supplies one CUE/BIN set; guests download it automatically. |
-| Local files | `python3 tools/play-online.py --disc-mode local` | Each player selects matching CUE/BIN files in their browser; host disc downloads are blocked. |
+| Host disc, dedicated room | `python3 tools/play-online.py --dedicated` | Host supplies one CUE/BIN set. Guests download it automatically. |
+| Host disc, browser-hosted room | `python3 tools/play-online.py` | Host supplies one CUE/BIN set and keeps their browser tab open. |
+| Local files, browser-hosted room | `python3 tools/play-online.py --disc-mode local` | Each player selects matching CUE/BIN files in their browser; host disc downloads are blocked. |
 
 Both modes use the same HTTPS invitation flow, including when players share a Wi-Fi network.
 The helper needs internet access. `127.0.0.1` always means the computer opening
@@ -96,13 +128,14 @@ and camera settings. Keep the link private. The URL fragment uses Base64 to
 encode the invitation data.
 
 Each browser runs its own emulator. Once its disc is ready, RetroArch loads
-the host's current state and synchronizes controller input. A guest who returns
-to a free controller slot can continue the corresponding racer. Sled Storm
-only creates racers in its own multiplayer setup, so choose every rider there
-before starting. A disconnected slot can be taken by another guest with the
-invitation. The host and all guests need matching disc data, BIOS, and emulator
-build. A browser tab prefers its previous controller slot if the slot is
-still free. Closing the host ends the room.
+the room's current state and synchronizes controller input. Register every
+racer in the game's multiplayer setup before starting. Rejoining a running
+race resumes an existing racer.
+
+Dedicated rooms tie reserved seats to a private recovery credential. In
+browser-hosted rooms, a returning tab prefers its previous slot if it is
+still free. Another guest can take that slot, and closing the host tab ends
+the room. Both modes require matching disc data, BIOS and emulator build.
 
 ## Hosting details
 

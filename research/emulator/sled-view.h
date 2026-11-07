@@ -10,5 +10,6 @@ void sled_view_present(void);
 struct psxRegisters;
 int sled_view_pc(struct psxRegisters *registers);
 extern int sled_view_transaction;
+extern int sled_view_hardware_access;
 void sled_view_cache_save(int restore);
 #endif

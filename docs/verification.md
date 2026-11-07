@@ -1,5 +1,40 @@
 # Verification and known limits
 
+## v0.6.0 dedicated rooms — 2026-11-07
+
+- 20 browser-module tests, 19 network tests, three HTTP handler tests and the
+  native presentation checks passed. A fresh localhost launch confirmed that
+  a dedicated room selects the native camera without URL parameters.
+
+- Two isolated Chrome contexts ran Pine Valley against a local dedicated
+  room with the full-size native camera. Both accelerated their own
+  sled with a full camera and original HUD. The shared pause menu suspended
+  personal rendering. Controller 2 rejoined the running race on its original
+  slot and resumed its native view. The presentation counters reported no
+  native camera or HUD errors in these samples.
+- A local suspension check stopped input from controller 1 while the
+  dedicated runtime advanced 204 console steps over 4.1 seconds. The
+  controller disconnected and later recovered its original slot.
+- Four Chrome contexts on one Mac ran Hard Pack through a private Cloudflare
+  tunnel. All four produced the same serialized state digest and rider
+  positions at the same synchronized frame. The four personal views and HUDs
+  were inspected individually. The clients used matching local CUE/BIN files
+  through a test-only launcher override, so this run tested the internet
+  gameplay path independently of disc transfer.
+- On Kodiak Canyon with the updated build, an intentional 1.15-second
+  client stall through the tunnel caused a 61-step backlog. The catch-up
+  screen appeared, personal rendering paused, and the backlog fell to three
+  steps in about 2.4 seconds after its peak without reconnecting.
+- The final Hard Pack run verified the four named, ready players, movement on
+  each controller, and the shared 4:3 pause menu. After the creator closed
+  their tab, controllers 2–4 kept driving and controller 2 became room owner.
+  The creator recovered controller 1 and their player name from a private
+  link in a fresh Chrome context. Controller 2 then continued alone. The
+  other players returned in the order 4, 1, 3 and all reclaimed their
+  original controllers and personal views.
+- The gamepad tester was exercised with simulated browser input. Physical
+  USB and Bluetooth devices still need hands-on verification.
+
 ## v0.5.0 RetroArch Netplay — 2026-11-07
 
 - Rebuilt the pinned WebAssembly emulator and prepared the runtime archive.
@@ -86,19 +121,19 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.5.0
+## Current limits for v0.6.0
 
 - The Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
   computers and networks, sustained sessions and remote latency remain open.
-- The live race started with four registered riders and continued with three
-  and two connected controllers. Complete races starting at each player count,
-  additional courses and weather combinations remain open.
-- A returning guest can use an existing racer if the corresponding controller
-  slot is free. Closing the host ends the room. Start a new room after a host
-  disconnect or server restart.
-- World geometry and detail follow the original multiplayer mode. Soundtrack
-  quality, hidden tabs, physical gamepads, mobile gameplay and Linux/Windows
-  still need hands-on verification.
+- The native camera was checked on Pine Valley, Hard Pack and Kodiak Canyon.
+  Full race completion, other courses and weather combinations remain open.
+- Dedicated rooms preserve controller slots across browser reconnects while
+  the server is running. A server restart requires a new room and invitation.
+  In browser-hosted mode the room lasts as long as the host stays connected.
+- The dedicated Cloudflare tests used local CUE/BIN files in the clients.
+  Shared-disc delivery through Cloudflare was exercised in earlier builds.
+- Physical gamepads, sustained background-tab play, soundtrack quality,
+  mobile gameplay and Linux/Windows still need hands-on verification.
 - This setup targets PAL SLES-02194 with CUE/BIN tracks.
 
 Core-step measurements count emulator steps. Display pacing and audio need

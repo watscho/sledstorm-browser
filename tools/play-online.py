@@ -36,7 +36,10 @@ def main():
                         help='shared: read the host disc (default); local: each browser selects files')
     parser.add_argument('--engine', choices=['recompiled', 'emulator'], default='emulator',
                         help='emulator (default), or the retained recompiled runtime')
+    parser.add_argument('--dedicated', action='store_true', help='Keep shared-disc emulator rooms alive outside player browsers')
     args = parser.parse_args()
+    if args.dedicated and (args.engine != 'emulator' or args.disc_mode != 'shared'):
+        parser.error('--dedicated requires the emulator and shared disc mode')
     node = shutil.which('node')
     cloudflared = os.environ.get('CLOUDFLARED_BIN') or shutil.which('cloudflared')
     if not cloudflared:
@@ -90,7 +93,7 @@ def main():
 
     try:
         print('Preparing local runtime. The first host-disc launch may take longer.', flush=True)
-        runtime = start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else [])])
+        runtime = start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else []), *(['--dedicated'] if args.dedicated else [])])
         wait_port(runtime_port, 180 if args.engine == 'emulator' else 20)
         wait_port(relay_port)
         for port in netplay_ports:
@@ -120,7 +123,7 @@ def main():
                     print('Host disc mode: browsers read the host disc; no file selection is required.', flush=True)
                 else:
                     print('Local files mode: each browser selects its own CUE + all BIN files.', flush=True)
-                print('Press Start game, then share Invite friends.\n'
+                print('Press Start game, then use Copy link to invite friends.\n'
                       'Keep this process running. Ctrl+C stops the tunnel, gateway and runtime.', flush=True)
                 break
             time.sleep(0.25)
