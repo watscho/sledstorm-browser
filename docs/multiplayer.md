@@ -38,11 +38,12 @@ hostname, the browser saves one copy for that address and reuses it in new rooms
 as long as the disc fingerprint matches and the saved copy is still available.
 When storage is unavailable, the download remains usable for the current launch.
 
-The hosting helper uses a temporary Quick Tunnel by default. Each launch through
-a `trycloudflare.com` address downloads the disc for that session only. A permanent
-hostname keeps the same browser storage across tunnel restarts. See
-[Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
-for how to publish a permanent hostname.
+The hosting helper creates a temporary Quick Tunnel. Each shared-disc guest
+launch through a `trycloudflare.com` address downloads the disc for that session
+only. A custom deployment with the same HTTPS origin can reuse browser storage
+across restarts. See [Hosting details](#hosting-details) for gateway requirements
+and [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
+for permanent hostnames.
 
 Copies saved by earlier builds on temporary addresses can still occupy disk
 space. In Chrome, open `chrome://settings/content/all`, search for
@@ -82,7 +83,7 @@ A stopped tunnel's temporary link cannot be reused.
 | Host disc (default) | `python3 tools/play-online.py` | Host supplies one CUE/BIN set; guests download it automatically. |
 | Local files | `python3 tools/play-online.py --disc-mode local` | Each player selects matching CUE/BIN files in their browser; host disc downloads are blocked. |
 
-Both modes work through Cloudflare, including two computers on the same Wi-Fi.
+Both modes use the same HTTPS invitation flow, including when players share a Wi-Fi network.
 The helper needs internet access. `127.0.0.1` always means the computer opening
 that address; send the generated HTTPS invitation to another computer.
 

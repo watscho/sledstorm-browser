@@ -35,9 +35,9 @@ L2 and R2 appear above the illustration, and ⌫ means Backspace.
 
 **Escape** cancels capture. If a key is already assigned, the two bindings swap.
 **Reset controls** restores Classic. Existing layouts carry over when updating.
-Each player's keyboard bindings are saved in their own browser under
-`sledstorm.controls.v1`. When browser storage is unavailable, changes apply for
-the current page only.
+Keyboard bindings are saved per browser origin. A new temporary Quick Tunnel
+address has its own preferences. When browser storage is unavailable, changes
+apply for the current page only.
 
 Connect a controller through USB or Bluetooth and press a button to expose it
 to the browser. The device name and input indicator show what the browser can

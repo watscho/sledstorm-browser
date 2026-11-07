@@ -9,7 +9,8 @@ been qualified. Internet hosting also needs
 [cloudflared](https://github.com/cloudflare/cloudflared#installing-cloudflared).
 
 Friends joining an internet room only need a compatible desktop browser and the
-complete invitation. They do not install this project.
+complete invitation. They can join with the host's disc in the default mode.
+In local-file mode, every player supplies a matching CUE/BIN set.
 
 ## One-time setup
 
@@ -121,7 +122,9 @@ served build.
 | Invitation begins with 127.0.0.1 | Start the online helper, wait for its tunnel, then start a fresh game and copy its invitation. |
 | Slow first join | Wait for the complete disc download and history catch-up; invite before starting a race. |
 | Pauses or choppy playback | Keep all peers awake with active tabs; try fewer participants and check the slowest device. |
-| Keyboard does not respond | Click the game; use arrows, X, Enter and A. |
+| Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
+| Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
+| Guests download the disc on every launch | This is expected for temporary Quick Tunnel addresses in shared-disc mode. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |
 
 Private helper logs are in `.cache/online/`. Do not publish access links, room

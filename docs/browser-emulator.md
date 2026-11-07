@@ -95,7 +95,9 @@ option off before starting restores original rendering.
 **All content unlocked** applies the audited PAL progress preset to initialized
 menu RAM on every peer. It leaves disc and persistent memory cards untouched.
 Invitations carry progression and camera options, so guests inherit the same
-settings. Image filtering and volume are local preferences. The preset has
+settings. Image filtering, volume, keyboard bindings and gamepad selection are local
+preferences. Each browser samples its selected device and keyboard for its
+own seat. See [personal controls](browser-lobby.md#personal-controls). The preset has
 passed focused RAM tests and multiplayer menu/race flows; selecting every
 unlock individually remains unqualified.
 

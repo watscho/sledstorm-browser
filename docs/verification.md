@@ -63,10 +63,10 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Remaining limits
+## Current limits for v0.4.0
 
-- Separate physical computers, remote latency, long sessions and reconnects
-  have not been comprehensively tested.
+- The documented live runs used one Mac. Separate physical computers, remote
+  latency, long sessions and reconnect behavior still need hands-on testing.
 - Audible soundtrack quality, hidden/background tabs, physical gamepads,
   Chrome gameplay, mobile gameplay and Linux/Windows are unqualified.
 - Course/weather coverage is limited; three-player racing was not separately

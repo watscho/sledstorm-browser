@@ -127,17 +127,23 @@ controller inputs and state checks, rather than streaming video.
 
 ## Current limits
 
-In the v0.3.0 gameplay checks, four browsers on one Mac raced together with separate controls, cameras and
-HUDs. All agreed at 19,500 core steps; short final measurements were 48.5–50.3
-steps/s against a PAL target of 50. Two browsers also loaded and joined through
-the Cloudflare HTTPS tunnel. See [verification](docs/verification.md).
-
-Late arrivals replay the session from boot, temporarily pausing the room.
-Long sessions take longer to join, and the slowest player can slow everyone
-down. Keep game tabs active. Rooms are temporary; rollback, host migration and
-persistent session recovery are not implemented. Multiplayer scenery and detail
-follow the original game. Separate physical computers, audible soundtrack
-quality, hidden tabs and all courses have not been comprehensively tested.
+- **Game files.** Use the PlayStation PAL SLES-02194 CUE and all eleven BIN
+  tracks. Standalone ISO/CHD, other regions and the PS2 game are outside the
+  supported setup. [Disc setup](docs/setup.md#add-the-game-files)
+- **Room behavior.** Late joiners replay input history from boot while the
+  room pauses. Join before starting a race and keep game tabs active. The
+  slowest active browser can slow the room. Rooms are temporary and have no
+  rollback, host migration or persistent recovery.
+  [Rooms and synchronization](docs/multiplayer.md#rooms-and-synchronization)
+- **Presentation.** Separate cameras give each player a full view with the
+  original single-player HUD. The course geometry and scenery detail follow
+  the game's multiplayer mode. Pause menus are shared.
+  [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
+- **Test coverage.** v0.4.0 checks covered the launcher, key remapping and
+  automated networking and presentation. The recorded four-player race and
+  tunnel checks used browsers on one Mac in v0.3.0. Remote races between
+  separate computers, physical gamepads and soundtrack quality still need
+  hands-on testing. [Verification record](docs/verification.md)
 
 ## Documentation
 
