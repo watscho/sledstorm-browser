@@ -76,10 +76,14 @@ static bool sled_wide_geometry;
     text = once(text, '   psxRegs.stop = 0;\n   psxCpu->Execute(&psxRegs);',
                 '   sled_view_begin();\n   psxRegs.stop = 0;\n   psxCpu->Execute(&psxRegs);\n   sled_view_present();')
     text = once(text, '   video_cb((vout_fb_dirty || !vout_can_dupe) ? vout_buf_ptr : NULL,', '''#ifdef __EMSCRIPTEN__
+   if (!sled_view_hold_frame()) {
    const uint16_t *wide = sled_view_wide_frame();
    const uint16_t *wide_enhanced = sled_view_wide_enhanced_frame();
    const uint16_t *enhanced = sled_view_enhanced_frame();
-   const bool enhance = EM_ASM_INT({ return !!Module.sledEnhancedGraphics; });
+   const bool enhance = EM_ASM_INT({
+     if (Module.sledWideGpuVisibility) Module.sledWideGpuVisibility(!!$0);
+     return !$0 && !!Module.sledEnhancedGraphics;
+   }, sled_wide_gpu_ready);
    static unsigned char *enhanced_output;
    static int wide_scale = 1;
    if ((wide || enhanced) && !enhanced_output)
@@ -101,15 +105,16 @@ static bool sled_wide_geometry;
       const int stride = wide_enhanced ? SLED_WIDE_2X_WIDTH : 1024;
       const int xrgb = current_fmt == RETRO_PIXEL_FORMAT_XRGB8888;
       const int pitch = width * (xrgb ? 4 : 2);
+      const bool reuse_scanout = sled_wide_gpu_ready && vout_can_dupe;
       bgr_to_fb_func *convert = xrgb ? bgr555_to_xrgb8888 : bgr555_to_rgb565;
-      if (source)
+      if (source && !reuse_scanout)
          for (int row = 0; row < height; row++)
             convert(enhanced_output + row * pitch, source + row * stride, width * 2);
       const void *scaled = enhance && wide_geometry && wide_scale == 1
          ? sled_scale_frame_2x(enhanced_output, width, height, pitch, xrgb ? 4 : 2) : NULL;
       if (scaled)
          video_cb(scaled, 2 * width, 2 * height, 2 * pitch);
-      else
+      else if (!reuse_scanout)
          video_cb(enhanced_output, width, height, pitch);
    } else if (enhance && vout_width <= 1024 && vout_height <= 512) {
       const int bytes_pp = current_fmt == RETRO_PIXEL_FORMAT_XRGB8888 ? 4 : 2;
@@ -126,6 +131,11 @@ static bool sled_wide_geometry;
    } else
 #endif
    video_cb((vout_fb_dirty || !vout_can_dupe) ? vout_buf_ptr : NULL,''')
+    text = once(text, '       vout_width, vout_height, vout_pitch_b);\n   vout_fb_dirty = 0;', '''       vout_width, vout_height, vout_pitch_b);
+#ifdef __EMSCRIPTEN__
+   }
+#endif
+   vout_fb_dirty = 0;''')
     text = once(text, '/* cheats */', """
 #ifdef __EMSCRIPTEN__
 extern int sled_loading_checkpoint;
@@ -224,6 +234,8 @@ void sled_renderer_set_widescreen(const void *texture_vram)
 #define SLED_TEXTURE_WORDS sled_texture_words
 #define SLED_TEXTURE_BYTES sled_texture_bytes
 #ifdef __EMSCRIPTEN__
+static int sled_wide_edges;
+void sled_renderer_set_wide_edges(int enabled) { sled_wide_edges = enabled; }
 #define SLED_WIDE_DRAW_END(x) (sled_wide_draw && (x) == 511 ? SLED_WIDE_WIDTH - 1 : (x))
 #define SLED_WIDE_DRAW_OFFSET(x) (sled_wide_draw && (x) == 0 ? SLED_WIDE_MARGIN : (x))
 #endif
@@ -235,11 +247,36 @@ void sled_renderer_set_widescreen(const void *texture_vram)
     entry = 'int do_cmd_list(uint32_t *list, int list_len,\n int *cycles_sum_out, int *cycles_last, int *last_cmd)\n{'
     text = once(text, entry, entry + '''
 #ifdef __EMSCRIPTEN__
-  if (sled_view_transaction == 2)
+  uint32_t sled_capture_env[8];
+  const int sled_capture = sled_view_transaction == 2 && sled_wide_gpu_capture;
+  if (sled_capture)
+    memcpy(sled_capture_env, gpu.ex_regs, sizeof(sled_capture_env));
+  else if (sled_view_transaction == 2)
     sled_enhanced_draw(list, list_len, gpu.ex_regs);
 #endif''')
-    text = once(text, '    primTableJ[cmd]((void *)list);',
-                '    sled_view_record(list, 1 + len);\n    primTableJ[cmd]((void *)list);')
+    text = once(text, 'breakloop:\n  gpu.ex_regs[1] &= ~0x1ff;', '''breakloop:
+#ifdef __EMSCRIPTEN__
+  if (sled_capture && list > list_start)
+    sled_enhanced_draw(list_start, list - list_start, sled_capture_env);
+#endif
+  gpu.ex_regs[1] &= ~0x1ff;''')
+    text = once(text, '    primTableJ[cmd]((void *)list);', '''    sled_view_record(list, 1 + len);
+#ifdef __EMSCRIPTEN__
+    if (sled_wide_edges && cmd >= 0x20 && cmd < 0x80) {
+      const int x = drawX, end = drawW;
+      if (x < SLED_WIDE_MARGIN) {
+        drawW = end < SLED_WIDE_MARGIN ? end : SLED_WIDE_MARGIN - 1;
+        if (drawW >= x) primTableJ[cmd]((void *)list);
+        drawW = end;
+      }
+      if (end >= SLED_WIDE_MARGIN + 512) {
+        drawX = x > SLED_WIDE_MARGIN + 512 ? x : SLED_WIDE_MARGIN + 512;
+        if (end >= drawX) primTableJ[cmd]((void *)list);
+        drawX = x;
+      }
+    } else
+#endif
+      primTableJ[cmd]((void *)list);''')
     if path.read_text() != text:
         path.write_text(text)
     path = CORE / 'plugins/dfxvideo/prim.c'
@@ -498,6 +535,12 @@ unsigned sled_netplay_status(unsigned field)
                 '''   return emscripten_platform_data->gl_context_lost ||
       (emscripten_platform_data->window_hidden && emscripten_platform_data->raf_interval &&
        !EM_ASM_INT({ return !!Module.sledNetplayActive; }));''')
+    text = once(text, 'unsigned platform_emscripten_get_min_sleep_ms(void)', '''enum platform_emscripten_browser platform_emscripten_get_browser(void)
+{
+   return emscripten_platform_data->browser;
+}
+
+unsigned platform_emscripten_get_min_sleep_ms(void)''')
     if path.read_text() != text:
         path.write_text(text)
     path = FRONTEND / 'libretro-common/net/net_socket.c'
@@ -518,6 +561,11 @@ unsigned sled_netplay_status(unsigned field)
         path.write_text(text)
     path = FRONTEND / 'Makefile.emulatorjs'
     text = original(path)
+    # Reuse RetroArch's existing audio pacing between loop iterations.
+    text = once(text, '   DEFINES += -DHAVE_RWEBAUDIO', '''   DEFINES += -DHAVE_RWEBAUDIO -DEMSCRIPTEN_AUDIO_EXTERNAL_BLOCK
+   DEFINES += -DEMSCRIPTEN_AUDIO_EXTERNAL_WRITE_BLOCK -DEMSCRIPTEN_AUDIO_FAKE_BLOCK
+   OBJ += audio/drivers/rwebaudio.o''')
+    text += '\n$(addprefix $(OBJDIR)/,configuration.o retroarch.o audio/audio_driver.o audio/drivers/rwebaudio.o): Makefile.emulatorjs\n'
     if '_sled_frame_count,' not in text:
         text = once(text, 'EXPORTED_FUNCTIONS = _main,_malloc,_free,_load_state,',
                     'EXPORTED_FUNCTIONS = _sled_frame_count,_sled_ram_pointer,_retro_unserialize,_main,_malloc,_free,_load_state,')

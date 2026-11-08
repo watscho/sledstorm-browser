@@ -43,6 +43,11 @@ The adapter in `research/emulator/sled-enhanced.c` includes the upstream
 rasterizer and is available under GPL-2.0-or-later. The upstream source keeps
 its existing notices and license options.
 
+The WebGL2 race renderer uses [eNGE by Rene Kootstra](https://github.com/kootstra-rene/enge-js/tree/3c154d8c429fca39eb9295104c922c9b803a2823)
+under the MIT license. `tools/prepare-hardware-preview.py` verifies the pinned
+renderer, shaders, selected GP0 handlers, and license against SHA-256 hashes.
+The generated browser module includes the upstream copyright and license.
+
 The **Clean** preset uses [Sharp Bilinear by Themaister](https://github.com/libretro/glsl-shaders/blob/6c9437bb938f1d9154353ccbfaf5238da5d2f8e3/interpolation/shaders/sharp-bilinear.glsl),
 marked public domain in its source. The local copy clamps the automatic scale
 to at least 1 for small windows.

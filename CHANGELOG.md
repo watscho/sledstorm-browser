@@ -3,6 +3,37 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## Unreleased
+
+Development build **0.9.0-dev.1** on 2026-11-08.
+
+- Add a draw distance slider for solo PAL races and dedicated personal
+  cameras, with the original range selected by default.
+- Use the optional WebGL2 renderer for Enhanced 2× in dedicated 16:9 PAL
+  races with Clean or Crisp pixels. Keep the software renderer as a fallback.
+- Add an opt-in local WebGL2 preview that draws the 16:9 PAL race world at
+  2736×1024 with eNGE and keeps the original HUD.
+- Add optional Sharp Bilinear texture sampling to the local WebGL2 preview.
+- Use RetroArch's browser-native WebAudio driver in the local preview to
+  keep audio queue waits outside the emulator step.
+- Speed up frame recovery for dedicated rooms and delay the catch-up overlay
+  until recovery lasts a second. Room creators see a startup message while
+  their browser connects to the dedicated runtime.
+- Briefly retain a recent WebGL2 camera frame while a dedicated client works
+  through a moderate backlog. Keep full recovery for large or persistent
+  backlogs.
+- Center the local player's finish placement banner on personal cameras.
+- Keep the last personal camera frame during catch-up or a brief interruption
+  in local rendering to avoid flashes of the shared split-screen.
+- Keep the last 16:9 race frame during catch-up or a brief rendering gap so
+  the view does not flash back to 4:3.
+- Treat the draw distance setting as a maximum and adapt the extra terrain
+  to the available geometry budget to avoid repeated redraws in dense scenes.
+- Skip unused center pixels in the widescreen fallback and avoid setting up
+  a private render when PAL supplies no new world geometry.
+- Reuse the initialized solo camera and skip split-screen packet capture in
+  solo races. Keep extra ordering-table scans in diagnostic mode only.
+
 ## 0.8.3 - 2026-11-08
 
 - Document the tested European PlayStation disc edition, the required CUE and

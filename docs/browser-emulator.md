@@ -74,12 +74,62 @@ and render buffers. The adapter restores the canonical multiplayer state before
 the next console step. The GPU replay path serves as a fallback if a native
 render pass fails. Pause menus bypass the private pass.
 
-**Enhanced 2×** is a personal launch setting. Solo PAL races and supported
-personal cameras use the PCSX-ReARMed enhancement rasterizer with private VRAM
-and the original game textures. It produces 1024×512 in 4:3 and 1368×512 in
-16:9. The HUD uses the stock rasterizer, and its pixels are composited over
-the higher-resolution 3D scene. Menus, shared split-screen and fallback views
-upscale the finished frame without changing the emulated GPU state.
+**Enhanced 2×** is a personal launch setting. Supported PAL races produce
+1024×512 in 4:3 or 1368×512 in 16:9. Run
+`python3 tools/prepare-hardware-preview.py` on the host to enable WebGL2
+acceleration for dedicated 16:9 races with **Clean** or **Crisp pixels**.
+The regular lobby selects the hardware renderer when it is available and
+uses the PCSX-ReARMed rasterizer as its fallback. Both use the original HUD
+and game textures. Menus and shared split-screen use the finished software
+frame. This setting only affects the local display.
+
+**Draw distance** is a personal launch setting for the same PAL race modes.
+**Original** keeps the original terrain range. Values up to **+100%** set a
+ceiling for extra terrain. The private camera render adjusts that range as
+the scene approaches its primitive budget. The canonical console state stays
+shared across the room.
+
+When a visible WebGL2 client falls moderately behind the dedicated room, it
+can keep a recent image while processing more console steps. Full catch-up
+handles large backlogs or recovery that has stopped making progress.
+
+### Local WebGL2 race preview
+
+To try the hardware renderer on a local PAL disc, build the core and generate
+the preview module, then start the normal launcher.
+
+```sh
+python3 tools/build-emulator.py
+python3 tools/prepare-hardware-preview.py
+python3 server.py
+```
+
+Open [the local preview](http://127.0.0.1:8000/?console=1&renderer=hardware).
+Select **16:9** and **Clean** or **Crisp pixels**, select **Start game**, and
+enter a race. Use the regular launcher URL to play online.
+
+Open the [preview with Sharp Bilinear texture filtering](http://127.0.0.1:8000/?console=1&renderer=hardware&textures=sharp)
+to soften magnified terrain and vehicle textures. The filter samples the
+original texture atlas, clamps sampling to each primitive's UV bounds, and
+leaves the original HUD on its separate software layer. The regular preview
+keeps nearest-neighbor texture sampling.
+
+The preview submits the isolated PAL camera's GP0 command stream and texture
+VRAM to eNGE's WebGL2 rasterizer. It draws the world at 2736×1024 before
+correcting for the display aspect ratio. The shader samples native 16-bit
+VRAM words and decodes indexed palettes on the GPU. The HUD still uses the original
+rasterizer. Menus, pause, other image filters, and unhandled frames use the
+existing software renderer. The preview does not change the simulated console.
+
+The preview uses RetroArch's browser-native WebAudio driver. When its audio
+queue is full, RetroArch yields between emulator steps after the current frame
+has been submitted. The regular launcher keeps the OpenAL driver.
+
+The local console can also display a selected multiplayer camera. Live-room
+checks covered separate Chrome contexts on one Mac. See the
+[verification record](verification.md) for the measured frame timings.
+
+### Personal cameras
 
 In solo races, the adapter captures the original HUD packets from the game's
 ordering-table submission. It removes those packets from the private world

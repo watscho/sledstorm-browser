@@ -19,8 +19,9 @@ In local-file mode, every player supplies a matching CUE/BIN set.
 For a player, try a modern 4-core CPU and 8 GB of RAM as a starting point.
 Use a desktop browser with WebAssembly SIMD and WebGL 2, turn on graphics
 acceleration, and start with the default **Clean · Sharp Bilinear** filter.
-Try **Enhanced 2×** once the
-original resolution runs smoothly.
+Try **Enhanced 2×** once the original resolution runs smoothly. On the host,
+`python3 tools/prepare-hardware-preview.py` enables optional WebGL2 acceleration
+for dedicated 16:9 races with **Clean** or **Crisp pixels**.
 
 For one dedicated room where you also play on the host, start with a modern
 6-core CPU, 16 GB of RAM, and about 5 GB of free disk space for the toolchain,
@@ -48,6 +49,9 @@ installs the Node relay dependencies, and compiles the native adapters. Download
 sources and output stay in ignored `vendor/` and `.cache/` folders. No game data
 is downloaded. Keep the terminal open until both commands finish successfully.
 
+Run `python3 tools/prepare-hardware-preview.py` after the build to enable the
+optional WebGL2 renderer. The generated module stays under `web/generated/`.
+
 ## Upgrade an existing installation
 
 Stop the hosting helper with **Ctrl+C**. From a clean project directory,
@@ -59,6 +63,7 @@ python3 tools/bootstrap-emulator.py
 python3 tools/build-emulator.py
 ```
 
+If you use the WebGL2 renderer, rerun `python3 tools/prepare-hardware-preview.py`.
 Start the launcher again and create a new room. If playing online, send a
 fresh invitation so everyone loads the same build. The v0.8.1 respawn fade
 fix requires the rebuilt emulator. Solo saves are matched to the disc, BIOS
@@ -159,11 +164,12 @@ browser-hosted rooms. The creator's tab must stay open.
 | Slow first join | Wait for the game data download to finish. **Synchronizing with the room** appears once RetroArch starts receiving the current game state. |
 | Guest joins the room but has no rider | Register that controller in the game's multiplayer menu before starting a new race. Rejoining a live race uses an existing racer. |
 | Browser-hosted room waiting for a player | Bring the affected game window back to the foreground. If the connection closed, guests can reopen the invitation. Local-file guests select their files again. |
-| Catching up to the live race | Wait for the browser to catch up. The dedicated server keeps advancing. If the connection closes, reopen the invitation in the same browser and select **Join game**. |
+| Catching up to the live race | This appears when recovery lasts more than a brief delay. The dedicated server keeps advancing even when only one controller is connected. If the connection closes, reopen the invitation in the same browser and select **Join game**. |
 | Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
 | 16:9 is unavailable | Use the verified PAL disc and start a solo race or a dedicated room with **Separate cameras** enabled. Menus and shared split-screen use 4:3. |
 | Enhanced 2× looks like the original resolution | Enter a solo PAL race or a dedicated race with personal cameras to use native 2×. Other scenes upscale the finished frame. |
+| Draw distance is unavailable or varies by scene | **Display and audio → Draw distance** applies to solo PAL races and dedicated personal cameras. **Original** uses the game's default range. Higher values set a maximum: the renderer reduces extra terrain as the scene approaches its geometry limit and raises the range again when there is room. In a particularly dense 16:9 scene, it can briefly use a shorter range than **Original** to avoid repeated redraws. |
 | Save or load icon is hidden | Use the room creator's browser, with only its controller connected and no reserved seats or active multiplayer race. |
 | Guests download the disc on every launch | In Chrome with a Quick Tunnel, keep **Keep or choose game data** checked and use **Use existing ZIP** to select the same archive. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |

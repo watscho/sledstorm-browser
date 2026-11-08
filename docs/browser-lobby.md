@@ -22,6 +22,7 @@ for details.
 | --- | --- | --- |
 | Progress | **All content unlocked** or **Original progression**. The preset changes temporary menu memory. | Yes; guests inherit it. |
 | Race aspect ratio | **16:9 · Widescreen** is the default in solo PAL races and dedicated PAL races with personal cameras. Choose **4:3 · Original** for the original proportions. Menus and shared split-screen use 4:3. | No; personal. |
+| Draw distance | **Original** keeps the game's range. Select up to **+100%** for extra terrain in solo PAL races and dedicated personal cameras. Dense scenes can temporarily use a shorter range. | No; personal. |
 | Image filter | **Clean** (Sharp Bilinear) is the default. **Crisp pixels**, **Smooth**, and **CRT · Lottes** are also available. The toolbar and **F7** can change the filter during play. | No; personal. |
 | Enhanced 2× | Select before starting or joining. Solo PAL races and dedicated personal cameras render at twice the width and height. Other scenes upscale the original frame. Off by default. | No; personal. |
 | Volume | Browser audio volume. | No; personal. |
@@ -30,8 +31,8 @@ for details.
 | Game files (local-file mode) | Select the CUE and all eleven BIN tracks. | Every player supplies matching contents. |
 | Keep or choose game data (shared-disc invitations) | With a Quick Tunnel, **Join game** offers to open or save a ZIP. Turning the option off skips the picker. On a permanent address, turning off **Keep game data** clears the browser's cached copy after startup. | No; personal. |
 
-Set volume, aspect ratio and Enhanced 2× before starting. The image filter
-can also change during play. The launcher remembers all four settings, along
+Set volume, aspect ratio, draw distance and Enhanced 2× before starting. The image filter
+can also change during play. The launcher remembers these settings, along
 with progress, camera and game data preferences, on the same browser origin.
 Create a new room to change progression or camera behavior.
 Choose game modes, riders and courses in the game.

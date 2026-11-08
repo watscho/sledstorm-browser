@@ -46,6 +46,7 @@ export function initLobby(notify) {
   const progress = $('#progress');
   const camera = $('#camera');
   const volume = $('#volume');
+  const drawDistance = $('#draw-distance');
   const keepGameData = $('#keep-game-data');
   let preferredAspect = preferences.aspect === 'original' ? 'original' : 'wide';
   if ([...image.options].some(option => option.value === preferences.filter)) image.value = preferences.filter;
@@ -53,10 +54,12 @@ export function initLobby(notify) {
   if (typeof preferences.camera === 'boolean') camera.checked = preferences.camera;
   if (typeof preferences.keepGameData === 'boolean') keepGameData.checked = preferences.keepGameData;
   if (Number.isInteger(preferences.volume) && preferences.volume >= 0 && preferences.volume <= 100) volume.value = preferences.volume;
+  if (Number.isInteger(preferences.drawDistance)) drawDistance.value = preferences.drawDistance;
   enhanced.checked = preferences.enhanced === true;
   let widescreenAvailable = false;
   const refresh = () => {
     wideOption.disabled = !widescreenAvailable;
+    drawDistance.disabled = !widescreenAvailable;
     aspect.value = wideOption.disabled ? 'original' : preferredAspect;
     $('#summary-progress').textContent = $('#progress').selectedOptions[0].textContent;
     $('#summary-camera').textContent = $('#camera').checked ? 'Personal view' : 'Original shared view';
@@ -64,11 +67,15 @@ export function initLobby(notify) {
       (enhanced.checked ? ' · 2×' : '');
     $('#summary-aspect').textContent = aspect.selectedOptions[0].textContent;
     $('#volume-value').textContent = `${$('#volume').value}%`;
+    const distanceLabel = drawDistance.value === '0' ? 'Original' : `+${drawDistance.value}%`;
+    $('#draw-distance-value').textContent = distanceLabel;
+    drawDistance.setAttribute('aria-valuetext', distanceLabel);
     const files = $('#disc-files').files;
     $('#disc-selection').textContent = files.length ? `${files.length} files selected` : '';
   };
   const rememberFilter = filter => remember({ filter });
   volume.addEventListener('input', refresh);
+  drawDistance.addEventListener('input', refresh);
   $('#setup').addEventListener('change', event => {
     const input = event.target;
     if (input === aspect) {
@@ -79,6 +86,7 @@ export function initLobby(notify) {
     else if (input === camera) remember({ camera: camera.checked });
     else if (input === enhanced) remember({ enhanced: enhanced.checked });
     else if (input === volume) remember({ volume: Number(volume.value) });
+    else if (input === drawDistance) remember({ drawDistance: Number(drawDistance.value) });
     else if (input === keepGameData) remember({ keepGameData: keepGameData.checked });
     refresh();
   });
@@ -88,10 +96,11 @@ export function initLobby(notify) {
     }
     preferredAspect = 'wide';
     enhanced.checked = false;
+    drawDistance.value = '0';
     if (!$('#camera').disabled) $('#camera').checked = true;
     keepGameData.checked = true;
     keepGameData.dispatchEvent(new Event('change'));
-    remember({ aspect: 'wide', filter: 'clean', enhanced: false, volume: 50, keepGameData: true,
+    remember({ aspect: 'wide', filter: 'clean', enhanced: false, volume: 50, drawDistance: 0, keepGameData: true,
       ...(!progress.disabled && { progress: progress.value, camera: camera.checked }) });
     $('#bios').value = ''; $('#disc-files').value = '';
     controls.reset();

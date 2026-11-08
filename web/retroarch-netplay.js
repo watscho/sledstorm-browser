@@ -26,7 +26,9 @@ export function checkNetplayInvitation({ room, token }) {
   });
 }
 
-export async function prepareNetplay(emulator, { invitation, identity, onInvite, onClose, onRoster, dedicated, worker, options, snapshot }) {
+export async function prepareNetplay(emulator, {
+  invitation, identity, onInvite, onClose, onRoster, dedicated, worker, widescreen, options, snapshot,
+}) {
   const room = worker ? { room: worker.room, token: worker.workerKey, v: 7 } : invitation ?? {
     room: hex(crypto.getRandomValues(new Uint8Array(12))),
     token: hex(crypto.getRandomValues(new Uint8Array(32))),
@@ -154,6 +156,9 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
     const existing = module.FS.readFile(config, { encoding: 'utf8' });
     module.FS.writeFile(config, existing + '\nnetplay_public_announce = "false"\nnetplay_nat_traversal = "false"\n'
       + 'pause_nonactive = "false"\nnetplay_check_frames = "0"\n'
+      // The client already skips private drawing during explicit recovery.
+      // Keep completed wide frames when RetroArch briefly goes nonblocking.
+      + (dedicated && client && widescreen ? 'fastforward_frameskip = "false"\n' : '')
       + (worker ? 'netplay_start_as_spectator = "true"\nnetplay_max_connections = "4"\n'
         + 'netplay_allow_slaves = "true"\nnetplay_require_slaves = "true"\n'
         : `netplay_request_device_p${slot + 1} = "true"\n`));
@@ -169,10 +174,11 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
   }
 }
 
-export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles }) {
+export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles }, controller = () => 0) {
   const { gameManager: manager, elements } = emulator;
   let keyboard = 0xffff;
   let last = 0xffff;
+  let previousController = controller();
   manager.setKeyboardEnabled(false);
   manager.simulateInput = () => {}; // The lobby owns keyboard and gamepad bindings.
   const release = () => { keyboard = 0xffff; };
@@ -193,14 +199,17 @@ export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles 
     }, true);
   }
   return () => {
+    const slot = controller();
+    if (slot !== previousController) last = 0xffff;
     const pad = document.hasFocus() && !document.hidden ? sampleGamepad(keyboard, gamepadIndex?.(), gamepadProfiles) : 0xffff;
     const changed = pad ^ last;
     for (let bit = 0; bit < 16; bit++) {
       const button = toRetroPad[bit];
       if (button !== null && (changed & (1 << bit))) {
-        manager.functions.simulateInput(0, button, Number(!(pad & (1 << bit))));
+        manager.functions.simulateInput(slot, button, Number(!(pad & (1 << bit))));
       }
     }
     last = pad;
+    previousController = slot;
   };
 }

@@ -61,6 +61,7 @@ const lab = new URLSearchParams(location.search).has('lab') && location.port ===
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
 const localConsole = new URLSearchParams(location.search).has('console') && location.port === '8000'
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
+const hardwarePreview = localConsole && new URLSearchParams(location.search).get('renderer') === 'hardware';
 const canSaveSolo = !invitation && !invitationError && !dedicatedWorker && !lab && !localConsole;
 const retroArch = !lab && !localConsole && (invitation ? invitation.v === 7 :
   new URLSearchParams(location.search).get('transport') !== 'legacy');
@@ -162,8 +163,10 @@ for (const button of gameDataDialogActions) {
   });
 }
 let availableArchive;
+let hardwareRendererAvailable = false;
 const launcherInfo = fetch('/session-info').then(async response => {
   if (!response.ok) throw new Error('Could not read launcher settings.');
+  hardwareRendererAvailable = response.headers.get('X-Sled-Hardware-Renderer') === 'webgl2';
   const info = await response.json();
   lobby.discMode(info.discMode);
   const nativeCamera = retroArch && info.dedicated &&
@@ -310,7 +313,9 @@ async function startGame(loadRequest) {
   let widescreen = document.querySelector('#aspect').value === 'wide';
   let discFiles;
   const renderEnhanced = !dedicatedWorker && document.querySelector('#enhanced-render').checked;
-  let shaders, soloStorage;
+  const drawDistanceInput = document.querySelector('#draw-distance');
+  const drawDistance = drawDistanceInput.disabled || dedicatedWorker ? 0 : Number(drawDistanceInput.value);
+  let shaders, soloStorage, enableHardwarePreview;
   const bios = loadRequest?.bios ?? biosInput.files[0];
   const files = loadRequest?.files ?? [...discInput.files];
   let resumeSnapshot = loadRequest?.state;
@@ -339,6 +344,12 @@ async function startGame(loadRequest) {
     if (roomOptions.camera && !launchInfo.pal) throw new Error('Separate camera hooks require the verified PAL SLES-02194 disc.');
     if (!launchInfo.pal && !lab) widescreen = false;
     shaders = dedicatedWorker ? {} : await loadDisplayShaders();
+    const accelerated = retroArch && launchInfo.dedicated && hardwareRendererAvailable && renderEnhanced
+      && new URLSearchParams(location.search).get('renderer') !== 'software';
+    if ((hardwarePreview || accelerated) && widescreen && launchInfo.pal) {
+      try { ({ enableHardwarePreview } = await import('./hardware-preview.js')); }
+      catch { if (hardwarePreview) showActionNotice('WebGL2 preview files are unavailable. Using the software renderer.'); }
+    }
     if (canSaveSolo) {
       try {
         soloStorage = await openSoloSave(launchInfo, bios);
@@ -376,7 +387,9 @@ async function startGame(loadRequest) {
     EJS_ready: () => {
       const originalConfig = window.EJS_GameManager.prototype.getRetroArchCfg;
       window.EJS_GameManager.prototype.getRetroArchCfg = function (...args) {
-        return originalConfig.apply(this, args) + `\nvideo_smooth = "false"\n`;
+        const previewAudio = hardwarePreview && enableHardwarePreview && (window.AudioContext || window.webkitAudioContext);
+        return originalConfig.apply(this, args) + '\nvideo_smooth = "false"\n'
+          + (previewAudio ? 'audio_driver = "rwebaudio"\n' : '');
       };
       if (retroArch) {
         const instance = window.EJS_emulator;
@@ -390,7 +403,7 @@ async function startGame(loadRequest) {
             retroRoom = await prepareNetplay(this, {
               invitation, identity, onInvite: shareInvitation, onClose: netplayFailed,
               onRoster: renderControllerSlots,
-              dedicated: launchInfo.dedicated, worker: dedicatedWorker, options: roomOptions,
+              dedicated: launchInfo.dedicated, worker: dedicatedWorker, widescreen, options: roomOptions,
               snapshot: launchInfo.dedicated && !dedicatedWorker ? resumeSnapshot : undefined,
             });
             start.apply(this, args);
@@ -403,9 +416,21 @@ async function startGame(loadRequest) {
       };
     },
     EJS_onGameStart: () => {
-      window.EJS_emulator.Module.sledEnhancedGraphics = renderEnhanced;
+      const module = window.EJS_emulator.Module;
+      module.sledEnhancedGraphics = renderEnhanced;
       window.EJS_emulator.Module.sledWidescreen = !dedicatedWorker && widescreen;
+      window.EJS_emulator.Module.sledDrawDistance = launchInfo.pal ? drawDistance : 0;
       if (!dedicatedWorker) enableSessionDisplay(window.EJS_emulator, image, shaders, showActionNotice, lobby.rememberFilter);
+      if (enableHardwarePreview) {
+        try {
+          const sharpTextures = hardwarePreview && new URLSearchParams(location.search).get('textures') === 'sharp';
+          enableHardwarePreview(module, game, { sharpTextures, scale: hardwarePreview ? 4 : 2 });
+          module.sledEnhancedGraphics = true;
+        } catch (error) {
+          console.warn('Could not initialize the WebGL2 preview.', error);
+          showActionNotice('WebGL2 is unavailable. Using the software renderer.');
+        }
+      }
       discardGameData?.().catch(error => console.warn('Could not remove the saved Sled Storm archive.', error));
       discardGameData = undefined;
       if (localConsole) startLocalConsole().catch(error => showStatus(error.message));
@@ -434,6 +459,7 @@ async function startGame(loadRequest) {
             const settings = {
               progress: roomOptions.progress, camera: roomOptions.camera,
               aspect: widescreen ? 'wide' : 'original', 'enhanced-render': renderEnhanced,
+              'draw-distance': drawDistance,
               volume: document.querySelector('#volume').value,
             };
             const request = await storage.prepareLoad(state, { files, settings });
@@ -479,7 +505,8 @@ async function startGame(loadRequest) {
 }
 
 async function startLocalConsole() {
-  const { Module: module, gameManager: manager } = window.EJS_emulator;
+  const emulator = window.EJS_emulator;
+  const { Module: module, gameManager: manager } = emulator;
   module.sledBeforeFrame = () => false;
   if (new URLSearchParams(location.search).has('fixture')) await restoreFixture(module);
   module.sledBeforeFrame = () => true;
@@ -488,6 +515,10 @@ async function startLocalConsole() {
   manager.getState = () => captureState(module, manager.functions.saveStateInfo);
   qualifyView(module, manager);
   let seat = 0;
+  const configureView = () => {
+    const camera = roomOptions.camera ? (hardwarePreview ? 23 : 3) : 0;
+    module._sled_view_configure(seat, camera | (hardwarePreview && seat === 0 ? 32 : 0));
+  };
   manager.simulateInput = (_seat, button, pressed) => manager.functions.simulateInput(seat, button, pressed);
   const label = document.createElement('label');
   label.textContent = 'Diagnostic controller and camera';
@@ -495,10 +526,12 @@ async function startLocalConsole() {
   for (let slot = 0; slot < 4; slot++) select.add(new Option(`Controller ${slot + 1}`, String(slot)));
   select.addEventListener('change', () => {
     for (let button = 0; button < 16; button++) manager.functions.simulateInput(seat, button, 0);
-    seat = Number(select.value); module._sled_view_configure(seat, roomOptions.camera ? 3 : 0);
+    seat = Number(select.value);
+    configureView();
   });
   label.append(select); document.querySelector('#game').before(label);
-  module._sled_view_configure(seat, roomOptions.camera ? 3 : 0);
+  configureView();
+  if (hardwarePreview) module.sledBeforeFrame = driveRetroPad(emulator, lobby.inputOptions(), () => seat);
   module.sledCoreBefore = () => {
     if (roomOptions.progress === 'all') unlockPal(new Uint8Array(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000));
     return true;
@@ -597,7 +630,8 @@ function startRetroArchRoom() {
   // Asset and HUD hooks affect the emulated console. The headless runtime
   // applies the same hooks as every player while skipping local rendering.
   const view = roomOptions.camera ? 2 | (roomOptions.nativeCamera ? 16 : 0) : 0;
-  const soloView = launchInfo.pal && slot === 0 && (module.sledWidescreen || module.sledEnhancedGraphics) ? 32 : 0;
+  const soloView = launchInfo.pal && slot === 0 &&
+    (module.sledWidescreen || module.sledEnhancedGraphics || module.sledDrawDistance) ? 32 : 0;
   const personalView = view && !dedicatedWorker ? 1 | (roomOptions.nativeCamera ? 4 : 0) : 0;
   module._sled_view_configure(slot, view | personalView | soloView);
   qualifyView(module, manager);
@@ -605,13 +639,26 @@ function startRetroArchRoom() {
     () => netplayFailed('RetroArch could not synchronize with the room.'),
     20_000,
   );
-  if (!dedicatedWorker) showStatus('Synchronizing with the room…');
+  if (!dedicatedWorker) showStatus(invitation ? 'Synchronizing with the room…' : 'Starting game…');
   let ready = false;
   let stalledSince = null;
   let behindSince = null;
+  let behindFloor = 0;
+  let renderBehindSince = null;
+  let catchingUpSince = null;
+  let showCatchup = false;
   let waiting = false;
   let reportedRace = false;
-  module.sledBeforeFrame = () => { drive(); return true; };
+  const catchupBacklog = 12;
+  module.sledBeforeFrame = () => {
+    if (module.sledPaintWideFrame) {
+      module.sledPaintWideFrame = false;
+      // Give the compositor a turn before starting more emulation.
+      if (ready && !document.hidden && !module.sledCatchup && module._sled_netplay_status(5) < catchupBacklog) return false;
+    }
+    drive();
+    return true;
+  };
   module.sledCoreBefore = () => {
     if (roomOptions.progress === 'all') unlockPal(new Uint8Array(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000));
     return true;
@@ -628,26 +675,41 @@ function startRetroArchRoom() {
       return;
     }
     if (ready) {
-      const wasCatchingUp = Boolean(module.sledCatchup);
+      const wasShowingCatchup = showCatchup;
       const wasWaiting = waiting;
+      const now = performance.now();
       if (module.sledDedicatedClient) {
         const behind = module._sled_netplay_status(5);
-        const now = performance.now();
-        if (behind < 12) behindSince = null;
-        else behindSince ??= now;
-        // Ignore short frame bursts. A larger backlog still needs immediate recovery.
+        const canRelieveRender = !document.hidden && game.classList.contains('hardware-preview-active') &&
+          Boolean(module.sledShouldHoldWideFrame);
+        if (!canRelieveRender || behind < catchupBacklog) renderBehindSince = null;
+        else renderBehindSince ??= now;
+        const renderRelief = canRelieveRender && !module.sledCatchup &&
+          (module.sledRenderRelief ? behind > 8
+            : behind >= 16 || (renderBehindSince !== null && now - renderBehindSince >= 120));
+        if (behind < catchupBacklog) {
+          behindSince = null;
+        } else if (behindSince === null || (renderRelief && behind <= behindFloor - 2)) {
+          // Give lighter rendering time to work while the client is gaining frames.
+          behindSince = now;
+          behindFloor = behind;
+        }
+        const recoveryTimeout = renderRelief ? 600 : 400;
         const catchingUp = module.sledCatchup
           ? behind > 6
-          : behind >= 35 || (behindSince !== null && now - behindSince >= 400);
-        if (catchingUp !== wasCatchingUp) {
+          : behind >= 35 || (behindSince !== null && now - behindSince >= recoveryTimeout);
+        module.sledRenderRelief = renderRelief && !catchingUp ? (behind >= 14 ? 2 : 1) : 0;
+        if (catchingUp !== Boolean(module.sledCatchup)) {
           module.sledCatchup = catchingUp;
-          game.classList.toggle('catching-up', catchingUp);
+          catchingUpSince = catchingUp ? now : null;
           emulator.setVolume(catchingUp ? 0 : Number(document.querySelector('#volume').value) / 100);
         }
+        showCatchup = catchingUpSince !== null && now - catchingUpSince >= 1000;
+        if (showCatchup !== wasShowingCatchup) game.classList.toggle('catching-up', showCatchup);
       }
       if (module._sled_netplay_status(4)) {
-        stalledSince ??= performance.now();
-        if (!waiting && performance.now() - stalledSince >= 1000) {
+        stalledSince ??= now;
+        if (!waiting && now - stalledSince >= 1000) {
           waiting = true;
         }
       } else {
@@ -658,9 +720,9 @@ function startRetroArchRoom() {
         if (!launchInfo.pal && module._sled_netplay_status(1) > 1) noteOtherPlayer();
         refreshSoloSave();
       }
-      if (wasWaiting !== waiting || wasCatchingUp !== Boolean(module.sledCatchup)) {
-        showStatus(module.sledCatchup ? 'Catching up to the live race…'
-          : waiting ? 'Waiting for another player to resume. The room is still connected.' : '');
+      if (wasWaiting !== waiting || wasShowingCatchup !== showCatchup) {
+        showStatus(showCatchup ? 'Catching up to the live race…'
+          : waiting ? 'Waiting for the room to resume…' : '');
       }
       return;
     }
@@ -740,7 +802,8 @@ async function connectRoom(bios) {
   await session.connect(identity, invitation, shareInvitation);
   if (invitation) shareInvitation(invitation);
   const module = emulator.Module;
-  const soloView = launchInfo.pal && session.slot === 0 && (module.sledWidescreen || module.sledEnhancedGraphics) ? 32 : 0;
+  const soloView = launchInfo.pal && session.slot === 0 &&
+    (module.sledWidescreen || module.sledEnhancedGraphics || module.sledDrawDistance) ? 32 : 0;
   module._sled_view_configure(session.slot, (roomOptions.camera ? 3 : 0) | soloView);
   sync.start();
   refreshRoomStatus();
@@ -748,6 +811,7 @@ async function connectRoom(bios) {
 
 function qualifyView(module, manager) {
   if (!developerTools && !new URLSearchParams(location.search).has('verifyView')) return;
+  module.sledViewDiagnostics = true;
   let previous, sampledAt = -Infinity;
   module.sledViewBefore = () => {
     const frame = module._sled_frame_count();

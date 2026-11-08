@@ -5,13 +5,28 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
   Module.sledDedicatedHost = role === 'worker';
   const animationFrame = MainLoop.requestAnimationFrame;
   let scheduled;
+  let recoveryTasks;
+  let recoveryTaskId = 0;
   const schedule = callback => {
-    scheduled?.cancel();
+    scheduled?.cancel?.();
     const catchup = Module.sledCatchup;
-    const timed = document.hidden || catchup;
+    const hidden = document.hidden;
     const run = () => { scheduled = undefined; callback(); };
-    const id = timed ? setTimeout(run, catchup ? 0 : 1000 / 60) : requestAnimationFrame(run);
-    scheduled = { callback, cancel: () => timed ? clearTimeout(id) : cancelAnimationFrame(id) };
+    if (catchup && !hidden) {
+      // Yield between frames without the minimum delay of nested timeouts.
+      if (!recoveryTasks) {
+        recoveryTasks = new MessageChannel();
+        recoveryTasks.port1.onmessage = ({ data }) => {
+          if (scheduled?.taskId === data) scheduled.run();
+        };
+      }
+      const taskId = ++recoveryTaskId;
+      scheduled = { callback, run, taskId };
+      recoveryTasks.port2.postMessage(taskId);
+      return;
+    }
+    const id = hidden ? setTimeout(run, catchup ? 0 : 1000 / 60) : requestAnimationFrame(run);
+    scheduled = { callback, cancel: () => hidden ? clearTimeout(id) : cancelAnimationFrame(id) };
   };
   const reschedule = () => {
     if (!scheduled) return;
@@ -23,6 +38,16 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
     Module.sledNetplayActive = false;
     document.removeEventListener('visibilitychange', reschedule);
     MainLoop.requestAnimationFrame = animationFrame;
+    if (recoveryTasks) {
+      // Preserve the pending callback on the restored scheduler.
+      if (scheduled?.taskId) {
+        const { callback } = scheduled;
+        scheduled = undefined;
+        animationFrame(callback);
+      }
+      recoveryTasks.port1.close();
+      recoveryTasks.port2.close();
+    }
   }, { once: true });
 
   const ops = SOCKFS.websocket_sock_ops;

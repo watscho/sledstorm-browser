@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.8.3 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.9.0-dev.1 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -47,6 +47,9 @@ referenced by the CUE. See [disc identification](docs/setup.md#add-the-game-file
 for the tested data track's checksum. The scripts download only emulator
 dependencies. The first build can take time and needs several GB of free space.
 You only need to repeat the build after updating emulator or native adapter code.
+
+For WebGL2 acceleration in dedicated 16:9 races, run
+`python3 tools/prepare-hardware-preview.py` on the host after the build.
 
 ### 2. Start the game
 
@@ -133,10 +136,13 @@ its HTTPS invitation.
 
 ## Settings and session behavior
 
-Choose race aspect ratio, image filtering, volume and **Enhanced 2×** in
-**Display and audio**. Solo PAL races and dedicated personal cameras default to
-**16:9** with **Clean · Sharp Bilinear** filtering. **4:3 · Original** is
-available for races, and menus and shared split-screen stay in 4:3.
+Choose race aspect ratio, draw distance, image filtering, volume and
+**Enhanced 2×** in **Display and audio**. Solo PAL races and dedicated personal
+cameras default to **16:9** with **Clean · Sharp Bilinear** filtering.
+**Draw distance** defaults to **Original**. Higher values set a personal limit
+for extra terrain, which the renderer adjusts to fit the scene's geometry
+budget. **4:3 · Original** is available for races, and menus and shared
+split-screen stay in 4:3.
 The in-game toolbar also offers filter switching, PNG screenshots and
 fullscreen (**Alt+Enter**).
 
@@ -171,10 +177,11 @@ controller inputs and emulator state through RetroArch Netplay.
   shared split-screen and menus use the original frame for upscaling. The HUD
   keeps native rasterization in Enhanced 2×.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
-- **Test coverage.** v0.8.0 checks include a solo PAL race in Chrome with
-  Enhanced 2× in both 4:3 and 16:9. The four-player Cloudflare gameplay check
-  used four browser contexts on one Mac in v0.6.0. Separate computers,
-  physical gamepads and soundtrack quality still need hands-on testing.
+- **Test coverage.** Two- and four-player Pine Valley runs through Cloudflare
+  used separate Chrome contexts on one Apple M1 Mac. All clients agreed on
+  sampled race state. The four-player runs still had presentation gaps.
+  Separate computers, physical gamepads and soundtrack quality still need
+  hands-on testing.
   [Verification record](docs/verification.md)
 
 ## Documentation

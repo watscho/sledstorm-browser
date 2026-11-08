@@ -74,7 +74,7 @@ def main():
     shutil.copyfile(ROOT / CORE['path'] / 'pcsx_rearmed_libretro_emscripten.bc', frontend / 'libretro_emscripten.bc')
     build(['-C', str(frontend), '-f', 'Makefile.emulatorjs', 'HAVE_7ZIP=0', 'HAVE_CHD=0', 'HAVE_THREADS=0',
            'ASYNC=1', 'HAVE_OPENGLES3=1', 'STACK_SIZE=4194304', 'INITIAL_HEAP=536870912',
-           'HAVE_AL=1', 'HAVE_RWEBAUDIO=0', 'TARGET=pcsx_rearmed_libretro.js', '-j4'])
+           'HAVE_AL=1', 'HAVE_RWEBAUDIO=1', 'TARGET=pcsx_rearmed_libretro.js', '-j4'])
     files = {name: hashlib.sha256((frontend / name).read_bytes()).hexdigest()
              for name in ('pcsx_rearmed_libretro.js', 'pcsx_rearmed_libretro.wasm')}
     (ROOT / '.cache/emulator-native-build.json').write_text(json.dumps({'core': CORE, 'frontend': FRONTEND,

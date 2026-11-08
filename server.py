@@ -136,6 +136,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(data)))
+            if (ROOT / 'web/generated/enge-hardware.js').is_file():
+                self.send_header('X-Sled-Hardware-Renderer', 'webgl2')
             # The tunnel helper publishes a capability for this exact runtime.
             # Keep hosting local while invitations use the public HTTPS origin.
             try:
