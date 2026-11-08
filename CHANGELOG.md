@@ -3,6 +3,11 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 0.8.4 - 2026-11-08
+
+- Keep the room invitation when a guest returns to the lobby so they can
+  select **Join game** again.
+
 ## 0.8.3 - 2026-11-08
 
 - Document the tested European PlayStation disc edition, the required CUE and

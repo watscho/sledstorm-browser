@@ -102,8 +102,9 @@ their browser. The next connected player becomes room owner and keeps their
 controller number. Four controller icons below the game light up as the
 players synchronize. Select riders and tracks in the original game menu.
 
-To rejoin a running race, open the invitation again in the same browser at
-the same address and select **Join game**. The browser saves a controller
+Guests can select **Return to lobby** and then **Join game** to rejoin using
+the same invitation. To rejoin after closing the tab, open the invitation
+again in the same browser at the same address. The browser saves a controller
 credential per room. During a race, the server reserves the disconnected
 controller for that credential. In the lobby, a new assignment replaces the
 saved credential. If the host joined on localhost, they can return using

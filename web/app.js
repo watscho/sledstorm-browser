@@ -40,7 +40,10 @@ let roomSynchronized = false;
 let roomMessage = status.textContent;
 let actionNotice = '';
 let noticeTimer;
-const lobby = initLobby(showActionNotice);
+const lobby = initLobby(showActionNotice, () => {
+  if (invitation) location.reload();
+  else location.assign('/');
+});
 const loadRequestId = /^#load=([0-9a-f-]{36})$/.exec(location.hash)?.[1];
 if (loadRequestId) history.replaceState(null, '', location.pathname + location.search);
 try {
