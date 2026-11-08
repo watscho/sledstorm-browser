@@ -66,8 +66,15 @@ and emulator build at the same browser address.
 
 ## Add the game files
 
-Put exactly one PAL SLES-02194 CUE and all eleven referenced BIN tracks in
-`game/`. Keep the original filenames and CUE references. For example:
+The tested edition is **Sled Storm (Europe) (En,Fr,De,Es)** for PlayStation,
+**PAL SLES-02194**. Use a lawfully obtained disc image. The tested first data
+track (Track 01, MODE2/2352) has SHA-1
+`c5506c3eb3601d68d11f2c8754e03a6b06be5f2d`. The launcher uses that checksum
+to identify the PAL data track. The CUE and all eleven BIN tracks are required
+for a complete disc set.
+
+Put exactly one CUE and its referenced BIN files in `game/`. Keep the original
+filenames and CUE references. Example layout:
 
 ```text
 sledstorm-browser/

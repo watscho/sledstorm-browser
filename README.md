@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.8.2 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.8.3 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -40,9 +40,12 @@ python3 tools/build-emulator.py
 mkdir -p game
 ```
 
-Copy your **PAL SLES-02194 CUE file and all eleven BIN tracks** into `game/`.
-Keep their filenames unchanged. The scripts download emulator dependencies,
-not the game. The first build can take time and needs several GB of free space.
+The tested edition is **Sled Storm (Europe) (En,Fr,De,Es)** for PlayStation,
+**PAL SLES-02194**. Supply your own lawfully obtained disc image and copy its
+**CUE file and all eleven BIN tracks** into `game/`. Keep the filenames
+referenced by the CUE. See [disc identification](docs/setup.md#add-the-game-files)
+for the tested data track's checksum. The scripts download only emulator
+dependencies. The first build can take time and needs several GB of free space.
 You only need to repeat the build after updating emulator or native adapter code.
 
 ### 2. Start the game

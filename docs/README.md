@@ -15,7 +15,7 @@
 | Guide | What you will find |
 | --- | --- |
 | [Emulator architecture](browser-emulator.md) | RetroArch Netplay, camera/HUD isolation, local diagnostics and source pins. |
-| [Verification](verification.md) | v0.8.2 checks, current limits and historical gameplay results. |
+| [Verification](verification.md) | Current limits and historical gameplay results. |
 | [Contributing](../CONTRIBUTING.md) | Source conventions, checks and versioning. |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Component attribution and license boundaries. |
 | [Preserved license texts](licenses/README.md) | Scope and origin of the upstream files in `licenses/`. |

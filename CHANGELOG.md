@@ -3,6 +3,11 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 0.8.3 - 2026-11-08
+
+- Document the tested European PlayStation disc edition, the required CUE and
+  eleven BIN tracks, and the SHA-1 checksum of the first data track.
+
 ## 0.8.2 - 2026-11-08
 
 - Remove the experimental static recompilation engine and its build tools.

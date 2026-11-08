@@ -176,7 +176,7 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.8.2
+## Current limits
 
 - The v0.6.0 Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
   computers and networks, sustained sessions and remote latency remain open.
