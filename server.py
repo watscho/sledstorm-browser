@@ -85,9 +85,7 @@ class Handler(SimpleHTTPRequestHandler):
         from urllib.parse import unquote, urlsplit
         route = unquote(urlsplit(path).path)
         special = {'/network-core.data': CACHE / 'emulator-network-core.data',
-                   '/lab-state': CACHE / 'emulator-lab.state',
-                   '/local-disc.js': ROOT / 'research/wasm/local-disc.js',
-                   '/session-client.js': ROOT / 'research/wasm/network-client.js'}
+                   '/lab-state': CACHE / 'emulator-lab.state'}
         if RETROARCH_LAB_TOKEN:
             special.update({
                 '/retroarch-lab': ROOT / 'research/emulator/retroarch-lab.html',

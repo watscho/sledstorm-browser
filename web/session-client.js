@@ -54,7 +54,7 @@ export class BrowserSession {
   }
   connect(identity, invitation, onInvite) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const endpoint = this.endpoint || (location.port === '8001' ? `${protocol}//${location.hostname}:8002` : `${protocol}//${location.host}/relay`);
+    const endpoint = this.endpoint || `${protocol}//${location.host}/relay`;
     this.socket = new WebSocket(endpoint);
     return new Promise((resolve, reject) => {
       this.socket.addEventListener('open', () => {

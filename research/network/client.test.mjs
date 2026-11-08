@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { WebSocket as Socket } from 'ws';
 import { createRelay } from './server.mjs';
-import { BrowserSession } from '../wasm/network-client.js';
+import { BrowserSession } from '../../web/session-client.js';
 
 test('custom keys release after toolbar focus changes and blur; UI keys are not captured',()=>{
   const listeners={};globalThis.window={addEventListener(type,callback){listeners[type]=callback;}};
@@ -20,7 +20,7 @@ test('one live console admits three late peers, preserves CRC phase and four pad
   const relay=createRelay({port:0,inputDelay:8,compactHistory:true,historyBatch:256});await once(relay,'listening');
   const endpoint=`ws://127.0.0.1:${relay.address().port}`;
   globalThis.window={addEventListener(){}};
-  globalThis.location={protocol:'http:',hostname:'127.0.0.1',host:'127.0.0.1:8001',port:'8001'};
+  globalThis.location={protocol:'http:',hostname:'127.0.0.1',host:'127.0.0.1:8000',port:'8000'};
   globalThis.WebSocket=class extends Socket{constructor(){super(endpoint);}};
   const clients=[];const make=()=>{const c=new BrowserSession(()=>{});clients.push(c);return c;};
   const state=t=>t%25===0?((0x81230000+t)>>>0):null;

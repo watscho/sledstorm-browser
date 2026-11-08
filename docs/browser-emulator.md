@@ -117,7 +117,7 @@ coverage is limited to the scenarios in the verification record. Turn
 **Separate cameras** off before starting to use the game's shared screen.
 
 **16:9 · Widescreen** adds a private 684×256 race framebuffer and widens the
-PAL track edge checks identified by [SledStormPSXRecomp](licenses/port-NOTICE.md).
+PAL track edge checks identified by [SledStormPSXRecomp](../THIRD_PARTY_NOTICES.md#image-rendering).
 The projected geometry
 and HUD keep their original scale within the wider frame. The rasterizer reads
 textures from the original VRAM so the added margins can safely overlap texture
@@ -177,7 +177,7 @@ public gateway. Diagnostic restoration is separate from RetroArch's live room sy
 | EmulatorJS frontend assets | [4.2.3 official release](https://github.com/EmulatorJS/EmulatorJS/releases/tag/v4.2.3), SHA-256 in `emulator.lock.json` |
 | PCSX-ReARMed core | [EmulatorJS/pcsx_rearmed](https://github.com/EmulatorJS/pcsx_rearmed/tree/f29871dde1742cafb0ab56ba33636a8600bbbd80) at `f29871dde1742cafb0ab56ba33636a8600bbbd80` |
 | RetroArch browser frontend | [EmulatorJS/RetroArch](https://github.com/EmulatorJS/RetroArch/tree/6dd4353937ef48b6ec0bfbdbb15d1c5992d86927) at `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927` |
-| Emscripten | 6.0.13, isolated SDK checkout pinned in `upstream.lock.json` |
+| Emscripten | 6.0.13, isolated SDK checkout pinned in `emulator.lock.json` |
 
 The bundled core's `STv4 PCSXra f29871d` state header identifies the core source.
 Our anchor-checked build adds native frame gating, a RAM pointer export, a

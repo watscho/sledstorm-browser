@@ -34,15 +34,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--disc-mode', choices=['local', 'shared'], default='shared',
                         help='shared: read the host disc (default); local: each browser selects files')
-    parser.add_argument('--engine', choices=['recompiled', 'emulator'], default='emulator',
-                        help='emulator (default), or the retained recompiled runtime')
     room_mode = parser.add_mutually_exclusive_group()
     room_mode.add_argument('--dedicated', action='store_true', help='Use dedicated rooms (default with a shared disc)')
     room_mode.add_argument('--browser-hosted', action='store_true', help='Run the room in the creator’s browser')
     args = parser.parse_args()
-    supports_dedicated = args.engine == 'emulator' and args.disc_mode == 'shared'
+    supports_dedicated = args.disc_mode == 'shared'
     if args.dedicated and not supports_dedicated:
-        parser.error('--dedicated requires the emulator and shared disc mode')
+        parser.error('--dedicated requires shared disc mode')
     dedicated = supports_dedicated and not args.browser_hosted
     node = shutil.which('node')
     cloudflared = os.environ.get('CLOUDFLARED_BIN') or shutil.which('cloudflared')
@@ -52,16 +50,13 @@ def main():
             cloudflared = str(local)
     if not node or not cloudflared:
         raise RuntimeError('Install Node.js and cloudflared first. See docs/multiplayer.md.')
-    required = ('vendor/emulatorjs/loader.js', '.cache/emulator-native-build.json', 'research/network/node_modules/ws/package.json') if args.engine == 'emulator' else ('.cache/build-web/port/SledStorm_Recompiled.js',
-                 '.cache/build-web/port/SledStorm_Recompiled.wasm',
-                 'research/network/node_modules/ws/package.json')
+    required = ('vendor/emulatorjs/loader.js', '.cache/emulator-native-build.json',
+                'research/network/node_modules/ws/package.json')
     for path in required:
         if not (ROOT / path).is_file():
-            guide = 'docs/browser-emulator.md' if args.engine == 'emulator' else 'docs/setup.md'
-            raise RuntimeError(f'Missing {path}. Complete {guide} first.')
-    runtime_port, relay_port, gateway_port = (8000, 8004, 8005) if args.engine == 'emulator' else (8001, 8002, 8003)
-    netplay_ports = (8006,) if args.engine == 'emulator' else ()
-    for port in (runtime_port, relay_port, gateway_port, *netplay_ports):
+            raise RuntimeError(f'Missing {path}. Complete docs/setup.md first.')
+    runtime_port, relay_port, gateway_port, netplay_port = 8000, 8004, 8005, 8006
+    for port in (runtime_port, relay_port, gateway_port, netplay_port):
         if listening(port):
             raise RuntimeError(f'Port {port} is already in use. Stop the existing local stack first.')
     CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -97,17 +92,13 @@ def main():
 
     try:
         print('Preparing local runtime. The first host-disc launch may take longer.', flush=True)
-        if args.engine == 'emulator':
-            runtime_command = [sys.executable, str(ROOT / 'server.py'), '--disc-mode', args.disc_mode,
-                               '--dedicated' if dedicated else '--browser-hosted']
-        else:
-            runtime_command = [sys.executable, str(ROOT / 'research/serve_port.py')]
+        runtime_command = [sys.executable, str(ROOT / 'server.py'), '--disc-mode', args.disc_mode,
+                           '--dedicated' if dedicated else '--browser-hosted']
         runtime = start('runtime', runtime_command)
-        wait_port(runtime_port, 180 if args.engine == 'emulator' else 20)
+        wait_port(runtime_port, 180)
         wait_port(relay_port)
-        for port in netplay_ports:
-            wait_port(port)
-        gateway_command = [node, str(ROOT / ('research/network/emulator-gateway.mjs' if args.engine == 'emulator' else 'research/network/public-server.mjs')), '--disc-mode', args.disc_mode]
+        wait_port(netplay_port)
+        gateway_command = [node, str(ROOT / 'research/network/emulator-gateway.mjs'), '--disc-mode', args.disc_mode]
         start('gateway', gateway_command)
         wait_port(gateway_port)
         start('tunnel', [cloudflared, 'tunnel', '--url', f'http://127.0.0.1:{gateway_port}', '--no-autoupdate'])
@@ -119,14 +110,13 @@ def main():
             match = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', log)
             # Print only after the connector is registered, not just when a name is assigned.
             if match and 'Registered tunnel connection' in log:
-                access_path = (ROOT / ('.cache/emulator-access.txt' if args.engine == 'emulator' else '.cache/gateway-access.txt')).read_text().strip()
+                access_path = (ROOT / '.cache/emulator-access.txt').read_text().strip()
                 url = match.group(0) + access_path
                 with private_file(link_file) as output:
                     output.write(url + '\n')
-                if args.engine == 'emulator':
-                    with private_file(public_file) as output:
-                        json.dump({'runtimePid': runtime.pid, 'origin': match.group(0), 'path': access_path}, output)
-                    print('\nHost launcher: http://127.0.0.1:8000/\nInvitations automatically use the private internet URL.', flush=True)
+                with private_file(public_file) as output:
+                    json.dump({'runtimePid': runtime.pid, 'origin': match.group(0), 'path': access_path}, output)
+                print('\nHost launcher: http://127.0.0.1:8000/\nInvitations automatically use the private internet URL.', flush=True)
                 print(f'\nPrivate HTTPS launcher:\n{url}\n', flush=True)
                 if args.disc_mode == 'shared':
                     print('Host disc mode: browsers read the host disc; no file selection is required.', flush=True)

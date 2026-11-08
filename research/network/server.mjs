@@ -1,10 +1,9 @@
 // One deterministic console per random capability URL. Only controller history,
 // never disc bytes or guest memory, is retained for late-joining browsers.
 import {randomBytes,timingSafeEqual} from 'node:crypto';
-import {pathToFileURL} from 'node:url';
 import {WebSocket,WebSocketServer} from 'ws';
 import {FrameHistory} from './frame-history.mjs';
-export function createRelay({port=8002,host='127.0.0.1',inputDelay=8,maxHistoryFrames=900000,checkpoints=false,historyBatch=8,compactHistory=false,origins=['http://127.0.0.1:8001','http://localhost:8001']}={}) {
+export function createRelay({port=8004,host='127.0.0.1',inputDelay=8,maxHistoryFrames=900000,checkpoints=false,historyBatch=8,compactHistory=false,origins=['http://127.0.0.1:8000','http://localhost:8000']}={}) {
   if(!Number.isInteger(inputDelay)||inputDelay<0||inputDelay>8)throw new Error('Invalid input delay');
   const server=new WebSocketServer({port,host,maxPayload:checkpoints?8*1024*1024:2048,perMessageDeflate:false}),rooms=new Map();
   const checkpointCatchupLimit = 750;
@@ -161,4 +160,3 @@ export function createRelay({port=8002,host='127.0.0.1',inputDelay=8,maxHistoryF
     });
   });return server;
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const server=createRelay();server.on('listening',()=>console.log('Console session relay: ws://127.0.0.1:8002'));}

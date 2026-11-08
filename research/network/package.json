@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test relay.test.mjs gateway.test.mjs client.test.mjs emulator-session.test.mjs frame-history.test.mjs retroarch-relay.test.mjs",
-    "start": "node server.mjs"
+    "start": "node emulator-relay.mjs"
   },
   "dependencies": {
     "ws": "8.22.1"

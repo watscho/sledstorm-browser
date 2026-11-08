@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1050" viewBox="0 0 1680 1050" role="img" aria-label="Illustrated snowy mountains">
-<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#203e4e"/><stop offset="1" stop-color="#9ab6ba"/></linearGradient><linearGradient id="snow" x2="1" y2="1"><stop stop-color="#e4ecea"/><stop offset="1" stop-color="#70949e"/></linearGradient></defs>
-<path fill="url(#sky)" d="M0 0h1680v1050H0z"/><circle fill="#dce9df" opacity=".7" cx="1280" cy="190" r="70"/>
-<path fill="#547784" d="M0 650 370 160 660 530 1020 220 1680 730v320H0z"/>
-<path fill="#becfce" d="m160 435 210-275 190 244-181-85-55 110-48-65zm638-19 222-196 247 191-223-89-89 106-51-56z"/>
-<path fill="url(#snow)" d="M0 820 475 540 950 870 1400 540 1680 700v350H0z"/>
-<path fill="#d4e0dd" opacity=".7" d="m0 970 475-430-170 380 645-50-300 180H0zm980 80 420-510-155 390 435-230v350z"/>
-<path fill="none" stroke="#f2f3e6" opacity=".45" stroke-width="4" d="M580 1050c110-180 285-105 300-205s-120-165-100-245"/>
-</svg>

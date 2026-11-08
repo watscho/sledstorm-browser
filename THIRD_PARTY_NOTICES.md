@@ -31,6 +31,13 @@ source-distribution obligations when distributing compiled components.
 
 ## Image rendering
 
+The browser emulator's 16:9 race view uses four PAL track-renderer addresses
+documented by PeriBluGaming's SledStormPSXRecomp. The PCSX-ReARMed adapter uses
+those addresses to keep track geometry visible in the added side margins.
+See the [emulator architecture](docs/browser-emulator.md#cameras-progression-and-technical-settings)
+and the [pinned widescreen source](https://github.com/PeriBluGaming/SledStormPSXRecomp/blob/2abf4ec86baf7f98629da09017bf4d978772ebb4/mods/src/widescreen.c).
+The upstream widescreen mod carries its own [PolyForm Noncommercial 1.0.0 license](docs/licenses/port-LICENSE.txt).
+
 **Enhanced 2×** uses the pinned [PCSX-ReARMed enhancement rasterizer](https://github.com/EmulatorJS/pcsx_rearmed/tree/f29871dde1742cafb0ab56ba33636a8600bbbd80/plugins/gpu_neon).
 The adapter in `research/emulator/sled-enhanced.c` includes the upstream
 rasterizer and is available under GPL-2.0-or-later. The upstream source keeps
@@ -73,25 +80,6 @@ PCSX-ReARMed snapshots stored in IndexedDB. Controller remapping uses the
 browser's Gamepad API. Clean and CRT Lottes use Libretro shaders, and Enhanced
 2× uses the PCSX-ReARMed rasterizer. See [image rendering](#image-rendering).
 
-## Optional recompiled engine components
-
-The explicit `--engine recompiled` option has its own source/build dependencies
-in [upstream.lock.json](upstream.lock.json). These notices apply to that option
-and its integration tooling; they are not dependencies of the emulator build.
-
-| Source | Pinned revision | Use and terms |
-| --- | --- | --- |
-| [PeriBluGaming/SledStormPSXRecomp](https://github.com/PeriBluGaming/SledStormPSXRecomp/tree/2abf4ec86baf7f98629da09017bf4d978772ebb4) | `2abf4ec86baf7f98629da09017bf4d978772ebb4` | PAL generated C/scaffold, configuration, widescreen integration and framework patches. Mixed provenance; author's contributions use PolyForm Noncommercial 1.0.0. Preserve [LICENSE](docs/licenses/port-LICENSE.txt) and [NOTICE](docs/licenses/port-NOTICE.md). Generated game code is outside that grant. |
-| [mstan/psxrecomp](https://github.com/mstan/psxrecomp/tree/c1f5cafd4102daa57b7342bec7c432aaca8981ce) | `c1f5cafd4102daa57b7342bec7c432aaca8981ce` | Recompiled runtime and interfaces. [PolyForm Noncommercial 1.0.0](docs/licenses/psxrecomp-LICENSE.txt); internal components retain their terms. |
-| [PCSX-Redux OpenBIOS](https://github.com/grumpycoders/pcsx-redux/tree/55fbf0468345acfbe5512628a3be5c0cfe3f22e7/src/mips/openbios) | `55fbf0468345acfbe5512628a3be5c0cfe3f22e7` | Framework OpenBIOS binary. MIT, Copyright (c) 2019 PCSX-Redux authors; includes permissive [uC-sdk](https://github.com/grumpycoders/uC-sdk/tree/69e06871824e2d62069487a7426ded09090ceb69) components. Preserve [OpenBIOS notice](docs/licenses/OpenBIOS-LICENSE.txt) and component notices. |
-| [SDL2](https://github.com/libsdl-org/SDL), [zlib](https://github.com/madler/zlib), [libwebp](https://github.com/webmproject/libwebp) | SDL2/zlib selected by pinned Emscripten; libwebp pinned by framework `third_party/deps.manifest` | Platform and image support. SDL2/zlib: zlib licenses; libwebp: BSD-style license and PATENTS. Source packages carry full notices. |
-
-That option's local build/inspection tools include CMake 4.4.4 (BSD 3-Clause),
-Ninja 1.13.2 (Apache 2.0) and Capstone 5.0.9 (BSD-style). Its anchor-checked
-integration generator writes derived source into `.cache/`; generated output
-is not covered wholesale by the wrapper's MIT license. Additional component
-notices are supplied by the pinned source distributions.
-
 ## Cover image
 
 `docs/images/sled-storm-pal-cover.jpg` and its launcher copy
@@ -114,8 +102,7 @@ outside the wrapper's MIT license.
 
 Sled Storm game code, graphics, music, disc contents and trademarks belong to
 their respective rights holders. This repository grants no rights to those
-works. The optional upstream port also excludes generated game C and the
-compiled game from its license grant.
+works.
 
 Keep disc images, BIOS, generated game code, compiled JS/Wasm, memory cards and
 private invitation/access tokens out of Git. Hosting or distributing game

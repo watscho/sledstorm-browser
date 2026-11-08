@@ -1,7 +1,12 @@
 # Changelog
 
 All notable changes to this browser wrapper are recorded here. Versions use
-semantic versioning and do not refer to the original game or upstream port.
+semantic versioning for the browser wrapper.
+
+## Unreleased
+
+- Remove the experimental static recompilation engine and its build tools.
+  The browser launcher uses PCSX-ReARMed and RetroArch Netplay.
 
 ## 0.8.1 - 2026-11-08
 
@@ -180,8 +185,8 @@ semantic versioning and do not refer to the original game or upstream port.
 
 ### Changed
 
-- The default tunnel helper now uses the emulator and shared host disc.
-  The previous runtime is available via `--engine recompiled`.
+- Made the emulator and shared host disc the defaults for the tunnel helper.
+  This version still offered the previous runtime as an optional engine.
 - Rewrote the primary README/setup flow around the emulator; retained earlier
   build and rendering documentation as explicitly marked legacy guides.
 
