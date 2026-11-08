@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.8.1 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.8.2 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one

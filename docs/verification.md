@@ -1,5 +1,17 @@
 # Verification and known limits
 
+## v0.8.2 checks — 2026-11-08
+
+- 22 browser-module tests, 17 network tests and three HTTP handler tests passed.
+- The default local launcher started a dedicated room in Chrome. A solo
+  quick race loaded from the original game menu, and the sled responded
+  to keyboard input.
+- The online launcher created a Cloudflare Quick Tunnel. A second Chrome
+  context opened the link from **Copy invite link**, downloaded the full shared
+  disc without saving it, and synchronized as controller 2. Both players
+  started Pine Valley, received personal camera views and moved their own sled
+  using the default keyboard controls. Both contexts ran on one Mac.
+
 ## v0.8.1 release checks — 2026-11-08
 
 - 22 browser-module tests, 19 network tests, three HTTP handler tests and
@@ -164,7 +176,7 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.8.1
+## Current limits for v0.8.2
 
 - The v0.6.0 Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
   computers and networks, sustained sessions and remote latency remain open.

@@ -56,10 +56,11 @@ original contribution licensing separate from derived output.
 ## Versions and changelog
 
 Use semantic versions for this wrapper, independently of the game and upstream
-components. Keep `VERSION`, `research/network/package.json` and its lockfile
+components. Bump the wrapper version before every push to `main`, including
+documentation changes. Keep `VERSION`, `research/network/package.json` and its lockfile
 root/package versions in sync with the release labels in `README.md` and
 `web/index.html`, including the launcher script's version parameter. Record
-changes in `CHANGELOG.md` with an ISO release date and use Unreleased while
-working. Never record private tunnel domains,
+changes in `CHANGELOG.md` with an ISO date and use Unreleased while working.
+Never record private tunnel domains,
 access tokens, disc paths or invitation fragments. Distinguish an internet-path
 check on one computer from a test with players on separate remote computers.

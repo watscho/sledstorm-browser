@@ -3,7 +3,7 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
-## Unreleased
+## 0.8.2 - 2026-11-08
 
 - Remove the experimental static recompilation engine and its build tools.
   The browser launcher uses PCSX-ReARMed and RetroArch Netplay.
