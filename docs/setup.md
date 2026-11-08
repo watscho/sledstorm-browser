@@ -59,10 +59,10 @@ python3 tools/bootstrap-emulator.py
 python3 tools/build-emulator.py
 ```
 
-Start the hosting helper again and send a fresh invitation so everyone loads
-the same build. Reload the launcher and start a new room to use the v0.8.0
-graphics changes. Solo saves are matched to the disc, BIOS and emulator
-build at the same browser address.
+Start the launcher again and create a new room. If playing online, send a
+fresh invitation so everyone loads the same build. The v0.8.1 respawn fade
+fix requires the rebuilt emulator. Solo saves are matched to the disc, BIOS
+and emulator build at the same browser address.
 
 ## Add the game files
 
@@ -96,15 +96,16 @@ Open [the launcher](http://127.0.0.1:8000/) after **Host launcher** appears.
 Click **Start game**, then **Copy invite link**. Follow the
 [friends guide](multiplayer.md) for the native multiplayer menus.
 
-For play only on this computer:
+For dedicated play on this computer, with Chrome installed:
 
 ```sh
 python3 server.py
 ```
 
-Open the same localhost address. This starts the runtime and relay without an
-internet tunnel. Its invitations work only on this computer.
-Add `--dedicated` to test controller indicators and controller recovery locally.
+Open the same localhost address. Rooms run in a separate headless Chrome
+instance. Without an internet tunnel, invitations work only on this computer.
+Use `python3 server.py --browser-hosted` to host the room in the creator's
+browser without starting a separate Chrome instance.
 
 > [!TIP]
 > **Stop:** press **Ctrl+C** in the terminal that started hosting. The online
@@ -143,10 +144,11 @@ browser-hosted rooms. The creator's tab must stay open.
 | Missing BIN or disc mismatch | Keep every referenced track, preserve names, and use matching PAL files. |
 | Port already in use | Press Ctrl+C in the terminal running the existing server before starting another. |
 | cloudflared not found | Install it, or set `CLOUDFLARED_BIN` to its executable path. |
-| Chrome not found for dedicated hosting | Install Chrome on the host, or set `SLED_CHROME_BIN` to its executable path. |
+| Chrome not found for dedicated hosting | Install Chrome, set `SLED_CHROME_BIN` to its executable path, or launch with `--browser-hosted`. |
 | Friend cannot open the invitation | Copy the complete generated HTTPS invitation, keep hosting running, and check internet access. |
 | This room is no longer available | Copy a fresh invitation from the host's running game. A previous room link stops working when that room expires or the server restarts. |
 | Invitation begins with 127.0.0.1 | Start the online helper, wait for its tunnel, then start a fresh game and copy its invitation. |
+| Copy invite link says the Cloudflare Tunnel is inactive | Stop the local server with **Ctrl+C** and run `python3 tools/play-online.py`. Wait for **Host launcher**, then start a room and copy its invitation. |
 | Slow first join | Wait for the game data download to finish. **Synchronizing with the room** appears once RetroArch starts receiving the current game state. |
 | Guest joins the room but has no rider | Register that controller in the game's multiplayer menu before starting a new race. Rejoining a live race uses an existing racer. |
 | Browser-hosted room waiting for a player | Bring the affected game window back to the foreground. If the connection closed, guests can reopen the invitation. Local-file guests select their files again. |

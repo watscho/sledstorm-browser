@@ -91,7 +91,7 @@ invitation. See [solo sessions](browser-lobby.md#solo-sessions).
 ## Dedicated rooms
 
 Install Chrome on the machine serving the game. Start the local launcher with
-`python3 server.py --dedicated`, or use `python3 tools/play-online.py`
+`python3 server.py`, or use `python3 tools/play-online.py`
 to make invitations available through the private tunnel. On systems where the
 launcher cannot locate Chrome, set `SLED_CHROME_BIN` to its executable path.
 Dedicated rooms use shared-disc mode and the built-in BIOS.

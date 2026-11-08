@@ -3,6 +3,14 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning and do not refer to the original game or upstream port.
 
+## 0.8.1 - 2026-11-08
+
+- Default to dedicated rooms in the localhost launcher when using a shared
+  disc. Use `--browser-hosted` to run the room in the creator's browser without
+  a separate Chrome instance. Local disc selection still uses browser hosting.
+- Extend the stock respawn fade across the full 16:9 race view at both 1× and
+  Enhanced 2×. The HUD stays visible during the fade.
+
 ## 0.8.0 - 2026-11-08
 
 ### Graphics

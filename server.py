@@ -209,18 +209,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--disc-mode', choices=['shared', 'local'], default='shared')
     parser.add_argument('--retroarch-lab', action='store_true', help='Enable the loopback RetroArch Netplay lab')
-    parser.add_argument('--dedicated', action='store_true', help='Run rooms in server-owned headless Chrome')
+    room_mode = parser.add_mutually_exclusive_group()
+    room_mode.add_argument('--dedicated', action='store_true',
+                           help='Run rooms in server-owned headless Chrome (default with a shared disc)')
+    room_mode.add_argument('--browser-hosted', action='store_true', help='Run rooms in the creator’s browser')
     args = parser.parse_args()
     DISC_MODE = args.disc_mode
+    if args.dedicated and DISC_MODE != 'shared':
+        parser.error('--dedicated requires shared disc mode')
     chrome = None
-    if args.dedicated:
-        if DISC_MODE != 'shared':
-            parser.error('--dedicated requires shared disc mode')
+    if DISC_MODE == 'shared' and not args.browser_hosted:
         mac_chrome = Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
         chrome = (os.environ.get('SLED_CHROME_BIN') or shutil.which('google-chrome') or
                   shutil.which('chromium') or (str(mac_chrome) if mac_chrome.is_file() else None))
         if not chrome or not os.access(chrome, os.X_OK):
-            parser.error('Install Chrome or set SLED_CHROME_BIN to an executable path')
+            parser.error('Install Chrome, set SLED_CHROME_BIN, or use --browser-hosted')
     if args.retroarch_lab and DISC_MODE != 'shared':
         parser.error('--retroarch-lab requires shared disc mode')
     CACHE.mkdir(exist_ok=True)

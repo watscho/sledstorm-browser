@@ -97,7 +97,12 @@ def main():
 
     try:
         print('Preparing local runtime. The first host-disc launch may take longer.', flush=True)
-        runtime = start('runtime', [sys.executable, str(ROOT / ('server.py' if args.engine == 'emulator' else 'research/serve_port.py')), *(['--disc-mode', args.disc_mode] if args.engine == 'emulator' else []), *(['--dedicated'] if dedicated else [])])
+        if args.engine == 'emulator':
+            runtime_command = [sys.executable, str(ROOT / 'server.py'), '--disc-mode', args.disc_mode,
+                               '--dedicated' if dedicated else '--browser-hosted']
+        else:
+            runtime_command = [sys.executable, str(ROOT / 'research/serve_port.py')]
+        runtime = start('runtime', runtime_command)
         wait_port(runtime_port, 180 if args.engine == 'emulator' else 20)
         wait_port(relay_port)
         for port in netplay_ports:

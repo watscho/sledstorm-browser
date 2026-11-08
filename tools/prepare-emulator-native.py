@@ -153,7 +153,7 @@ bool sled_unserialize_checkpoint(const void *data, size_t size)
 	     pc == 0x80053e68u || pc == 0x8004a41cu || pc == 0x8004c700u ||
 	     pc == 0x8004ac84u || pc == 0x80051e38u || pc == 0x80051af0u ||
 	     pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu ||
-	     pc == 0x80060decu || pc == 0x8006126cu ||
+	     pc == 0x80051680u || pc == 0x80060decu || pc == 0x8006126cu ||
 	     pc == 0x8007ec9cu || pc == 0x8007f2c0u || pc == 0x8007f8c4u ||
 	     pc == 0x8007fe7cu) &&
 	    sled_view_pc(regs))

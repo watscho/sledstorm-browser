@@ -15,6 +15,7 @@ static const uint16_t *wide_frame;
 static const uint16_t *wide_enhanced_frame;
 static int wide_pending, wide_world, wide_cull;
 static int32_t primitive_budget;
+static unsigned respawn_fade_quad;
 static uint16_t hud_background[SLED_WIDE_WIDTH * 256];
 const uint16_t *sled_view_enhanced_frame(void) { return enhanced_frame; }
 const uint16_t *sled_view_wide_frame(void) { return wide_frame; }
@@ -142,6 +143,9 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
   psxRegs = render_regs;
   sled_view_transaction = 2;
   sled_view_hardware_access = 0;
+#ifdef __EMSCRIPTEN__
+  respawn_fade_quad = 0;
+#endif
   const unsigned camera = ram32(selected + 0x220), context = ram32(0x800c3cb8);
   const unsigned rank = ram32(gp + 0x1ff0);
   native_error = 1;
@@ -191,6 +195,18 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
        * separately at native resolution, using the original frame's packets. */
       native_packets = walk_ordering_table(head, &native_cursor, solo_render ? SKIP_HUD : KEEP_HUD);
       if (!(enabled & 8) && (native_cursor & 0x800000) && native_packets > 4) {
+#ifdef __EMSCRIPTEN__
+        /* A budget fallback clears and redraws only the center. Leave its
+         * first fade at stock width so the side margins blend only once. */
+        if (respawn_fade_quad && (!wide_cull || primitive_budget > 0)) {
+          const uint16_t left = (uint16_t)-SLED_WIDE_MARGIN;
+          const uint16_t right = 512 + SLED_WIDE_MARGIN;
+          set_half(respawn_fade_quad + 8, left);
+          set_half(respawn_fade_quad + 12, right);
+          set_half(respawn_fade_quad + 16, left);
+          set_half(respawn_fade_quad + 20, right);
+        }
+#endif
         for (unsigned y = base_y; y < base_y + 256; ++y)
           memset(private_vram + y * 1024 + clear_start, 0, clear_width * sizeof(*private_vram));
         gpu.ex_regs[3] = 0xe3000000u | (base_y << 10);
@@ -255,6 +271,8 @@ int sled_view_pc(psxRegisters *regs) {
     }
     if (native_single_view) {
 #ifdef __EMSCRIPTEN__
+      /* PAL has just filled the corners of its respawn fade quad. */
+      if (wide_world && regs->pc == 0x80051680) respawn_fade_quad = regs->GPR.n.v0;
       /* PAL track edge checks documented by SledStormPSXRecomp. Only the
        * private render may retain triangles inside the added side margins. */
       if (wide_world && wide_cull && (regs->pc == 0x8007ec9c || regs->pc == 0x8007f2c0 ||

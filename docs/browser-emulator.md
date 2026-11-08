@@ -125,6 +125,9 @@ pages in the private buffer. A crowded frame can require a second render pass
 to preserve the racers when the PAL primitive pool fills up. A room can mix
 4:3 and 16:9 clients. Enhanced 2× draws the wide scene in two tiles and
 combines them into a 1368×512 framebuffer.
+During a respawn, the adapter extends the original blended fade to the full
+wide framebuffer before compositing the HUD. If the primitive pool requires
+a second pass, the added margins receive the fade once.
 
 **All content unlocked** applies the audited PAL progress preset to initialized
 menu RAM on every peer. It leaves disc and persistent memory cards untouched.
@@ -205,6 +208,6 @@ real game, audio or internet checks.
 
 ### RetroArch Netplay lab
 
-`python3 server.py --retroarch-lab` also enables the standalone two-player
+`python3 server.py --browser-hosted --retroarch-lab` also enables the standalone two-player
 diagnostic at `/retroarch-lab` in shared-disc mode. It isolates the WebSocket
 adapter from the lobby. For ordinary play, use the root launcher and **Copy invite link**.

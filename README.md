@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.8.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.8.1 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -120,13 +120,13 @@ from the current race state once their game files load.
 | Dedicated internet room with persistent controller slots | `python3 tools/play-online.py` |
 | Internet play hosted by the creator's browser | `python3 tools/play-online.py --browser-hosted` |
 | Internet play; each player selects matching CUE/BIN files | `python3 tools/play-online.py --disc-mode local` |
-| Play only on this computer, without a tunnel | `python3 server.py` |
-| Test a dedicated room locally | `python3 server.py --dedicated` |
+| Play locally in a dedicated room, without a tunnel | `python3 server.py` |
+| Play locally with the room hosted in the creator's browser | `python3 server.py --browser-hosted` |
 
 Run only one hosting command at a time. Stop it with **Ctrl+C** before changing
-modes. For local-only play, use the same localhost address; its invitation only
-works on that computer. Two computers on the same Wi-Fi can use the internet
-mode and its HTTPS invitation.
+modes. Use the localhost address for local-only play. To invite another
+computer, including one on the same Wi-Fi, use the online launcher and copy
+its HTTPS invitation.
 
 ## Settings and session behavior
 

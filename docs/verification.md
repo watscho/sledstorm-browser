@@ -1,5 +1,17 @@
 # Verification and known limits
 
+## v0.8.1 release checks — 2026-11-08
+
+- 22 browser-module tests, 19 network tests, three HTTP handler tests and
+  Python syntax checks passed.
+- Local startup checks verified the default dedicated shared-disc mode,
+  explicit `--dedicated`, `--browser-hosted` and browser-hosted local-disc mode.
+  The launcher rejected incompatible flag combinations.
+- The native core was rebuilt and its presentation isolation checks passed.
+  Chrome compared the same solo PAL race fixture with the stock respawn fade
+  forced active. The bright side margins disappeared in both 1× and Enhanced
+  2× at 16:9, while the HUD stayed visible.
+
 ## v0.8.0 release checks — 2026-11-08
 
 - 22 browser-module tests, 19 network tests, three HTTP handler tests, Python
@@ -152,7 +164,7 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.8.0
+## Current limits for v0.8.1
 
 - The v0.6.0 Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
   computers and networks, sustained sessions and remote latency remain open.
