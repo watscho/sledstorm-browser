@@ -61,6 +61,18 @@ license and component notices.
 under Apache License 2.0. It provides temporary HTTPS access and is not vendored
 or compiled into the emulator. Its distribution carries its own notices.
 
+## Interface inspiration
+
+OpenEmu served as a design reference for the in-game toolbar and shortcuts,
+quick save and load, automatic solo snapshots, and press-to-bind controller
+remapping. See the [OpenEmu save state guide](https://github.com/OpenEmu/OpenEmu/wiki/User-guide%3A-Save-states)
+and [controls guide](https://github.com/OpenEmu/OpenEmu/wiki/User-guide%3A-Preferences%3A-Controls).
+
+The browser launcher implements these workflows locally. Saves use
+PCSX-ReARMed snapshots stored in IndexedDB. Controller remapping uses the
+browser's Gamepad API. Clean and CRT Lottes use Libretro shaders, and Enhanced
+2× uses the PCSX-ReARMed rasterizer. See [image rendering](#image-rendering).
+
 ## Optional recompiled engine components
 
 The explicit `--engine recompiled` option has its own source/build dependencies

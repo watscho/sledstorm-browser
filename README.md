@@ -193,6 +193,9 @@ Built with [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS),
 [RetroArch](https://github.com/EmulatorJS/RetroArch). Exact versions and source
 commits are documented in [third-party notices](THIRD_PARTY_NOTICES.md).
 
+OpenEmu inspired the in-game shortcuts, solo save workflow and controller
+remapping. See the [design credit and implementation sources](THIRD_PARTY_NOTICES.md#interface-inspiration).
+
 Original wrapper, networking and tooling contributions are **MIT**, copyright
 **Vacho Aivazov**. Upstream components retain their own licenses. Game images,
 BIOS, compiled emulator binaries, memory cards and private invitations are
