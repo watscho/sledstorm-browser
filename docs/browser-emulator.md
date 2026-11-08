@@ -74,6 +74,18 @@ and render buffers. The adapter restores the canonical multiplayer state before
 the next console step. The GPU replay path serves as a fallback if a native
 render pass fails. Pause menus bypass the private pass.
 
+**Enhanced 2×** is a personal launch setting. Solo PAL races and supported
+personal cameras use the PCSX-ReARMed enhancement rasterizer with private VRAM
+and the original game textures. It produces 1024×512 in 4:3 and 1368×512 in
+16:9. The HUD uses the stock rasterizer, and its pixels are composited over
+the higher-resolution 3D scene. Menus, shared split-screen and fallback views
+upscale the finished frame without changing the emulated GPU state.
+
+In solo races, the adapter captures the original HUD packets from the game's
+ordering-table submission. It removes those packets from the private world
+pass and draws them once at native resolution. This preserves the original
+award timing and avoids drawing a second HUD over the minimap and points.
+
 Browser-hosted rooms use the GPU replay path. The adapter replays the selected
 player's geometry into private VRAM. Two-player panes gain a wider clip;
 three/four-player geometry is rerasterized at full viewport size, preserving
@@ -81,8 +93,9 @@ texture coordinates. It does not stretch a framebuffer crop. The PAL right
 pane starts at X=258, and the lower panes start at Y=129; both native divider
 margins are accounted for.
 
-The original single-player HUD routine runs once for the local racer in an
-isolated presentation pass. Four complete HUDs would overflow the game's
+For a multiplayer personal camera, the original single-player HUD routine
+runs once for the local racer in an isolated presentation pass. Four complete
+HUDs would overflow the game's
 256-slot UI pool. Instead, the adapter uses a private ordering table, freezes
 hardware event dispatch during that audited UI routine, then restores all
 interpreter registers, console RAM and instruction-cache contents before
@@ -102,6 +115,16 @@ Pause menus retain native 4:3 presentation. The world and asset selection
 still use the game's multiplayer session. Course, weather and race-phase
 coverage is limited to the scenarios in the verification record. Turn
 **Separate cameras** off before starting to use the game's shared screen.
+
+**16:9 · Widescreen** adds a private 684×256 race framebuffer and widens the
+PAL track edge checks identified by [SledStormPSXRecomp](licenses/port-NOTICE.md).
+The projected geometry
+and HUD keep their original scale within the wider frame. The rasterizer reads
+textures from the original VRAM so the added margins can safely overlap texture
+pages in the private buffer. A crowded frame can require a second render pass
+to preserve the racers when the PAL primitive pool fills up. A room can mix
+4:3 and 16:9 clients. Enhanced 2× draws the wide scene in two tiles and
+combines them into a 1368×512 framebuffer.
 
 **All content unlocked** applies the audited PAL progress preset to initialized
 menu RAM on every peer. It leaves disc and persistent memory cards untouched.
@@ -161,8 +184,9 @@ header on macOS. The generated build manifest records output hashes and source
 pins. The prepared core archive retains upstream metadata and notices.
 
 The official asset installation remains unchanged under ignored `vendor/`;
-patched source and generated binaries stay under ignored `.cache/`. `?solo=1`
-starts an independent console for diagnostics. Rooms use RetroArch Netplay over the wrapper's WebSocket relay. Our MIT wrapper and the emulator's
+patched source and generated binaries stay under ignored `.cache/`. Rooms use
+RetroArch Netplay over the wrapper's WebSocket relay. Continuing a solo save
+seeds the room's authoritative emulator before peers synchronize. Our MIT wrapper and the emulator's
 GPL/component terms remain separate; see
 [third-party notices](../THIRD_PARTY_NOTICES.md).
 

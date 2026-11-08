@@ -14,7 +14,8 @@ R3000Acpu *psxCpu;
 psxRegisters psxRegs;
 static unsigned calls, offset, first_xy, hud_draws, fail_guest;
 static int check_award;
-static uint32_t expected_award;
+static uint32_t expected_award, expected_ticks;
+static int expected_award_quad;
 static uint16_t canonical_vram[1024 * 512];
 static unsigned cache_saved;
 void sled_view_cache_save(int restore) {
@@ -24,7 +25,14 @@ void sled_view_cache_save(int restore) {
 void sled_renderer_set_vram(void *pointer) { assert(pointer == gpu.vram); }
 void renderer_sync_ecmds(uint32_t *env) { memcpy(gpu.ex_regs, env, sizeof(gpu.ex_regs)); }
 int do_cmd_list(uint32_t *words, int count, int *sum, int *cycles, int *command) {
-  if (count == 9) { assert(words[0] == 0x2c808080); hud_draws++; return count; }
+  if (count == 9) {
+    assert(words[0] == 0x2c808080);
+    assert((uint16_t)words[1] == (expected_award_quad ? 241 : 120));
+    assert((uint16_t)words[3] == (expected_award_quad ? 271 : 150));
+    assert(words[1] >> 16 == 50);
+    hud_draws++;
+    return count;
+  }
   assert(count == 4 && words[0] == 0x200000ff);
   calls++; offset = gpu.ex_regs[5] & 2047;
   first_xy = words[1];
@@ -45,15 +53,30 @@ static unsigned read_word(unsigned address) { unsigned value; memcpy(&value, psx
 static void simulate_hud(psxRegisters *regs, enum blockExecCaller caller) {
   assert(sled_view_transaction && regs->GPR.n.gp == 0x800c1f18);
   assert(regs->GPR.n.sp == 0x801ff000 && !(regs->CP0.n.SR & 1));
-  if (check_award) assert(read_word(0x800dae20 + 0x514) == expected_award);
+  if (check_award) {
+    assert(read_word(0x800dae20 + 0x514) == expected_award);
+    assert(read_word(0x800e3928) == expected_ticks);
+  }
   regs->cycle += 1234; regs->interrupt ^= 123;
   psxM[42] = 99;
   if (fail_guest) return;
   unsigned table = read_word(0x800c1f58), head = read_word(0x800c3cb8) + 0x70 + 7 * 4;
+  if (expected_award_quad) {
+    regs->pc = 0x80060dec;
+    assert(!sled_view_pc(regs));
+  }
   word(table, (9 << 24) | (read_word(head) & 0xffffff));
   word(table + 4, 0x2c808080);
+  word(table + 8, 120 | 50 << 16);
+  word(table + 16, 150 | 50 << 16);
+  word(table + 24, 120 | 65 << 16);
+  word(table + 32, 150 | 65 << 16);
   word(head, table & 0xffffff);
   word(0x800c1f18 + 0x205a, 1);
+  if (expected_award_quad) {
+    regs->pc = 0x8006126c;
+    assert(!sled_view_pc(regs));
+  }
   regs->pc = regs->GPR.n.ra;
 }
 static void pane(unsigned x, unsigned right, unsigned y, unsigned bottom) {
@@ -117,12 +140,15 @@ int main(void) {
     word(award + 2 * 0x530, frame ? UINT32_MAX : 100);
     sled_view_configure(2, 3);
     sled_view_begin();
+    expected_award = frame ? UINT32_MAX : 100;
+    expected_ticks = read_word(timer + 8);
+    expected_award_quad = !frame || expected_ticks;
     psxRegs.pc = 0x800650fc;
     psxRegs.GPR.n.ra = 0x8006c7b0;
     assert(sled_view_pc(&psxRegs));
     assert(read_word(timer) == 0);
-    assert(read_word(timer + 8) == (frame < 3 ? 20 : 22 - frame));
-    expected_award = frame == 22 ? UINT32_MAX : frame < 3 ? (frame + 1) * 25 : 100;
+    assert(read_word(timer + 8) == (frame < 3 ? 19 : frame < 21 ? 21 - frame : 0));
+    assert((read_word(0x800c2f88 + 4) & 0xffff) == (frame < 3 ? (frame + 1) * 25 : 100));
     memcpy(saved_ram, psxM, 0x200000);
     pane(0, 255, 128, 255);
     sled_view_present();
@@ -132,6 +158,7 @@ int main(void) {
     if (!frame) {
       const unsigned previous_draws = hud_draws;
       expected_award = UINT32_MAX;
+      expected_ticks = expected_award_quad = 0;
       sled_view_configure(0, 3);
       pane(0, 255, 0, 127);
       sled_view_present();

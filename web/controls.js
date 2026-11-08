@@ -40,3 +40,13 @@ export function keyLabel(code) {
 export function presetFor(bindings) {
   return [ ['classic', CLASSIC], ['wasd', WASD] ].find(([, preset]) => BUTTONS.every(([id]) => bindings[id] === preset[id]))?.[0] || 'custom';
 }
+
+export function restoreKeyboardProfile(saved) {
+  const bindings = normalizeBindings(saved?.bindings);
+  const legacyPreset = presetFor(bindings);
+  const preset = ['classic', 'wasd', 'custom'].includes(saved?.preset) ? saved.preset : legacyPreset;
+  const customBindings = saved?.customBindings
+    ? normalizeBindings(saved.customBindings)
+    : preset === 'custom' ? bindings : null;
+  return { preset, customBindings, bindings: preset === 'custom' ? customBindings : preset === 'wasd' ? WASD : CLASSIC };
+}

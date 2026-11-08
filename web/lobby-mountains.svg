@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#142741"/><stop offset=".57" stop-color="#233e59"/><stop offset="1" stop-color="#0c1528"/>
+    </linearGradient>
+    <linearGradient id="ice" x1="950" y1="170" x2="1060" y2="610" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#789fb9"/><stop offset=".38" stop-color="#3c5e7d"/><stop offset="1" stop-color="#152941"/>
+    </linearGradient>
+    <linearGradient id="slope" x1="0" y1="410" x2="0" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2f4b66"/><stop offset="1" stop-color="#0c1528"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1600v760H0z"/>
+  <path fill="#314b67" d="M0 426 114 361 219 404 399 289 473 336 565 287 699 375 834 339 942 381 1115 295 1216 341 1374 222 1430 276 1515 236 1600 278V654H0Z"/>
+  <path fill="#223952" d="M0 490 176 419 257 455 459 335 577 432 704 385 796 406 964 322 1106 380 1249 328 1434 410 1600 341v419H0Z"/>
+  <path fill="url(#ice)" d="m168 571 193-153 79-25 97-90 59 30 92-63 82-42 35-39 51-26 30-38 25 29 29 14 37 58 31 15 40 61 46 17 59 54 50-33 48 38 43-4 87 67 130 48 89-24v295H0V615Z"/>
+  <path fill="#273f59" d="m886 125 25 29 29 14 37 58 31 15 40 61 46 17 59 54 50-33 48 38 43-4 87 67 130 48 89-24v295H802l76-131-55-31 134-122-37-42 26-60-39-36 20-34-48-43 38-8-36-43 13-18-27-30Z"/>
+  <path fill="#8cb4c9" opacity=".46" d="m805 189 51-26 30-38-9 39 13 21-38-3-26 34-18-5-55 41-45 10 62-34Z"/>
+  <path fill="#87abc5" opacity=".29" d="m940 168 37 58 31 15 40 61-62-37-38-59-33-22Zm163 178 50 27 50-33 48 38-48-11-43 28Z"/>
+  <path stroke="#a3c7de" stroke-opacity=".22" stroke-width="2" d="m872 186-75 64-16 35-105 79-45 18m242-176-22 64-72 54-18 52-110 80m285-247 23 49 40 33 22 44 90 77m-664-48 90-61 59 30 63-41"/>
+  <path fill="url(#slope)" d="M0 544c185-10 322 49 475 30 147-18 244-96 411-88 173 8 282 111 461 107 108-3 172-30 253-59v226H0Z"/>
+  <path stroke="#a6d9ed" stroke-opacity=".20" stroke-width="2" d="M1068 521c-91 0-168 5-170 28-3 27 134 28 144 54 12 33-237 55-276 95-10 12-7 29 24 52"/>
+  <path stroke="#a6d9ed" stroke-opacity=".12" stroke-width="1" d="M1073 523c-91 0-164 7-165 26-1 22 135 25 145 53 15 42-230 61-267 103-10 12 2 30 24 43"/>
+  <path stroke="#a8c8dd" stroke-opacity=".12" d="m1034 102 52-8m-10 43 69-9m-19 47 44-5m-388-37 40-6m-143 71 45-6m461 11 66-10m-78 48 33-6m-889 56 52-8m861-159 37-8"/>
+</svg>

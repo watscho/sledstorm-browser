@@ -1,5 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
+import { validateStateFormat } from '../../web/core-state.js';
 
 const limit = 8 * 1024 * 1024;
 const joinWindow = 5 * 60_000;
@@ -59,12 +60,28 @@ export function createRetroArchRelay({ port = 8006, startDedicated } = {}) {
         };
         rooms.set(id, room);
         room.startup = setTimeout(() => room.stop('Dedicated emulator did not start'), 75_000);
-        join(room, ws, randomBytes(16).toString('hex'), 0, roster === true);
-        Promise.resolve().then(() => startDedicated({
-          room: id, workerKey, progress, camera: camera === true, nativeCamera: nativeCamera === true,
+        const start = snapshot => Promise.resolve().then(() => startDedicated({
+          room: id, workerKey, progress, camera: camera === true, nativeCamera: nativeCamera === true, snapshot,
         }, controller.signal))
           .then(runtime => runtime.exited.then(() => room.stop('Dedicated emulator stopped')))
           .catch(() => room.stop('Could not start the dedicated emulator'));
+        if (request.restoreSnapshot === true) {
+          const timeout = setTimeout(() => room.stop('Save transfer timed out'), 10_000);
+          const cancel = () => { clearTimeout(timeout); room.stop('Save transfer cancelled'); };
+          ws.once('close', cancel);
+          join(room, ws, randomBytes(16).toString('hex'), 0, roster === true, (bytes, isBinary) => {
+            clearTimeout(timeout);
+            ws.off('close', cancel);
+            try {
+              if (!isBinary) throw new Error('Expected a binary snapshot');
+              validateStateFormat(bytes);
+              start(bytes.toString('base64'));
+            } catch { room.stop('Invalid game save'); }
+          });
+        } else {
+          join(room, ws, randomBytes(16).toString('hex'), 0, roster === true);
+          start();
+        }
         return;
       }
       if (role === 'host') {
@@ -165,7 +182,7 @@ export function createRetroArchRelay({ port = 8006, startDedicated } = {}) {
         if (!isBinary || !send(peer.guest, bytes, true)) drop(room, peer, 'Connection interrupted');
       });
       if (!send(peer.guest, JSON.stringify({ type: 'ready', slot: peer.slot,
-        ...(peer.seatKey && { owner: room.owner === peer, seatKey: peer.seatKey }) }))) drop(room, peer);
+        ...(peer.seatKey && { owner: room.owner === peer, seatKey: peer.seatKey, releaseForLoad: true }) }))) drop(room, peer);
       else broadcastRoster(room);
     });
   });
@@ -175,7 +192,7 @@ export function createRetroArchRelay({ port = 8006, startDedicated } = {}) {
   return server;
 }
 
-function join(room, guest, seatKey, slot, wantsRoster) {
+function join(room, guest, seatKey, slot, wantsRoster, receiveSnapshot) {
   const ticket = randomBytes(24).toString('hex');
   const wasReserved = room.seats.has(seatKey);
   const seat = { slot, status: 'loading' };
@@ -187,11 +204,24 @@ function join(room, guest, seatKey, slot, wantsRoster) {
   room.owner ??= peer;
   guest.on('close', () => drop(room, peer));
   guest.on('message', (bytes, binary) => {
+    if (receiveSnapshot) {
+      const receive = receiveSnapshot;
+      receiveSnapshot = undefined;
+      receive(bytes, binary);
+      return;
+    }
     if (!binary && wantsRoster && isSynchronized(bytes)) {
       if (peer.stream && seat.status !== 'connected') {
         seat.status = 'connected';
         broadcastRoster(room);
       }
+      return;
+    }
+    if (!binary && wantsRoster && bytes.toString() === '{"type":"release-for-load"}') {
+      const allowed = room.owner === peer && seat.status === 'connected' &&
+        room.peers.size === 1 && room.seats.size === 1 && !room.racing;
+      if (send(guest, JSON.stringify({ type: 'released-for-load', allowed })) && allowed)
+        room.stop('Loading saved game');
       return;
     }
     if (!binary || !send(peer.stream, bytes, true)) drop(room, peer, 'Connection interrupted');

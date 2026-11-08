@@ -24,7 +24,8 @@ No router port forwarding is needed.
 ## Friend: join
 
 1. Open the complete invitation in a desktop browser.
-2. Adjust volume, image filtering or [personal controls](browser-lobby.md#personal-controls) if desired.
+2. Choose your own [display, audio and controls](browser-lobby.md) before joining.
+   The invitation supplies the room's progression and camera mode.
 3. Click **Join game**. The launcher checks the invitation, shows disc download
    progress and then synchronizes the game.
 4. Click the game to focus keyboard input.
@@ -75,10 +76,17 @@ their saved disc copies and other site data, such as access cookies.
 The room acts like one console with up to **four controllers**. Each browser
 has its own camera and original single-player HUD when **Separate cameras** is
 enabled. Native pause/options menus are shared and keep their 4:3 proportions.
+Dedicated personal cameras support 16:9 and Enhanced 2× independently for
+each player. A room can mix 4:3 and 16:9 displays.
 RetroArch restores the current race state after the disc loads. In a
 browser-hosted room, the host must stay connected and a returning player can
 resume their racer if the corresponding slot is free. Dedicated rooms
 reserve controllers for returning players.
+
+Solo saving pauses while a guest is connected or holds a reserved race seat.
+On the verified PAL disc, the creator can save again when playing alone after
+the multiplayer race ends. Loading opens a new room, so share its new
+invitation. See [solo sessions](browser-lobby.md#solo-sessions).
 
 ## Dedicated rooms
 

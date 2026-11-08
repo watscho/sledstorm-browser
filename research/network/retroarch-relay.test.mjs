@@ -218,6 +218,14 @@ test('dedicated controller indicators light after sync and a lobby join replaces
     await original.next(roster(0, 'loading'));
     original.ws.send(JSON.stringify({ type: 'synchronized' }));
     await original.next(roster(0, 'connected'));
+    const second = await connect({ role: 'guest', roster: true });
+    await connect({ role: 'accept', ticket: await worker.next() });
+    await second.next(type('ready'));
+    original.ws.send('{"type":"release-for-load"}');
+    assert.equal(JSON.parse(await original.next(type('released-for-load'))).allowed, false);
+    const secondClosed = once(second.ws, 'close');
+    second.ws.close();
+    await secondClosed;
     const closed = once(stream.ws, 'close');
     original.ws.close();
     await closed;
@@ -228,6 +236,13 @@ test('dedicated controller indicators light after sync and a lobby join replaces
     assert.notEqual(assignment.seatKey, first.seatKey);
     const duplicate = await connect({ role: 'guest', previousSeatKey: assignment.seatKey });
     assert.match(String((await once(duplicate.ws, 'close'))[1]), /already connected/);
+    assert.equal(assignment.releaseForLoad, true);
+    returned.ws.send('{"type":"synchronized"}');
+    await returned.next(roster(0, 'connected'));
+    const released = once(returned.ws, 'close');
+    returned.ws.send('{"type":"release-for-load"}');
+    assert.equal(JSON.parse(await returned.next(type('released-for-load'))).allowed, true);
+    assert.equal(String((await released)[1]), 'Loading saved game');
   } finally {
     relay.stopDedicated();
     for (const socket of sockets) socket.terminate();

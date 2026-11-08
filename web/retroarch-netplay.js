@@ -26,7 +26,7 @@ export function checkNetplayInvitation({ room, token }) {
   });
 }
 
-export async function prepareNetplay(emulator, { invitation, identity, onInvite, onClose, onRoster, dedicated, worker, options }) {
+export async function prepareNetplay(emulator, { invitation, identity, onInvite, onClose, onRoster, dedicated, worker, options, snapshot }) {
   const room = worker ? { room: worker.room, token: worker.workerKey, v: 7 } : invitation ?? {
     room: hex(crypto.getRandomValues(new Uint8Array(12))),
     token: hex(crypto.getRandomValues(new Uint8Array(32))),
@@ -64,7 +64,8 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
       }
       socket.addEventListener('open', () => {
         socket.send(JSON.stringify({ role, room: room.room, token: room.token, identity, preferredSlot,
-          previousSeatKey, ...options, roster: !worker }));
+          previousSeatKey, ...options, roster: !worker, restoreSnapshot: Boolean(snapshot) }));
+        if (snapshot) socket.send(snapshot);
       }, { signal });
       socket.addEventListener('close', event => finish(new Error(event.reason || 'Could not connect to the room.')), { signal });
       socket.addEventListener('message', event => {
@@ -95,6 +96,29 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
     }
     const { slot, seatKey: controllerKey } = ready;
     const connection = { slot, socket, owner: ready.owner, publish: () => onInvite(room) };
+    let finishRelease;
+    if (role === 'create') {
+      connection.releaseForLoad = () => new Promise((resolve, reject) => {
+        if (ready.releaseForLoad !== true) {
+          reject(new Error('Restart the launcher to enable loading saved games.'));
+          return;
+        }
+        if (socket.readyState !== WebSocket.OPEN || finishRelease) {
+          reject(new Error('Could not prepare the room for loading. Try again.'));
+          return;
+        }
+        const timeout = setTimeout(() => finishRelease(false), 4000);
+        finishRelease = allowed => {
+          clearTimeout(timeout);
+          finishRelease = undefined;
+          if (allowed) {
+            connection.releasedForLoad = true;
+            resolve();
+          } else reject(new Error('The room is not available for loading a save. Try again when playing alone.'));
+        };
+        socket.send('{"type":"release-for-load"}');
+      });
+    }
     if (!worker) {
       connection.markSynchronized = () => {
         if (socket.readyState === WebSocket.OPEN) socket.send('{"type":"synchronized"}');
@@ -104,7 +128,8 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
         let message;
         try { message = JSON.parse(event.data); } catch { return; }
         if (message?.type === 'ownership') connection.owner = message.owner === true;
-        else if (message?.type === 'roster' && Array.isArray(message.seats)) onRoster?.(message);
+        else if (message?.type === 'roster' && Array.isArray(message.seats)) onRoster?.(message, slot);
+        else if (message?.type === 'released-for-load') finishRelease?.(message.allowed === true);
         else return;
         event.stopImmediatePropagation();
       });
@@ -121,8 +146,10 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
     const { Module: module, gameManager: manager } = emulator;
     if (!module.sledInstallNetplay || !module._sled_netplay_status) throw new Error('RetroArch Netplay core is missing. Rebuild the emulator.');
     module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room);
-    socket.addEventListener('close', event => onClose(event.reason ||
-      'Disconnected from the room. Open the invitation again to rejoin.'), { once: true });
+    socket.addEventListener('close', event => {
+      if (!connection.releasedForLoad) onClose(event.reason ||
+        'Disconnected from the room. Open the invitation again to rejoin.');
+    }, { once: true });
     const config = '/home/web_user/.config/retroarch/retroarch.cfg';
     const existing = module.FS.readFile(config, { encoding: 'utf8' });
     module.FS.writeFile(config, existing + '\nnetplay_public_announce = "false"\nnetplay_nat_traversal = "false"\n'
@@ -142,7 +169,7 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
   }
 }
 
-export function driveRetroPad(emulator, { keyMap, gamepadIndex }) {
+export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles }) {
   const { gameManager: manager, elements } = emulator;
   let keyboard = 0xffff;
   let last = 0xffff;
@@ -166,7 +193,7 @@ export function driveRetroPad(emulator, { keyMap, gamepadIndex }) {
     }, true);
   }
   return () => {
-    const pad = document.hasFocus() && !document.hidden ? sampleGamepad(keyboard, gamepadIndex?.()) : 0xffff;
+    const pad = document.hasFocus() && !document.hidden ? sampleGamepad(keyboard, gamepadIndex?.(), gamepadProfiles) : 0xffff;
     const changed = pad ^ last;
     for (let bit = 0; bit < 16; bit++) {
       const button = toRetroPad[bit];

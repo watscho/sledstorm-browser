@@ -3,6 +3,44 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning and do not refer to the original game or upstream port.
 
+## 0.8.0 - 2026-11-08
+
+### Graphics
+
+- Default to true 16:9 race rendering in solo PAL races and dedicated
+  personal cameras, with 4:3 available in the launcher. Native menus and
+  shared split-screen retain 4:3.
+- Default to Clean filtering using Sharp Bilinear. Add CRT Lottes, live filter
+  switching and PNG screenshots.
+- Offer Enhanced 2× in every lobby. The PCSX-ReARMed rasterizer draws
+  supported races at twice the internal resolution. Other scenes upscale
+  their finished frame.
+- Draw the original solo HUD once at native resolution in enhanced races.
+  This fixes seams on the minimap and duplicated points digits. Personal
+  multiplayer cameras also use the original digit animation for awards.
+
+### Saves and controls
+
+- Keep a single **Start game** button. Add automatic solo snapshots and
+  separate manual saves in browser storage. **Load last save** restores a
+  compatible snapshot into a new room with a fresh invitation.
+- Pause solo saving when another controller joins or keeps a reserved race
+  seat. On the verified PAL disc, saving becomes available again when the
+  creator is alone and the multiplayer race has ended.
+- Add per-device gamepad remapping, preserve Custom keyboard bindings when
+  switching presets, and mark the local seat for keyboard and gamepad players.
+- Add toolbar icons with tooltips and shortcuts for saving, loading,
+  screenshots and fullscreen.
+
+### Launcher
+
+- Restore the selected settings tab and personal preferences after a reload.
+- Add mountain, snowmobile and snow-trail artwork and a compact guide to
+  player and host requirements. Keep the launch button in its summary on
+  narrow screens.
+- Show connection progress in the session toolbar and a green **LIVE**
+  indicator once the room synchronizes.
+
 ## 0.7.0 - 2026-11-07
 
 - Replaced the player roster with four compact controller indicators below the game.

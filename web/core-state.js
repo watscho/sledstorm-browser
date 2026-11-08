@@ -6,13 +6,17 @@ const CORE_SIGNATURE = 'STv4 PCSXra f29871d';
 const UNUSED = [[0x298059, 0x29805d], // save_counter: serializer bookkeeping
   [0x299395, 0x2996d5], [0x2996f5, 0x299755]];
 
-export function canonicalStateDigest(bytes) {
+export function validateStateFormat(bytes) {
   if (bytes.length !== 4456472 ||
       new TextDecoder().decode(bytes.subarray(0, 7)) !== 'RASTATE' ||
       new TextDecoder().decode(bytes.subarray(16, 16 + CORE_SIGNATURE.length)) !== CORE_SIGNATURE ||
       new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0x29934d, true) !== 1) {
     throw new Error('Unexpected PCSX state format. Synchronization stopped.');
   }
+}
+
+export function canonicalStateDigest(bytes) {
+  validateStateFormat(bytes);
   let hash = 2166136261, range = 0;
   for (let i = 0; i < bytes.length; i++) {
     if (range < UNUSED.length && i === UNUSED[range][0]) {
@@ -36,7 +40,7 @@ export function decodeState(text) {
   if (typeof text !== 'string' || text.length !== 5941964) throw new Error('Invalid snapshot size');
   const raw = atob(text), bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  canonicalStateDigest(bytes); // Pinned format guard, before passing to native code.
+  validateStateFormat(bytes);
   return bytes;
 }
 

@@ -171,12 +171,24 @@ h1 span {
 .lobby-layout {
   display:grid;
   grid-template-columns:minmax(0,1.23fr) minmax(320px,1fr);
-  gap:7%;
+  column-gap:7%;
+  row-gap:28px;
   align-items:start
 }
 .configuration {
   min-width:0
 }
+.lobby-layout .launch-preview { grid-area:1 / 2 / span 2; }
+.lobby-requirements {
+  grid-area:2 / 1;
+  border-top:1px solid var(--line);
+  padding-top:18px;
+}
+.lobby-requirements h2 { margin:0 0 12px; font-size:15px; font-weight:600; }
+.requirements-roles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 22px; }
+.requirements-roles h3 { margin:0; font-size:12px; color:var(--accent); }
+.requirements-roles p,.requirements-note { margin:5px 0 0; color:var(--muted); font-size:11px; }
+.requirements-note { margin-top:14px; }
 .settings-tabs {
   display:flex;
   border-bottom:1px solid var(--line);
@@ -540,13 +552,57 @@ input[type=range] {
   width:100%
 }
 .icon-button {
-  background:transparent;
+  position:relative;
+  display:inline-grid;
+  place-items:center;
+  flex:none;
+  width:36px;
+  height:36px;
+  padding:0;
   border:1px solid var(--line);
-  min-width:38px;
-  min-height:38px;
-  font-size:18px;
-  color:var(--accent)
+  background:var(--surface);
+  color:var(--accent);
 }
+.icon-button svg {
+  width:18px;
+  height:18px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+[data-tooltip]::after {
+  content:attr(data-tooltip);
+  display:none;
+  position:absolute;
+  z-index:5;
+  top:calc(100% + 6px);
+  right:0;
+  width:max-content;
+  padding:5px 8px;
+  border:1px solid var(--line);
+  border-radius:5px;
+  background:var(--surface);
+  color:var(--text);
+  font:500 12px/1.4 system-ui, sans-serif;
+  pointer-events:none;
+}
+#reset-settings::after {
+  top:auto;
+  bottom:calc(100% + 6px);
+}
+#back-lobby::after {
+  right:auto;
+  left:0;
+}
+[data-tooltip]:focus-visible::after { display:block; }
+@media (hover: hover) {
+  [data-tooltip]:hover::after { display:block; }
+}
+#fullscreen .exit-fullscreen-icon,
+#fullscreen[data-fullscreen] .enter-fullscreen-icon { display:none; }
+#fullscreen[data-fullscreen] .exit-fullscreen-icon { display:inline; }
 .capability {
   font-size:10px;
   color:var(--muted);
@@ -656,22 +712,19 @@ footer {
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:20px;
+  gap:8px 20px;
   flex-wrap:wrap;
   margin-bottom:15px
 }
-.stage-toolbar>div {
+.stage-status { flex:1 1 180px; min-width:0; }
+.stage-actions {
   display:flex;
   align-items:center;
-  gap:14px
-}
-.stage-toolbar strong {
-  font-size:14px;
-  font-weight:500
-}
-.stage-toolbar #session-state {
-  font-size:11px;
-  color:var(--muted)
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  margin-left:auto;
+  gap:14px;
+  max-width:100%;
 }
 .secondary-button {
   background:#1b3251;
@@ -901,7 +954,7 @@ dialog .primary-button {
 }
 @media(max-width:1050px) {
   .lobby-layout {
-    gap:4%;
+    column-gap:4%;
     grid-template-columns:minmax(0,1.15fr) minmax(290px,1fr)
   }
   .settings-tabs {
@@ -947,14 +1000,6 @@ dialog .primary-button {
     align-items:flex-start;
     margin-bottom:28px
   }
-  .page-heading>.text-button {
-    font-size:0;
-    min-width:32px
-  }
-  .page-heading>.text-button span {
-    font-size:23px;
-    margin:0
-  }
   .eyebrow {
     font-size:8px;
     letter-spacing:1.7px
@@ -972,6 +1017,7 @@ dialog .primary-button {
   .launch-preview {
     position:static
   }
+  .lobby-layout .launch-preview,.lobby-requirements { grid-area:auto; }
   .preview-image {
     height:190px
   }
@@ -1013,10 +1059,8 @@ dialog .primary-button {
   .stage-toolbar {
     gap:10px
   }
-  .stage-toolbar>div {
-    gap:10px;
-    flex-wrap:wrap
-  }
+  .stage-status { flex-basis:130px; }
+  .stage-actions { gap:8px; }
   .stage-toolbar .text-button {
     font-size:10px
   }
@@ -1025,9 +1069,6 @@ dialog .primary-button {
   }
   .canvas-wrap {
     min-height:180px
-  }
-  .stage-toolbar #session-state {
-    font-size:10px
   }
   .game-stage:fullscreen {
     padding:6px
@@ -1099,6 +1140,23 @@ dialog .primary-button {
 
 /* Emulator lobby and stage. Preserve the core's own aspect-ratio handling. */
 #status { margin:0 0 18px; min-height:18px; overflow-wrap:anywhere; }
+.stage-status #status { margin:0; }
+.stage-status #status.is-live {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:#66e99f;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1.3px;
+}
+.stage-status #status.is-live::before {
+  content:"";
+  width:18px;
+  height:18px;
+  background:currentColor;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M5 5a10 10 0 0 0 0 14m14 0a10 10 0 0 0 0-14M8 8a5.7 5.7 0 0 0 0 8m8 0a5.7 5.7 0 0 0 0-8'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='black' stroke='none'/%3E%3C/svg%3E") center/contain no-repeat;
+}
 #game { display:none; position:relative; width:100%; height:min(75vw,700px); min-height:320px; background:#000; border:1px solid var(--line); border-radius:5px; overflow:hidden; }
 #game.active { display:block; }
 #technical-details { margin-top:18px; border-top:1px solid var(--line); padding:12px 0; color:var(--muted); font-size:11px; }
@@ -1118,12 +1176,7 @@ kbd { display:inline-block; min-width:29px; padding:4px 7px; border:1px solid #4
 .preview-image img { object-position:50% 0; filter:none; }
 .preview-image:after { display:none; }
 @media(max-width:760px) {
-  body { padding-bottom:88px; }
   .lobby-layout { animation:none; }
-  .launch-preview .launch-actions { position:fixed; left:22px; bottom:calc(14px + env(safe-area-inset-bottom)); width:calc(100% - 44px); z-index:10; background:var(--bg); box-shadow:0 0 0 10px var(--bg); }
-  body:has(#game-data-settings:not([hidden])) { padding-bottom:194px; }
-  body.is-playing { padding-bottom:0; }
-  body.is-playing:has(#game-data-settings:not([hidden])) { padding-bottom:0; }
 }
 
 /* Original PAL-style game logo artwork and snow / ice / midnight-blue palette. */
@@ -1216,6 +1269,10 @@ select option { color:var(--text); background:#172a43; }
 }
 @media(prefers-reduced-motion:reduce) { .key-button { transition:none; } }
 #panel-controls .gamepad-state { gap:12px; margin-top:22px; }
+.control-shortcuts { margin-top:24px; padding-top:16px; border-top:1px solid var(--line); }
+.control-shortcuts h3 { margin:0; font-size:14px; }
+.control-shortcuts ul { display:flex; flex-wrap:wrap; gap:8px 24px; padding:0; margin:10px 0 0; list-style:none; color:var(--muted); }
+.control-shortcuts li { display:flex; align-items:center; gap:8px; }
 #gamepad-indicator { margin-top:5px; background:#5c7390; transition:background .15s,box-shadow .15s; }
 #gamepad-indicator.input-active { background:var(--accent); box-shadow:0 0 0 4px #b5e4ff22; }
 
@@ -1223,6 +1280,7 @@ select option { color:var(--text); background:#172a43; }
 
 /* Fullscreen contains only the game; Escape returns to the normal session UI. */
 #game:fullscreen { width:100vw; height:100vh; min-height:0; max-height:none; margin:0; padding:0; border:0; border-radius:0; background:#000; outline:none; }
+#game.race-widescreen:not(:fullscreen) { box-sizing:content-box; width:calc(100% - 2px); aspect-ratio:16/9; height:auto; min-height:0; }
 #game:fullscreen .ejs_menu_bar,
 #game:fullscreen .ejs_context_menu,
 #game:fullscreen .ejs_virtualGamepad_parent { display:none!important; }
@@ -1236,13 +1294,46 @@ select option { color:var(--text); background:#172a43; }
 
 /* Compact launcher heading: one label, one reset action, no repeated intro. */
 body:not(.is-playing) main { padding-top:24px; }
+body:not(.is-playing) {
+  position:relative;
+  isolation:isolate;
+  background-image:
+    linear-gradient(180deg, #0c15281a 0, #0c152833 290px, #0c1528 710px),
+    linear-gradient(90deg, #0c1528e8, #0c1528ad 38%, #0c152836 64%, #0c15286b),
+    url("./lobby-mountains.svg");
+  background-position: center top, center top, center 68px;
+  background-repeat:no-repeat;
+  background-size:100% 100%, 100% 100%, max(100%, 1400px) auto;
+}
+body:not(.is-playing)::before {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:auto 0 0;
+  height:clamp(165px,20vw,300px);
+  background:url("./lobby-snow-trail.svg") left bottom / max(72%, 670px) auto no-repeat;
+  mask-image:linear-gradient(to bottom, transparent, #000 65%);
+  pointer-events:none;
+}
 .page-heading { align-items:center; min-height:40px; margin-bottom:16px; }
+.lobby-sled { width:64px; height:28px; color:var(--accent); opacity:.8; }
 .page-heading h1 { margin:0; font-size:26px; line-height:1.25; letter-spacing:-.7px; }
 #status:empty { display:none; }
 @media(max-width:760px) {
+  body:not(.is-playing) {
+    background-image:
+      linear-gradient(180deg, #0c15283d, #0c152880 220px, #0c1528 540px),
+      linear-gradient(90deg, #0c15289e, #0c152848),
+      url("./lobby-mountains.svg");
+    background-position:center top, center top, 58% 45px;
+    background-size:100% 100%, 100% 100%, 1080px auto;
+  }
   body:not(.is-playing) main { padding-top:20px; }
   .page-heading { margin-bottom:12px; min-height:36px; }
   .page-heading h1 { font-size:24px; }
+}
+@media(max-width:420px) {
+  .requirements-roles { grid-template-columns:1fr; }
 }
 @media(min-width:761px) and (max-height:800px) {
   .site-header .brand-logo { width:118px; }
@@ -1253,7 +1344,9 @@ body:not(.is-playing) main { padding-top:24px; }
 #game.active,
 #game.active * { cursor:none!important; }
 
-#copy-invite { min-width:100px; }
+#copy-invite .invite-copied-icon,
+#copy-invite[data-copied] .invite-link-icon { display:none; }
+#copy-invite[data-copied] .invite-copied-icon { display:inline; }
 
 /* Cover the emulator until the local client is ready to show the live view. */
 #game.joining-room::after,
@@ -1306,7 +1399,19 @@ body:not(.is-playing) main { padding-top:24px; }
   border-radius: 50%;
   background: currentColor;
 }
-#room-seats li.is-connected::after {
+#room-seats li.is-local { color: #66e99f; }
+#room-seats li.is-connected::after,
+#room-seats li.is-local::after {
   background: #66e99f;
   box-shadow: 0 0 6px #66e99f;
 }
+
+.stage-actions { gap: 6px; }
+.stage-actions .secondary-button { min-height: 36px; padding: 5px 9px; }
+.live-filter select { width: auto; max-width: 10rem; min-height: 36px; padding-block: 5px; }
+@media (pointer: coarse) {
+  .stage-actions .secondary-button, .live-filter select { min-height: 44px; }
+  .icon-button { width:44px; height:44px; }
+}
+#gamepad-bindings { margin-top: 1rem; }
+.gamepad-bind-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }

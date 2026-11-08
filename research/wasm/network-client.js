@@ -1,13 +1,15 @@
 const KEY_BITS = { ShiftRight: 0, Enter: 3, ArrowUp: 4, ArrowRight: 5, ArrowDown: 6,
   ArrowLeft: 7, KeyE: 8, KeyR: 9, KeyQ: 10, KeyW: 11, KeyA: 12, KeyS: 13, KeyX: 14, KeyZ: 15 };
 
-export function sampleGamepad(pad, selected) {
+export const STANDARD_GAMEPAD = Object.freeze([14, 13, 15, 12, 10, 11, 8, 9, 0, 3, 1, 2, 4, 6, 7, 5]);
+
+export function sampleGamepad(pad, selected, profiles) {
   let devices = [];
   try { devices = Array.from(navigator.getGamepads?.() || []); } catch { /* Keyboard remains usable. */ }
   const gamepad = selected === -1 ? null : devices.find(pad => pad?.mapping === 'standard' && (selected == null || pad.index === selected));
   if (gamepad?.mapping === 'standard') {
-    const map = [14, 13, 15, 12, 10, 11, 8, 9, 0, 3, 1, 2, 4, 6, 7, 5];
-    for (let i = 0; i < map.length; ++i) if (gamepad.buttons[i]?.pressed) pad &= ~(1 << map[i]);
+    const map = profiles?.get(gamepad.id) || STANDARD_GAMEPAD;
+    for (let i = 0; i < map.length; ++i) if (map[i] !== null && gamepad.buttons[i]?.pressed) pad &= ~(1 << map[i]);
     if (gamepad.axes[0] < -0.4) pad &= ~(1 << 7);
     if (gamepad.axes[0] > 0.4) pad &= ~(1 << 5);
     if (gamepad.axes[1] < -0.4) pad &= ~(1 << 4);
@@ -31,6 +33,7 @@ export class BrowserSession {
     this.active = false;
     this.keyMap = options.keyMap || KEY_BITS;
     this.gamepadIndex = options.gamepadIndex;
+    this.gamepadProfiles = options.gamepadProfiles;
     this.endpoint = options.endpoint;
     this.metrics = { buffered: 0, waits: 0, waitMs: 0 };
     this.onSnapshotRequest = options.onSnapshotRequest;
@@ -76,6 +79,8 @@ export class BrowserSession {
           if(message.snapshot){this.snapshotResolve=resolve;this.onStatus('Loading the live session snapshot…');}
           else resolve(this.slot);
         } else if (message.type === 'snapshot-request') {
+          // The join request reaches the host before the updated presence list.
+          if (!(this.members > 1)) this.members = 2;
           Promise.resolve().then(() => this.onSnapshotRequest(message.tick)).then(snapshot => {
             if (this.active) this.socket.send(JSON.stringify({type:'snapshot',slot:message.slot,tick:message.tick,...snapshot}));
           }).catch(() => {
@@ -123,7 +128,7 @@ export class BrowserSession {
       this.socket.addEventListener('close', () => { this.fail(this.error || 'Connection closed'); reject(new Error(this.error)); });
     });
   }
-  samplePad() { return sampleGamepad(this.pad, this.gamepadIndex?.()); }
+  samplePad() { return sampleGamepad(this.pad, this.gamepadIndex?.(), this.gamepadProfiles); }
   async exchange(tick, state) { return this.exchangeFast(tick, state); }
   exchangeFast(tick, state) {
     const result = this.exchangeRow(tick, state);

@@ -57,9 +57,75 @@ void retro_run(void)
 #endif
 
 #ifdef HAVE_CDROM''')
-    text = once(text, '#include <emscripten.h>', '#include <emscripten.h>\n#include "sled-view.h"')
+    text = once(text, '#ifdef GPU_NEON\n#define VOUT_MAX_WIDTH  1024',
+                '#ifdef __EMSCRIPTEN__\n#define VOUT_MAX_WIDTH  2048\n#elif defined(GPU_NEON)\n#define VOUT_MAX_WIDTH  1024')
+    text = once(text, 'static enum retro_pixel_format current_fmt;', '''static enum retro_pixel_format current_fmt;
+#ifdef __EMSCRIPTEN__
+#include "sled-view.h"
+static bool sled_wide_geometry;
+#endif''')
+    text = once(text, '   info->geometry.aspect_ratio   = 4.0 / 3.0;', '''   info->geometry.aspect_ratio   = 4.0 / 3.0;
+#ifdef __EMSCRIPTEN__
+   info->geometry.max_height = 2 * VOUT_MAX_HEIGHT;
+   if (sled_wide_geometry) {
+      info->geometry.base_width   = SLED_WIDE_WIDTH;
+      info->geometry.base_height  = 256;
+      info->geometry.aspect_ratio = 16.0 / 9.0;
+   }
+#endif''')
     text = once(text, '   psxRegs.stop = 0;\n   psxCpu->Execute(&psxRegs);',
                 '   sled_view_begin();\n   psxRegs.stop = 0;\n   psxCpu->Execute(&psxRegs);\n   sled_view_present();')
+    text = once(text, '   video_cb((vout_fb_dirty || !vout_can_dupe) ? vout_buf_ptr : NULL,', '''#ifdef __EMSCRIPTEN__
+   const uint16_t *wide = sled_view_wide_frame();
+   const uint16_t *wide_enhanced = sled_view_wide_enhanced_frame();
+   const uint16_t *enhanced = sled_view_enhanced_frame();
+   const bool enhance = EM_ASM_INT({ return !!Module.sledEnhancedGraphics; });
+   static unsigned char *enhanced_output;
+   static int wide_scale = 1;
+   if ((wide || enhanced) && !enhanced_output)
+      enhanced_output = malloc(SLED_WIDE_2X_WIDTH * 512 * 4);
+   if (wide)
+      wide_scale = wide_enhanced ? 2 : 1;
+   const bool wide_geometry = enhanced_output &&
+      (wide || (sled_wide_geometry && sled_view_wide_pending()));
+   if (wide_geometry != sled_wide_geometry) {
+      struct retro_system_av_info info;
+      sled_wide_geometry = wide_geometry;
+      retro_get_system_av_info(&info);
+      environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &info.geometry);
+   }
+   if (wide_geometry || (enhanced && enhanced_output)) {
+      const int width = wide_geometry ? SLED_WIDE_WIDTH * wide_scale : 1024;
+      const int height = wide_geometry ? 256 * wide_scale : 512;
+      const uint16_t *source = wide_geometry ? (wide_scale == 2 ? wide_enhanced : wide) : enhanced;
+      const int stride = wide_enhanced ? SLED_WIDE_2X_WIDTH : 1024;
+      const int xrgb = current_fmt == RETRO_PIXEL_FORMAT_XRGB8888;
+      const int pitch = width * (xrgb ? 4 : 2);
+      bgr_to_fb_func *convert = xrgb ? bgr555_to_xrgb8888 : bgr555_to_rgb565;
+      if (source)
+         for (int row = 0; row < height; row++)
+            convert(enhanced_output + row * pitch, source + row * stride, width * 2);
+      const void *scaled = enhance && wide_geometry && wide_scale == 1
+         ? sled_scale_frame_2x(enhanced_output, width, height, pitch, xrgb ? 4 : 2) : NULL;
+      if (scaled)
+         video_cb(scaled, 2 * width, 2 * height, 2 * pitch);
+      else
+         video_cb(enhanced_output, width, height, pitch);
+   } else if (enhance && vout_width <= 1024 && vout_height <= 512) {
+      const int bytes_pp = current_fmt == RETRO_PIXEL_FORMAT_XRGB8888 ? 4 : 2;
+      const int pitch = 2 * vout_width * bytes_pp;
+      if (!vout_fb_dirty && vout_can_dupe)
+         video_cb(NULL, 2 * vout_width, 2 * vout_height, pitch);
+      else {
+         const void *scaled = sled_scale_frame_2x(vout_buf_ptr, vout_width, vout_height, vout_pitch_b, bytes_pp);
+         if (scaled)
+            video_cb(scaled, 2 * vout_width, 2 * vout_height, pitch);
+         else
+            video_cb(vout_buf_ptr, vout_width, vout_height, vout_pitch_b);
+      }
+   } else
+#endif
+   video_cb((vout_fb_dirty || !vout_can_dupe) ? vout_buf_ptr : NULL,''')
     text = once(text, '/* cheats */', """
 #ifdef __EMSCRIPTEN__
 extern int sled_loading_checkpoint;
@@ -86,7 +152,10 @@ bool sled_unserialize_checkpoint(const void *data, size_t size)
 	if ((pc == 0x80014e88u || pc == 0x80014e90u || pc == 0x80014e98u ||
 	     pc == 0x80053e68u || pc == 0x8004a41cu || pc == 0x8004c700u ||
 	     pc == 0x8004ac84u || pc == 0x80051e38u || pc == 0x80051af0u ||
-	     pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu) &&
+	     pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu ||
+	     pc == 0x80060decu || pc == 0x8006126cu ||
+	     pc == 0x8007ec9cu || pc == 0x8007f2c0u || pc == 0x8007f8c4u ||
+	     pc == 0x8007fe7cu) &&
 	    sled_view_pc(regs))
 		return;''')
     text = once(text, '} ICache[256];', '''} ICache[256];
@@ -114,22 +183,97 @@ void sled_view_cache_save(int restore) {
         text = once(text, write, write + '\n\tif (sled_view_transaction == 2) { sled_view_hardware_access = 1; return; }')
     if path.read_text() != text:
         path.write_text(text)
-    for name in ('sled-view.c', 'sled-view.h'):
+    for name in ('sled-view.c', 'sled-view.h', 'sled-enhanced.c'):
         source, target = ROOT / 'research/emulator' / name, CORE / 'frontend' / name
         if not target.exists() or source.read_bytes() != target.read_bytes():
             shutil.copyfile(source, target)
     path = CORE / 'Makefile'
     text = original(path)
     text = once(text, "sed -e 's/.*/#define REV \"\\0\"/'", "sed -e 's/.*/#define REV \"&\"/'")
-    text = once(text, '$(TARGET): $(OBJS)', 'OBJS += frontend/sled-view.o\n\n$(TARGET): $(OBJS)')
+    text = once(text, '$(TARGET): $(OBJS)', '''OBJS += frontend/sled-view.o
+ifeq ($(platform),emscripten)
+OBJS += frontend/sled-enhanced.o plugins/gpu_neon/psx_gpu/psx_gpu_simd.o
+frontend/sled-enhanced.o: CFLAGS += -mssse3 -DNEON_BUILD -DSIMD_BUILD -DTEXTURE_CACHE_4BPP -DTEXTURE_CACHE_8BPP
+frontend/sled-enhanced.o: plugins/gpu_neon/psx_gpu_if.c $(wildcard plugins/gpu_neon/psx_gpu/*.c)
+plugins/gpu_neon/psx_gpu/psx_gpu_simd.o: CFLAGS += -mssse3 -DSIMD_BUILD
+endif
+
+$(TARGET): $(OBJS)''')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'plugins/gpu_neon/psx_gpu/psx_gpu_simd.c'
+    text = once(original(path), '#include <x86intrin.h>', '''#ifdef __EMSCRIPTEN__
+#include <tmmintrin.h>
+#else
+#include <x86intrin.h>
+#endif''')
     if path.read_text() != text:
         path.write_text(text)
     path = CORE / 'plugins/dfxvideo/gpulib_if.c'
     text = original(path)
-    text = once(text, 'static void set_vram(void *vram)', '#include "../../frontend/sled-view.h"\n\nstatic void set_vram(void *vram)')
+    text = once(text, '#include "soft.c"', '''/* The widened private framebuffer can overlap texture pages in PSX VRAM. */
+static const unsigned short *sled_texture_words;
+static const unsigned char *sled_texture_bytes;
+static unsigned sled_wide_draw;
+void sled_renderer_set_widescreen(const void *texture_vram)
+{
+  sled_texture_words = texture_vram ? texture_vram : psxVuw;
+  sled_texture_bytes = texture_vram ? texture_vram : psxVub;
+  sled_wide_draw = texture_vram != NULL;
+}
+#define SLED_TEXTURE_WORDS sled_texture_words
+#define SLED_TEXTURE_BYTES sled_texture_bytes
+#ifdef __EMSCRIPTEN__
+#define SLED_WIDE_DRAW_END(x) (sled_wide_draw && (x) == 511 ? SLED_WIDE_WIDTH - 1 : (x))
+#define SLED_WIDE_DRAW_OFFSET(x) (sled_wide_draw && (x) == 0 ? SLED_WIDE_MARGIN : (x))
+#endif
+#include "soft.c"''')
+    text = once(text, ' psxVuw=(unsigned short *)psxVub;',
+                ' psxVuw=(unsigned short *)psxVub;\n sled_renderer_set_widescreen(NULL);')
+    text = once(text, '#include "../gpulib/gpu.h"', '#include "../gpulib/gpu.h"\n#include "../../frontend/sled-view.h"')
     text = once(text, 'int renderer_init(void)', 'void sled_renderer_set_vram(void *vram) { set_vram(vram); }\n\nint renderer_init(void)')
+    entry = 'int do_cmd_list(uint32_t *list, int list_len,\n int *cycles_sum_out, int *cycles_last, int *last_cmd)\n{'
+    text = once(text, entry, entry + '''
+#ifdef __EMSCRIPTEN__
+  if (sled_view_transaction == 2)
+    sled_enhanced_draw(list, list_len, gpu.ex_regs);
+#endif''')
     text = once(text, '    primTableJ[cmd]((void *)list);',
                 '    sled_view_record(list, 1 + len);\n    primTableJ[cmd]((void *)list);')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'plugins/dfxvideo/prim.c'
+    text = once(original(path), ' drawW  = gdata & 0x3ff;', '''#ifdef SLED_WIDE_DRAW_END
+ drawW  = SLED_WIDE_DRAW_END(gdata & 0x3ff);
+#else
+ drawW  = gdata & 0x3ff;
+#endif''')
+    text = once(text, ' PSXDisplay.DrawOffset.x = (short)(gdata & 0x7ff);', '''#ifdef SLED_WIDE_DRAW_OFFSET
+ PSXDisplay.DrawOffset.x = (short)SLED_WIDE_DRAW_OFFSET(gdata & 0x7ff);
+#else
+ PSXDisplay.DrawOffset.x = (short)(gdata & 0x7ff);
+#endif''')
+    if path.read_text() != text:
+        path.write_text(text)
+    path = CORE / 'plugins/dfxvideo/soft.c'
+    text = original(path)
+    text = once(text, '// switches for painting textured quads', '''#ifndef SLED_TEXTURE_WORDS
+#define SLED_TEXTURE_WORDS psxVuw
+#define SLED_TEXTURE_BYTES psxVub
+#endif
+
+// switches for painting textured quads''')
+    # Only texture and CLUT reads use the separate pointer. Framebuffer
+    # writes and blend destination reads stay on the original pointer.
+    for before, after in (
+        ('psxVub[', 'SLED_TEXTURE_BYTES['),
+        ('GETLE16(&psxVuw[', 'GETLE16(&SLED_TEXTURE_WORDS['),
+        ('psxVuw[clutP+tC]);', 'SLED_TEXTURE_WORDS[clutP+tC]);'),
+        ('unsigned char * pV;', 'const unsigned char *pV;'),
+    ):
+        if before not in text:
+            raise RuntimeError('Pinned Peops texture read changed: ' + before)
+        text = text.replace(before, after)
     if path.read_text() != text:
         path.write_text(text)
     # Ordinary savestates retain upstream compatibility fixups. A network

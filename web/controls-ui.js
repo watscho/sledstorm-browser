@@ -1,4 +1,5 @@
-import { BUTTONS, CLASSIC, WASD, normalizeBindings, rebind, keyMap, keyLabel, presetFor } from './controls.js';
+import { STANDARD_GAMEPAD } from '/session-client.js';
+import { BUTTONS, CLASSIC, WASD, restoreKeyboardProfile, rebind, keyMap, keyLabel } from './controls.js';
 
 // Hotspot centers in the illustration's SVG viewBox (0 14 128 94).
 const controllerButtons = {
@@ -14,12 +15,13 @@ const controllerButtons = {
 export function initControls() {
   const $ = selector => document.querySelector(selector);
   const storageKey = 'sledstorm.controls.v1';
-  let bindings = { ...CLASSIC }, listening = null, locked = false, storageWorks = true;
-  try { bindings = normalizeBindings(JSON.parse(localStorage.getItem(storageKey))?.bindings); }
+  let { bindings, preset, customBindings } = restoreKeyboardProfile();
+  let listening = null, locked = false, storageWorks = true;
+  try { ({ bindings, preset, customBindings } = restoreKeyboardProfile(JSON.parse(localStorage.getItem(storageKey)))); }
   catch { /* Unavailable or invalid storage starts with classic controls. */ }
   const hint = text => { $('#binding-status').textContent = text; };
   const render = () => {
-    $('#control-preset').value = presetFor(bindings);
+    $('#control-preset').value = preset;
     for (const button of document.querySelectorAll('[data-binding]')) {
       const [id, , label] = BUTTONS.find(([id]) => id === button.dataset.binding);
       const key = keyLabel(bindings[id]);
@@ -31,7 +33,7 @@ export function initControls() {
     $('#play-controls').textContent = `${keyLabel(bindings.left)} / ${keyLabel(bindings.right)} to steer · ${keyLabel(bindings.cross)} to accelerate · ${keyLabel(bindings.start)} for Start · ${keyLabel(bindings.triangle)} to go back`;
   };
   const save = () => {
-    try { localStorage.setItem(storageKey, JSON.stringify({ bindings })); storageWorks = true; }
+    try { localStorage.setItem(storageKey, JSON.stringify({ bindings, preset, customBindings })); storageWorks = true; }
     catch { storageWorks = false; }
     hint(storageWorks ? 'Saved in this browser. Select a controller button to change its key. Escape cancels.' : 'Storage unavailable. Controls apply to this session only.');
     render();
@@ -65,7 +67,12 @@ export function initControls() {
     event.preventDefault(); event.stopImmediatePropagation();
     if (event.key === 'Escape') { listening = null; render(); hint('Key change cancelled.'); return; }
     if (event.metaKey || event.altKey || event.repeat) { hint('Use a single key without Command or Alt. Escape cancels.'); return; }
-    try { bindings = rebind(bindings, listening, event.code); listening = null; save(); }
+    try {
+      bindings = customBindings = rebind(bindings, listening, event.code);
+      preset = 'custom';
+      listening = null;
+      save();
+    }
     catch (error) { hint(error.message); }
   }, true);
   document.addEventListener('focusin', event => {
@@ -74,14 +81,105 @@ export function initControls() {
     }
   });
   $('#control-preset').addEventListener('change', () => {
-    if ($('#control-preset').value === 'custom') { hint('Select a controller button below to create your layout.'); return; }
-    bindings = { ...($('#control-preset').value === 'wasd' ? WASD : CLASSIC) }; listening = null; save();
+    preset = $('#control-preset').value;
+    if (preset === 'custom') bindings = customBindings ??= bindings;
+    else bindings = preset === 'wasd' ? WASD : CLASSIC;
+    listening = null;
+    save();
   });
-  $('#reset-controls').addEventListener('click', () => { bindings = { ...CLASSIC }; listening = null; save(); });
+  const resetKeyboard = () => { bindings = CLASSIC; preset = 'classic'; customBindings = null; listening = null; save(); };
+  $('#reset-controls').addEventListener('click', resetKeyboard);
+  const gamepadProfiles = new Map();
+  const gamepadStorageKey = 'sledstorm.gamepads.v1';
+  const selectionStorageKey = 'sledstorm.gamepad-selection.v1';
+  let preferredDevice = 'auto';
+  const actions = $('#gamepad-action');
+  const bindButton = $('#bind-gamepad');
+  const mappingStatus = $('#gamepad-binding-status');
+  for (const [, bit, label] of BUTTONS) actions.add(new Option(label, String(bit)));
+  actions.value = '14';
+  try {
+    const saved = JSON.parse(localStorage.getItem(selectionStorageKey));
+    if (saved?.device === 'off' || (typeof saved?.device?.id === 'string' && Number.isInteger(saved.device.index)))
+      preferredDevice = saved.device;
+    if ([...actions.options].some(option => option.value === saved?.action)) actions.value = saved.action;
+  } catch { /* Use default selections when storage is unavailable. */ }
+  const rememberSelection = () => {
+    try { localStorage.setItem(selectionStorageKey, JSON.stringify({ device: preferredDevice, action: actions.value })); }
+    catch { /* The current selection still applies. */ }
+  };
+  try {
+    for (const [id, map] of JSON.parse(localStorage.getItem(gamepadStorageKey) || '[]')) {
+      if (typeof id === 'string' && Array.isArray(map) && map.length >= 16 && map.length <= 64 &&
+          map.every(bit => bit === null || Number.isInteger(bit) && bit >= 0 && bit <= 15) &&
+          new Set(map.filter(bit => bit !== null)).size === 16) gamepadProfiles.set(id, map);
+    }
+  } catch { /* Use the standard mapping when storage is unavailable. */ }
+  let selectedPad;
+  let capture;
+  const buttonNames = ['A / ×', 'B / ○', 'X / □', 'Y / △', 'L1', 'R1', 'L2', 'R2',
+    'Select', 'Start', 'L3', 'R3', 'D-pad up', 'D-pad down', 'D-pad left', 'D-pad right'];
+  const describeMapping = () => {
+    if (!selectedPad || capture) return;
+    const map = gamepadProfiles.get(selectedPad.id) || STANDARD_GAMEPAD;
+    const index = map.indexOf(Number(actions.value));
+    mappingStatus.textContent = 'Current input: ' + (buttonNames[index] || 'Button ' + (index + 1));
+  };
+  const persistMappings = () => {
+    try { localStorage.setItem(gamepadStorageKey, JSON.stringify([...gamepadProfiles])); }
+    catch { mappingStatus.textContent += ' Storage is unavailable. This mapping applies for this session.'; }
+  };
+  const cancelCapture = () => {
+    capture = undefined;
+    bindButton.textContent = 'Press to bind';
+    describeMapping();
+  };
+  actions.addEventListener('change', () => { rememberSelection(); cancelCapture(); });
+  $('#reset-gamepad').addEventListener('click', () => {
+    if (!selectedPad) return;
+    gamepadProfiles.delete(selectedPad.id);
+    cancelCapture();
+    persistMappings();
+  });
+  window.addEventListener('keydown', event => {
+    if (capture && event.key === 'Escape') {
+      event.preventDefault();
+      cancelCapture();
+    }
+  });
+  bindButton.addEventListener('click', () => {
+    if (capture) { cancelCapture(); return; }
+    if (!selectedPad || locked) return;
+    const active = capture = { id: selectedPad.id, index: selectedPad.index, neutral: false };
+    bindButton.textContent = 'Cancel';
+    mappingStatus.textContent = 'Release the buttons, then press the button you want to use.';
+    const poll = () => {
+      if (capture !== active) return;
+      let pad;
+      try { pad = navigator.getGamepads?.()[active.index]; } catch { /* Access was revoked. */ }
+      if (!pad || pad.id !== active.id || pad.mapping !== 'standard') { cancelCapture(); return; }
+      const index = pad.buttons.findIndex((button, index) => index < 64 && button.pressed);
+      if (index < 0) active.neutral = true;
+      else if (active.neutral) {
+        const map = [...(gamepadProfiles.get(pad.id) || STANDARD_GAMEPAD)];
+        const bit = Number(actions.value);
+        const previous = map.indexOf(bit);
+        while (map.length <= index) map.push(null);
+        map[previous] = map[index];
+        map[index] = bit;
+        gamepadProfiles.set(pad.id, map);
+        cancelCapture();
+        persistMappings();
+        return;
+      }
+      requestAnimationFrame(poll);
+    };
+    requestAnimationFrame(poll);
+  });
   // Preserve the chosen device while rebuilding the menu on hotplug.
   let signature;
+  let devices = [];
   const updateGamepads = () => {
-    let devices;
     const report = message => { $('#gamepad-state').textContent = message; };
     try { devices = Array.from(navigator.getGamepads?.() || []).filter(Boolean); }
     catch { report('Controller access is unavailable. Keyboard controls still work.'); return; }
@@ -89,13 +187,17 @@ export function initControls() {
     const next = devices.map(p => `${p.index}:${p.id}:${p.mapping}`).join('|');
     if (signature !== next) {
       signature = next;
-      const previous = select.value;
       select.replaceChildren(new Option('Automatic · first standard controller', 'auto'), new Option('Keyboard only', 'off'));
       for (const pad of devices) select.add(new Option(`${pad.index + 1}. ${pad.id}${pad.mapping === 'standard' ? '' : ' · unsupported mapping'}`, String(pad.index), false, false));
       for (const option of select.options) if (option.value !== 'auto' && option.value !== 'off') option.disabled = devices.find(p => p.index === Number(option.value))?.mapping !== 'standard';
-      select.value = [...select.options].some(o => o.value === previous) ? previous : 'auto';
+      const preferred = devices.filter(pad => pad.mapping === 'standard' && pad.id === preferredDevice.id);
+      const selected = preferred.find(pad => pad.index === preferredDevice.index) || preferred[0];
+      select.value = typeof preferredDevice === 'string' ? preferredDevice : selected ? String(selected.index) : 'auto';
     }
     const pad = select.value === 'off' ? null : devices.find(p => p.mapping === 'standard' && (select.value === 'auto' || p.index === Number(select.value)));
+    selectedPad = pad;
+    $('#gamepad-bindings').hidden = !pad;
+    describeMapping();
     $('#gamepad-name').textContent = pad ? pad.id : select.value === 'off' ? 'Keyboard only' : 'No supported controller detected';
     const active = pad && (pad.buttons.some(button => button.pressed) || pad.axes.some(axis => Math.abs(axis) > .4));
     $('#gamepad-indicator').classList.toggle('input-active', Boolean(active));
@@ -103,14 +205,28 @@ export function initControls() {
       : select.value === 'off' ? 'Controller input is disabled for this browser.'
       : devices.length ? 'This controller does not expose a standard browser mapping. Use the keyboard.' : 'Connect by USB or Bluetooth, then press a button to let the browser detect it.');
   };
-  $('#gamepad-device').addEventListener('change', updateGamepads);
+  $('#gamepad-device').addEventListener('change', event => {
+    const value = event.target.value;
+    const pad = devices.find(device => device.index === Number(value));
+    preferredDevice = pad ? { id: pad.id, index: pad.index } : value === 'off' ? 'off' : 'auto';
+    rememberSelection();
+    cancelCapture();
+    updateGamepads();
+  });
   window.addEventListener('gamepadconnected', updateGamepads);
   window.addEventListener('gamepaddisconnected', updateGamepads);
   setInterval(updateGamepads, 250);
   updateGamepads(); render();
   return {
-    reset() { if (!locked) { bindings = { ...CLASSIC }; listening = null; $('#gamepad-device').value = 'auto'; save(); updateGamepads(); } },
-    lock() { locked = true; listening = null; render(); },
-    options() { return { keyMap: keyMap(bindings), gamepadIndex: () => $('#gamepad-device').value === 'off' ? -1 : $('#gamepad-device').value === 'auto' ? null : Number($('#gamepad-device').value) }; },
+    reset() {
+      if (locked) return;
+      resetKeyboard();
+      preferredDevice = $('#gamepad-device').value = 'auto';
+      actions.value = '14';
+      rememberSelection();
+      updateGamepads();
+    },
+    lock() { locked = true; listening = null; cancelCapture(); render(); },
+    options() { return { keyMap: keyMap(bindings), gamepadProfiles, gamepadIndex: () => $('#gamepad-device').value === 'off' ? -1 : $('#gamepad-device').value === 'auto' ? null : Number($('#gamepad-device').value) }; },
   };
 }

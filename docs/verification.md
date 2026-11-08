@@ -1,5 +1,23 @@
 # Verification and known limits
 
+## v0.8.0 release checks — 2026-11-08
+
+- 22 browser-module tests, 19 network tests, three HTTP handler tests, Python
+  syntax checks and the native presentation tests passed. The native tests
+  check four PAL viewports, state isolation and menu bypass.
+- The pinned WebAssembly core was rebuilt with the current native adapters.
+- Chrome on macOS launched a solo PAL race through the normal launcher.
+  Enhanced 2× reproduced duplicate digits and seams before the fix. A saved
+  race state with a test 6,000-point award allowed direct frame comparisons.
+  After the fix, 4:3 and 16:9 both showed a clean minimap and one award popup.
+  The original timer ran down and the award disappeared.
+- In the browser-hosted local launcher, the selected tab, aspect ratio, CRT
+  filter and Enhanced 2× persisted after reload. **Save game** and **Load last
+  save** restored the solo race in a new room. **F8** downloaded a PNG and
+  **Alt+Enter** entered and exited fullscreen. The dedicated relay tests
+  also checked that loading is allowed for a sole owner and refused while a
+  second controller is present.
+
 ## v0.7.0 release checks — 2026-11-07
 
 - 21 browser-module tests, 19 network tests, three HTTP handler tests and
@@ -134,12 +152,15 @@ canonical GPU/VRAM preservation, interpreter RAM/register/instruction-cache
 restoration, interrupted HUD execution and native menu bypass. The native test
 requires a C compiler and the pinned source checkout from the build.
 
-## Current limits for v0.7.0
+## Current limits for v0.8.0
 
 - The v0.6.0 Cloudflare gameplay run used four Chrome contexts on one Mac. Separate
   computers and networks, sustained sessions and remote latency remain open.
 - The native camera was checked on Pine Valley, Hard Pack and Kodiak Canyon.
   Full race completion, other courses and weather combinations remain open.
+- The new solo Enhanced 2× HUD fix was verified in Chrome on one Mac. Mixed
+  4:3/16:9 and mixed 1×/2× clients in a sustained four-player internet race
+  still need dedicated release coverage.
 - Dedicated rooms preserve controller slots across browser reconnects while
   the server is running. A server restart requires a new room and invitation.
   In browser-hosted mode the room lasts as long as the host stays connected.

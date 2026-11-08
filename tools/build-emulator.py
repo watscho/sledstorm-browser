@@ -44,7 +44,8 @@ def main():
              for name in ('pcsx_rearmed_libretro.js', 'pcsx_rearmed_libretro.wasm')}
     (ROOT / '.cache/emulator-native-build.json').write_text(json.dumps({'core': CORE, 'frontend': FRONTEND,
         'sdk': sdk, 'files': files, 'patches': {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in [ROOT / 'tools/prepare-emulator-native.py', *sorted((ROOT / 'research/emulator').glob('sled-view.*'))]}}, indent=2) + '\n')
+            for path in [ROOT / 'tools/prepare-emulator-native.py', ROOT / 'research/emulator/sled-enhanced.c',
+                         *sorted((ROOT / 'research/emulator').glob('sled-view.*'))]}}, indent=2) + '\n')
     print('Built native frame hooks. Run python3 server.py.')
 
 

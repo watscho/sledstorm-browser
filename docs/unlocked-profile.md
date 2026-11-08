@@ -5,6 +5,8 @@ The browser launch page defaults to **All content unlocked**. Select
 A room invitation carries the unlock setting; each
 guest inherits it, and the mode is part of the content identity checked before
 joining. All peers execute the same hooks and retain normal physics and timers.
+The same preset applies when starting a solo room. A compatible solo snapshot
+restores its progression setting along with the session state.
 
 This is an in-memory session preset, applied after frontend initialization
 and reapplied if the game resets its unlock state. It does not edit the disc or

@@ -14,6 +14,24 @@ Friends joining an internet room only need a compatible desktop browser and the
 complete invitation. They can join with the host's disc in the default mode.
 In local-file mode, every player supplies a matching CUE/BIN set.
 
+## Hardware and connection
+
+For a player, try a modern 4-core CPU and 8 GB of RAM as a starting point.
+Use a desktop browser with WebAssembly SIMD and WebGL 2, turn on graphics
+acceleration, and start with the default **Clean · Sharp Bilinear** filter.
+Try **Enhanced 2×** once the
+original resolution runs smoothly.
+
+For one dedicated room where you also play on the host, start with a modern
+6-core CPU, 16 GB of RAM, and about 5 GB of free disk space for the toolchain,
+game files and generated archive. These figures are planning estimates; the
+project has not benchmarked minimum hardware. The dedicated room adds a
+separate [headless Chrome](https://developer.chrome.com/docs/automation-and-testing/headless)
+runtime even if you close your player tab.
+
+Use Ethernet or a stable Wi-Fi connection. In shared-disc mode the host's
+upload also carries the initial game download for guests without a saved copy.
+
 ## One-time setup
 
 ```sh
@@ -32,16 +50,19 @@ is downloaded. Keep the terminal open until both commands finish successfully.
 
 ## Upgrade an existing installation
 
-Stop the hosting helper with **Ctrl+C**. From the project directory, update
-the source and rebuild the emulator for v0.7.0:
+Stop the hosting helper with **Ctrl+C**. From a clean project directory,
+update the source, refresh the pinned assets and rebuild the emulator:
 
 ```sh
 git pull --ff-only
+python3 tools/bootstrap-emulator.py
 python3 tools/build-emulator.py
 ```
 
-Start the hosting helper again and send the new invitation. If you prefer the
-creator's browser to host the room, pass `--browser-hosted`.
+Start the hosting helper again and send a fresh invitation so everyone loads
+the same build. Reload the launcher and start a new room to use the v0.8.0
+graphics changes. Solo saves are matched to the disc, BIOS and emulator
+build at the same browser address.
 
 ## Add the game files
 
@@ -111,20 +132,6 @@ eleven BIN files before launch; all track contents must match. Files are read
 inside that browser. Host disc downloads are blocked. This mode uses
 browser-hosted rooms. The creator's tab must stay open.
 
-## Updating
-
-Stop hosting before updating. From a clean project checkout:
-
-```sh
-git pull --ff-only
-python3 tools/bootstrap-emulator.py
-python3 tools/build-emulator.py
-```
-
-Start hosting again and send a new invitation. Everyone in the room uses the
-same served build. New dedicated rooms enable the native full-size camera and
-single-player HUD by default.
-
 ## Troubleshooting
 
 | Problem | What to do |
@@ -146,6 +153,9 @@ single-player HUD by default.
 | Catching up to the live race | Wait for the browser to catch up. The dedicated server keeps advancing. If the connection closes, reopen the invitation in the same browser and select **Join game**. |
 | Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
+| 16:9 is unavailable | Use the verified PAL disc and start a solo race or a dedicated room with **Separate cameras** enabled. Menus and shared split-screen use 4:3. |
+| Enhanced 2× looks like the original resolution | Enter a solo PAL race or a dedicated race with personal cameras to use native 2×. Other scenes upscale the finished frame. |
+| Save or load icon is hidden | Use the room creator's browser, with only its controller connected and no reserved seats or active multiplayer race. |
 | Guests download the disc on every launch | In Chrome with a Quick Tunnel, keep **Keep or choose game data** checked and use **Use existing ZIP** to select the same archive. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |
 

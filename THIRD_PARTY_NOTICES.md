@@ -29,6 +29,21 @@ Downloaded assets, source checkouts, SDK and binaries remain in ignored
 `vendor/` and `.cache/` directories. Preserve applicable upstream notices and
 source-distribution obligations when distributing compiled components.
 
+## Image rendering
+
+**Enhanced 2×** uses the pinned [PCSX-ReARMed enhancement rasterizer](https://github.com/EmulatorJS/pcsx_rearmed/tree/f29871dde1742cafb0ab56ba33636a8600bbbd80/plugins/gpu_neon).
+The adapter in `research/emulator/sled-enhanced.c` includes the upstream
+rasterizer and is available under GPL-2.0-or-later. The upstream source keeps
+its existing notices and license options.
+
+The **Clean** preset uses [Sharp Bilinear by Themaister](https://github.com/libretro/glsl-shaders/blob/6c9437bb938f1d9154353ccbfaf5238da5d2f8e3/interpolation/shaders/sharp-bilinear.glsl),
+marked public domain in its source. The local copy clamps the automatic scale
+to at least 1 for small windows.
+
+The **CRT · Lottes** preset uses [CRT Lottes by Timothy Lottes](https://github.com/libretro/glsl-shaders/blob/master/crt/shaders/crt-lottes.glsl).
+The source header dedicates the shader to the public domain. The preset uses
+less bloom, a softer mask and a flat screen.
+
 ## Controller illustration
 
 The controller in the Controls panel uses [playstation controller by MatthewHenninger](https://openclipart.org/detail/175351/playstation-controller).

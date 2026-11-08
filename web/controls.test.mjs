@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BUTTONS, CLASSIC, WASD, normalizeBindings, rebind, keyMap, presetFor } from './controls.js';
+import { BUTTONS, CLASSIC, WASD, normalizeBindings, rebind, keyMap, presetFor, restoreKeyboardProfile } from './controls.js';
 
 test('presets map every physical key to one PS1 button and recover corrupt preferences', () => {
   for (const bindings of [CLASSIC, WASD]) {
@@ -13,6 +13,15 @@ test('presets map every physical key to one PS1 button and recover corrupt prefe
     assert.deepEqual(normalizeBindings(value), CLASSIC);
   }
   assert.equal(presetFor(CLASSIC), 'classic'); assert.equal(presetFor(WASD), 'wasd');
+});
+
+test('keyboard profiles migrate custom bindings and retain them while a preset is selected', () => {
+  const bindings = rebind(CLASSIC, 'cross', 'KeyV');
+  assert.deepEqual(restoreKeyboardProfile({ bindings }), { preset: 'custom', bindings, customBindings: bindings });
+  assert.deepEqual(restoreKeyboardProfile({ preset: 'wasd', bindings: WASD, customBindings: bindings }), {
+    preset: 'wasd', bindings: WASD, customBindings: bindings,
+  });
+  assert.equal(restoreKeyboardProfile({ preset: 'custom', bindings: CLASSIC }).preset, 'custom');
 });
 
 test('rebinding swaps conflicting keys without mutating defaults or losing a button', () => {

@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.7.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.8.0 · experimental · [Changelog](CHANGELOG.md)**
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -56,7 +56,8 @@ python3 tools/play-online.py
 Wait until the terminal prints **Host launcher**, then:
 
 1. Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** on the host computer.
-2. Choose your settings and click **Start game**.
+2. Choose your settings and click **Start game**. While playing alone, use
+   **Load last save** in the game toolbar to restore a saved game.
 3. Click **Copy invite link** in the session toolbar and send the complete link
    to your friends. It automatically uses the public HTTPS address.
 4. Each friend opens the link and clicks **Join game**. In the game data dialog,
@@ -93,8 +94,9 @@ a rider. Player 1 chooses the course and starts the race. Up to **four players t
 | **Right Shift** | Select |
 
 Open **Controls** before launching to choose Classic or WASD, click a button on
-the DualShock illustration to rebind it, or select a connected gamepad. Keyboard
-bindings are saved in your browser. See [personal controls](docs/browser-lobby.md#personal-controls).
+the DualShock illustration to rebind it, or remap a connected gamepad. Your
+chosen layout, Custom bindings and controller mappings are saved in your
+browser. See [personal controls](docs/browser-lobby.md#personal-controls).
 
 Click the game if the keyboard does not respond. Register each rider before
 starting the race. A returning guest can open the same invitation and resume
@@ -128,7 +130,18 @@ mode and its HTTPS invitation.
 
 ## Settings and session behavior
 
-Before launching, choose progress, image filtering, volume and separate cameras.
+Choose race aspect ratio, image filtering, volume and **Enhanced 2×** in
+**Display and audio**. Solo PAL races and dedicated personal cameras default to
+**16:9** with **Clean · Sharp Bilinear** filtering. **4:3 · Original** is
+available for races, and menus and shared split-screen stay in 4:3.
+The in-game toolbar also offers filter switching, PNG screenshots and
+fullscreen (**Alt+Enter**).
+
+The game autosaves in the browser while the room creator plays alone. Use
+**Save game** for a manual snapshot or **Load last save** to open a fresh room
+from it. Saves pause while a guest is connected or has a reserved race seat.
+See [solo sessions and shortcuts](docs/browser-lobby.md#solo-sessions).
+
 **All content unlocked** is enabled by default and applies to temporary game
 memory. Disc files and persistent memory cards are unchanged. Optional BIOS
 files must match across all players; leaving BIOS empty uses HLE.
@@ -150,13 +163,16 @@ controller inputs and emulator state through RetroArch Netplay.
   catch up or reconnect. A room stays available while the hosting process runs
   and players remain connected.
   [Rooms and synchronization](docs/multiplayer.md#rooms-and-synchronization)
-- **Presentation.** Dedicated rooms use the original full-size world renderer
-  and single-player HUD for each controller. Pause menus are shared.
+- **Presentation.** Dedicated personal cameras and solo PAL races support
+  widened race geometry and native 2× rendering. Browser-hosted multiplayer,
+  shared split-screen and menus use the original frame for upscaling. The HUD
+  keeps native rasterization in Enhanced 2×.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
-- **Test coverage.** A four-player Chrome race in v0.6.0 verified separate
-  cameras, the original HUD and mid-race reconnection through Cloudflare on
-  one Mac. Remote races between separate computers, physical gamepads and
-  soundtrack quality still need hands-on testing. [Verification record](docs/verification.md)
+- **Test coverage.** v0.8.0 checks include a solo PAL race in Chrome with
+  Enhanced 2× in both 4:3 and 16:9. The four-player Cloudflare gameplay check
+  used four browser contexts on one Mac in v0.6.0. Separate computers,
+  physical gamepads and soundtrack quality still need hands-on testing.
+  [Verification record](docs/verification.md)
 
 ## Documentation
 
