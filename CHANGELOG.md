@@ -3,6 +3,11 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 0.9.3 - 2026-11-10
+
+- Restore the snowbanks and backdrop during the Pine Valley multiplayer
+  opening sweep while keeping all four sleds visible.
+
 ## 0.9.2 - 2026-11-10
 
 - Restore the PAL speedometer's smoothing and keep every racer's marker on

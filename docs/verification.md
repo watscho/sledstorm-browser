@@ -1,5 +1,35 @@
 # Verification and known limits
 
+## 0.9.3 verification summary
+
+The opening camera looks back through the Pine Valley start banner while
+the race clock reads 00:00:00. On 0.9.2, the full-size
+multiplayer view could exhaust its terrain primitive budget during this
+pass. PAL omitted parts of the snowbanks and distant scenery, exposing
+black in both 4:3 and 16:9. Releasing the reserve for the sleds made the
+remaining budget positive by the end of the frame.
+
+For the private pre-GO multiplayer view, the renderer can now use both
+of the contiguous banks PAL allocates for alternating frames. It checks
+the allocation and the active cursor before borrowing the other bank.
+The original reserve still gives the sleds and shadows space to draw.
+
+Two replays advanced the same host and guest checkpoints by 16 core steps
+into the affected part of the sweep. The corrected views showed both
+snowbanks, the backdrop and all four sleds in 4:3, 16:9 software at 1× and
+Enhanced 2×, and 16:9 WebGL2 through Apple Metal. All compared personal
+views reached the same console-state digest across builds and across
+display settings.
+
+Six fresh three-lap starts on one Mac covered two, three and four Chrome
+clients in browser-hosted and dedicated rooms. Every camera reached GO.
+The 629 captures covered the opening sweep and the first seconds of racing.
+The snowbanks and backdrop were present on all sampled cameras during the
+reproduced sweep. All 702 sampled private passes preserved the canonical
+state digest. A solo WebGL2 control run also reached GO and showed the
+full scene in 35 captures. The native presentation checks, 26 browser
+tests, 19 network tests and four HTTP tests passed.
+
 ## 0.9.2 verification summary
 
 Chrome on one Apple M5 Pro ran six two-lap Pine Valley races from the original
@@ -26,12 +56,12 @@ the 4:3 menu.
   software Enhanced 2× and WebGL2 through Apple Metal. In a separate replay
   with the camera looking back, clipping removed the stretched marks above
   the slope while keeping the visible tread on the snow.
-- The 126 sampled start frames covered the opening camera, countdown, GO
-  and first seconds of racing in both room types. No black track patches
-  appeared in the sample. The dense opening with four racers still exposes
-  the gray fog backdrop at the edges where the primitive budget limits
-  scenery. Personal cameras reached 10 terrain cells at Original. The two
-  four-player rooms also reached 20 cells on a client set to +100%.
+- The 126 sampled start frames began after the camera turned behind the
+  grid and covered the countdown, GO and first seconds of racing in both
+  room types. They showed the gray fog backdrop at the edges where the
+  primitive budget limits scenery. Personal cameras reached 10 terrain
+  cells at Original. The two four-player rooms also reached 20 cells on a
+  client set to +100%.
 - The sign and ice-wall replays on controller 2 passed on the final build
   with the original fragments and single awards of 50 and 500 points.
   All 26 browser tests, 19 network tests, four HTTP tests and the native

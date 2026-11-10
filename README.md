@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.9.2 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.9.3 · experimental · [Changelog](CHANGELOG.md)**
 
 [Personal camera parity](#personal-camera-parity)
  · [Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
@@ -134,11 +134,11 @@ racers on the minimap and draw PAL tread marks on the snow. **Original** draw
 distance uses the solo terrain span when the scene fits the geometry budget.
 The shared pause menu appears in 4:3 over each player's own view.
 
-Six two-lap Pine Valley races reached matching results in browser-hosted
-and dedicated rooms with two, three and four Chrome clients on one Mac.
-The checks included the opening camera, countdown and first seconds of the
-race in 4:3, widescreen, software Enhanced 2× and WebGL2. See the
-[verification record](docs/verification.md#092-verification-summary).
+The Pine Valley opening camera now keeps the snowbanks and backdrop visible
+as it passes in front of the starting grid. The start checks used two, three
+and four Chrome clients in both room types on one Mac, with 4:3, widescreen,
+software Enhanced 2× and WebGL2. See the
+[verification record](docs/verification.md#093-verification-summary).
 
 ## Pine Valley multiplayer fixes
 

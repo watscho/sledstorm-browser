@@ -67,6 +67,11 @@ static void overlay_stock_hud(uint16_t *output, const uint16_t *frame, unsigned 
 #define SPEED_CURVE 0x800a72d4u
 #define SPEED_UNITS 0x800c2824u
 #define PRIMITIVE_BUDGET 0x800c3efcu
+#define PRIMITIVE_CURSORS 0x800c3eb0u
+#define PRIMITIVE_BANKS 0x800c3eb8u
+#define PRIMITIVE_CAPACITY 0x800d6970u
+#define PRIMITIVE_BYTES 40u
+#define PRIMITIVE_HEADROOM 32u
 #define PAL_SOLO_RANGE 10u
 #define PAL_MIN_RANGE 7u
 #define RACER_AWARD 0x514u
@@ -122,6 +127,25 @@ static void *ram(unsigned address) { return psxM + (address & 0x1fffff); }
 static void word(unsigned address, uint32_t value) { memcpy(ram(address), &value, 4); }
 static unsigned half(unsigned address) { uint16_t value; memcpy(&value, ram(address), 2); return value; }
 static void set_half(unsigned address, uint16_t value) { memcpy(ram(address), &value, 2); }
+
+static void use_both_primitive_banks(void) {
+  /* PAL allocates two contiguous primitive banks for alternating frames
+   * (0x8004b7bc). The isolated start view submits synchronously, so it can
+   * use both banks after verifying the layout and an empty current bank. */
+  const unsigned frame = ram32(0x800d6968);
+  const unsigned count = ram32(PRIMITIVE_CAPACITY);
+  const unsigned first = ram32(PRIMITIVE_BANKS), second = ram32(PRIMITIVE_BANKS + 4);
+  if (frame > 1 || count <= PRIMITIVE_HEADROOM ||
+      first < 0x80010000 || (first & 3) || first >= second || second >= 0x80200000 ||
+      count > (0x80200000 - second) / PRIMITIVE_BYTES ||
+      second - first != count * PRIMITIVE_BYTES ||
+      ram32(PRIMITIVE_BUDGET) != count - PRIMITIVE_HEADROOM)
+    return;
+  const unsigned cursor = PRIMITIVE_CURSORS + frame * 4;
+  if (ram32(cursor) != (frame ? second : first)) return;
+  word(cursor, first);
+  word(PRIMITIVE_BUDGET, 2 * count - PRIMITIVE_HEADROOM);
+}
 
 static int personal_scene(unsigned players) {
   if (!(enabled & 1) || players < 2 || players > 4 || seat >= players ||
@@ -339,8 +363,10 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
   if (configured) {
     native_error = 3;
     native_single_view = !(enabled & 8);
+    const int multiplayer_grid = native_single_view && players >= 2 && !ram32(RACER_BASE + RACER_RACE_CLOCK);
+    if (multiplayer_grid) use_both_primitive_banks();
 #ifdef __EMSCRIPTEN__
-    starting_grid = players >= 2 && !ram32(RACER_BASE + RACER_RACE_CLOCK);
+    starting_grid = multiplayer_grid;
     grid_budget_reserved = 0;
 #endif
     const unsigned stock_cells = ram32(camera + 0x70);

@@ -28,6 +28,7 @@ static const unsigned native_view = 0x800e2cb0, native_ot = 0x80020070;
 static const unsigned snow_buffers[] = {0x80056000, 0x80057000};
 static const unsigned snow_position = 30 | (0xffe0u << 16);
 static unsigned native_seat, native_submissions;
+static unsigned expected_primitive_budget, expected_primitive_cursor;
 void sled_view_cache_save(int restore) {
   if (restore) { assert(cache_saved); cache_saved = 0; }
   else { assert(!cache_saved); cache_saved = 1; }
@@ -82,6 +83,11 @@ static void simulate_world(psxRegisters *regs, enum blockExecCaller caller) {
         assert(read_word(native_view + 0x144 + 4 * i) == 0x80040000 + 12 * i);
       break;
     case 0x80051010: {
+      if (expected_primitive_budget) {
+        const unsigned cursor = 0x800c3eb0 + 4 * read_word(0x800d6968);
+        assert(read_word(cursor) == expected_primitive_cursor);
+        assert(read_word(0x800c3efc) == expected_primitive_budget);
+      }
       regs->pc = 0x8003d100;
       regs->CP2C.n.h = 200;
       for (unsigned i = 16; i <= 19; ++i) regs->CP2D.p[i].w.l = 101;
@@ -234,8 +240,22 @@ int main(void) {
     word(0x800c3cd8 + frame * 4, snow_buffers[frame]);
     for (unsigned i = 0; i < 200; ++i) word(snow_buffers[frame] + 20 * i + 8, snow_position);
   }
+  const unsigned bank_capacity = 4096, first_bank = 0x80180000;
+  const unsigned second_bank = first_bank + 40 * bank_capacity;
+  word(0x800d6970, bank_capacity);
+  word(0x800c3eb8, first_bank);
+  word(0x800c3ebc, second_bank);
+  word(0x800c3efc, bank_capacity - 32);
   for (native_seat = 0; native_seat < 4; ++native_seat) {
-    word(0x800d6968, native_seat & 1);
+    const unsigned frame = native_seat & 1;
+    unsigned cursor = frame ? second_bank : first_bank;
+    /* Cover both empty banks, an occupied bank and a race already underway. */
+    if (native_seat == 2) cursor += 40;
+    word(racer_base + 0x378, native_seat == 3);
+    word(0x800d6968, frame);
+    word(0x800c3eb0 + 4 * frame, cursor);
+    expected_primitive_cursor = native_seat < 2 ? first_bank : cursor;
+    expected_primitive_budget = (native_seat < 2 ? 2 : 1) * bank_capacity - 32;
     word(native_view + native_seat * 0x224 + 0x220, 0x80030000 + native_seat * 0x110);
     word(native_view + native_seat * 0x224 + 0x20c, 128);
     word(native_view + native_seat * 0x224 + 0x210, 64);
@@ -250,6 +270,8 @@ int main(void) {
     assert(!memcmp(psxM, saved_ram, 0x200000) && !memcmp(&gpu, &saved, sizeof(gpu)));
     assert(psxRegs.pc == 0x80014e88 && !sled_view_transaction && !cache_saved);
   }
+  expected_primitive_budget = 0;
+  word(racer_base + 0x378, 0);
   psxRegs.pc = 0x80051e3c;
   psxRegs.GPR.n.v0 = 1;
   assert(!sled_view_pc(&psxRegs) && psxRegs.GPR.n.v0 == 1);
