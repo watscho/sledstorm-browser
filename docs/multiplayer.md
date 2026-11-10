@@ -77,7 +77,9 @@ The room acts like one console with up to **four controllers**. Each browser
 has its own camera and original single-player HUD when **Separate cameras** is
 enabled. Native pause/options menus are shared and keep their 4:3 proportions.
 Dedicated personal cameras support 16:9 and Enhanced 2× independently for
-each player. A room can mix 4:3 and 16:9 displays.
+each player. A room can mix 4:3 and 16:9 displays. Experimental draw distance
+is also personal, with **Original** as the default. See
+[display settings](browser-lobby.md#before-launch).
 RetroArch restores the current race state after the disc loads. In a
 browser-hosted room, the host must stay connected and a returning player can
 resume their racer if the corresponding slot is free. Dedicated rooms
@@ -109,13 +111,17 @@ credential per room. During a race, the server reserves the disconnected
 controller for that credential. In the lobby, a new assignment replaces the
 saved credential. If the host joined on localhost, they can return using
 the room address from their own address bar. A room without any connected
-players closes after 60 seconds unless a guest has already checked their
-invitation and is loading the disc. That gives the guest up to five minutes
-to join the empty room.
+players stays open for at least 60 seconds. A recent invitation check can
+extend that time to let a guest finish loading their disc, up to five minutes.
+The launcher has two dedicated room slots, including any empty rooms still
+available for rejoining.
 
 The dedicated runtime keeps advancing when a controller stops sending input.
-It releases held buttons after 150 ms and allows up to eight seconds without
-input before disconnecting the controller.
+It releases a lone controller's held buttons after 150 ms without input.
+When multiple controllers go quiet together, the server keeps their last input
+for up to 340 ms to ride out the shared delivery gap. Fresh input applies on
+the next server step. The server allows up to eight seconds without input before
+disconnecting a controller.
 Reconnecting reuses the disc if the browser can access a matching saved copy.
 Keep the hosting process and tunnel running while friends are playing.
 
@@ -167,8 +173,24 @@ private logs and temporary access metadata live under ignored `.cache/online/`.
 Use `CLOUDFLARED_BIN` if the executable is not on PATH; the helper also recognizes
 `.cache/cloudflared/cloudflared`.
 
+The primary connector prefers QUIC and can fall back to HTTP/2 when UDP is
+unavailable. Set `TUNNEL_TRANSPORT_PROTOCOL=http2` to force HTTP/2 on the
+primary connector for troubleshooting. The dedicated launcher also opens a
+separate HTTP/2 connector for small netplay messages. It publishes that route
+when it registers. Players can use the primary connector's mirror endpoint
+when the separate route is unavailable. The launcher retries the separate
+connector after it exits, and players switch back as the new connection opens.
+Dedicated PAL clients joining through a Quick Tunnel configure a 160 ms
+WebAudio queue. During a multiplayer race, RetroArch's audio rate controller
+targets three quarters of that capacity to cover short replay bursts. When
+the queue runs low, a bounded resampling adjustment helps refill it.
+
 The HTTPS gateway requires private access, serves an asset allowlist and proxies
-same-origin `/netplay` WebSockets. In shared mode it allows the complete disc
+same-origin `/netplay` WebSockets. The separate connector exposes only
+`/netplay-mirror` for an authorized primary connection. Dedicated players send
+and receive small game messages over both WebSockets. The first copy takes
+effect and large transfers use the primary connection.
+In shared mode the gateway allows the complete disc
 archive; in local mode disc downloads are blocked. A custom deployment must
 provide HTTPS/WSS, retain COOP/COEP headers and route only through the private
 gateway. Direct LAN hosting and persistent public deployment are not provided

@@ -1281,6 +1281,12 @@ select option { color:var(--text); background:#172a43; }
 /* Fullscreen contains only the game; Escape returns to the normal session UI. */
 #game:fullscreen { width:100vw; height:100vh; min-height:0; max-height:none; margin:0; padding:0; border:0; border-radius:0; background:#000; outline:none; }
 #game.race-widescreen:not(:fullscreen) { box-sizing:content-box; width:calc(100% - 2px); aspect-ratio:16/9; height:auto; min-height:0; }
+.hardware-preview { position:absolute; inset:0; display:grid; place-items:center; container-type:size; pointer-events:none; }
+.hardware-preview[hidden] { display:none; }
+.hardware-preview-active .hardware-preview-source { opacity:0; }
+.hardware-preview > div { position:relative; width:min(100cqw, 177.778cqh); aspect-ratio:16/9; }
+.hardware-preview canvas { position:absolute; inset:0; width:100%; height:100%; }
+.hardware-preview canvas + canvas { image-rendering:pixelated; }
 #game:fullscreen .ejs_menu_bar,
 #game:fullscreen .ejs_context_menu,
 #game:fullscreen .ejs_virtualGamepad_parent { display:none!important; }

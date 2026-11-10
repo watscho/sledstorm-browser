@@ -13,13 +13,17 @@ extern int sled_view_transaction;
 extern int sled_view_hardware_access;
 void sled_view_cache_save(int restore);
 #ifdef __EMSCRIPTEN__
+extern int sled_wide_gpu_capture;
+extern int sled_wide_gpu_ready;
 #define SLED_WIDE_WIDTH  684
 #define SLED_WIDE_MARGIN ((SLED_WIDE_WIDTH - 512) / 2)
 #define SLED_WIDE_2X_WIDTH (SLED_WIDE_WIDTH * 2)
 int sled_view_wide_pending(void);
+int sled_view_hold_frame(void);
 const uint16_t *sled_view_wide_frame(void);
 const uint16_t *sled_view_wide_enhanced_frame(void);
 void sled_renderer_set_widescreen(const void *texture_vram);
+void sled_renderer_set_wide_edges(int enabled);
 void sled_enhanced_begin(const uint16_t *vram, unsigned y);
 void sled_enhanced_wide_begin(void);
 void sled_enhanced_wide_clear_center(void);

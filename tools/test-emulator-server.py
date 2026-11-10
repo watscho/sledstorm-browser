@@ -8,6 +8,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -57,6 +58,14 @@ class LauncherTests(unittest.TestCase):
                         {**published, 'path': '/'}, []]:
             metadata.write_text(json.dumps(invalid))
             self.assertNotIn('x-invite-origin', self.request('/session-info')[1])
+
+    def test_hardware_renderer_requires_a_generated_module(self):
+        with patch.object(launcher, 'ROOT', Path(self.directory.name)):
+            self.assertNotIn('x-sled-hardware-renderer', self.request('/session-info')[1])
+            module = launcher.ROOT / 'web/generated/enge-hardware.js'
+            module.parent.mkdir(parents=True)
+            module.touch()
+            self.assertEqual(self.request('/session-info')[1]['x-sled-hardware-renderer'], 'webgl2')
 
     def test_local_mode_blocks_host_disc_even_when_cached(self):
         (launcher.CACHE / 'disc.zip').write_bytes(b'synthetic disc')

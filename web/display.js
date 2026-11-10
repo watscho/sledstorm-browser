@@ -59,7 +59,7 @@ export function enableSessionDisplay(emulator, initial, shaders, notify, remembe
     if (screenshot.disabled) return;
     screenshot.disabled = true;
     try {
-      const bytes = await emulator.gameManager.screenshot();
+      const bytes = (await emulator.Module.sledWideGpuScreenshot?.()) ?? await emulator.gameManager.screenshot();
       const url = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
       const link = document.createElement('a');
       link.href = url;

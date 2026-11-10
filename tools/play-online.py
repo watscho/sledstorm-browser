@@ -62,23 +62,24 @@ def main():
     CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
     link_file = CACHE / 'access-url.txt'
     public_file = CACHE / 'public-launcher.json'
+    mirror_file = CACHE / 'mirror-origin.txt'
+    mirror_temp = mirror_file.with_suffix('.tmp')
     link_file.unlink(missing_ok=True)
     public_file.unlink(missing_ok=True)
+    mirror_file.unlink(missing_ok=True)
     processes = []
-    streams = []
 
     def start(name, command):
         log_path = CACHE / f'{name}.log'
-        output = private_file(log_path)
-        streams.append(output)
-        process = subprocess.Popen(command, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
-                                   start_new_session=True)
+        with private_file(log_path) as output:
+            process = subprocess.Popen(command, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
+                                       start_new_session=True)
         processes.append((name, process, log_path))
         return process
 
     def check_processes():
         for name, process, path in processes:
-            if process.poll() is not None:
+            if name != 'mirror-tunnel' and process.poll() is not None:
                 raise RuntimeError(f'{name} exited ({process.returncode}). See {path}')
 
     def wait_port(port, timeout=20):
@@ -90,6 +91,54 @@ def main():
             time.sleep(0.2)
         raise RuntimeError(f'Timed out waiting for port {port}. See {CACHE}')
 
+    def tunnel_origin(name):
+        log = (CACHE / f'{name}.log').read_text(errors='replace')
+        match = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', log)
+        if match and log.rfind('Registered tunnel connection') > log.rfind('Unregistered tunnel connection'):
+            return match.group(0)
+        return None
+
+    mirror_process = None
+    mirror_port = None
+    mirror_origin = None
+    mirror_retry_at = 0
+    mirror_retry_delay = 2
+
+    def update_mirror():
+        nonlocal mirror_process, mirror_port, mirror_origin, mirror_retry_at, mirror_retry_delay
+        if not dedicated:
+            return
+        if mirror_port is None:
+            log = (CACHE / 'gateway.log').read_text(errors='replace')
+            match = re.search(r'^Mirror gateway ready on 127\.0\.0\.1:(\d+)\.$', log, re.MULTILINE)
+            if not match:
+                return
+            mirror_port = match.group(1)
+        now = time.monotonic()
+        if mirror_process is not None and mirror_process.poll() is not None:
+            processes[:] = [entry for entry in processes if entry[1] is not mirror_process]
+            mirror_process = None
+            mirror_retry_at = now + mirror_retry_delay
+            mirror_retry_delay = min(30, mirror_retry_delay * 2)
+        if mirror_process is None and now >= mirror_retry_at:
+            try:
+                mirror_process = start('mirror-tunnel', [cloudflared, 'tunnel', '--url',
+                                       f'http://127.0.0.1:{mirror_port}', '--protocol', 'http2', '--no-autoupdate'])
+            except OSError:
+                mirror_retry_at = now + mirror_retry_delay
+                mirror_retry_delay = min(30, mirror_retry_delay * 2)
+        registered = tunnel_origin('mirror-tunnel') if mirror_process is not None else None
+        if registered == mirror_origin:
+            return
+        mirror_origin = registered
+        if mirror_origin:
+            mirror_retry_delay = 2
+            with private_file(mirror_temp) as output:
+                output.write(mirror_origin + '\n')
+            mirror_temp.replace(mirror_file)
+        else:
+            mirror_file.unlink(missing_ok=True)
+
     try:
         print('Preparing local runtime. The first host-disc launch may take longer.', flush=True)
         runtime_command = [sys.executable, str(ROOT / 'server.py'), '--disc-mode', args.disc_mode,
@@ -99,23 +148,27 @@ def main():
         wait_port(relay_port)
         wait_port(netplay_port)
         gateway_command = [node, str(ROOT / 'research/network/emulator-gateway.mjs'), '--disc-mode', args.disc_mode]
+        if dedicated:
+            gateway_command.append('--mirror')
         start('gateway', gateway_command)
         wait_port(gateway_port)
-        start('tunnel', [cloudflared, 'tunnel', '--url', f'http://127.0.0.1:{gateway_port}', '--no-autoupdate'])
+        protocol = os.environ.get('TUNNEL_TRANSPORT_PROTOCOL') or 'auto'
+        start('tunnel', [cloudflared, 'tunnel', '--url', f'http://127.0.0.1:{gateway_port}',
+                         '--protocol', protocol, '--no-autoupdate'])
         print('Starting Cloudflare Quick Tunnel. Runtime assets will be reachable through the private access link.', flush=True)
         deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             check_processes()
-            log = (CACHE / 'tunnel.log').read_text(errors='replace')
-            match = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', log)
+            update_mirror()
+            origin = tunnel_origin('tunnel')
             # Print only after the connector is registered, not just when a name is assigned.
-            if match and 'Registered tunnel connection' in log:
+            if origin:
                 access_path = (ROOT / '.cache/emulator-access.txt').read_text().strip()
-                url = match.group(0) + access_path
+                url = origin + access_path
                 with private_file(link_file) as output:
                     output.write(url + '\n')
                 with private_file(public_file) as output:
-                    json.dump({'runtimePid': runtime.pid, 'origin': match.group(0), 'path': access_path}, output)
+                    json.dump({'runtimePid': runtime.pid, 'origin': origin, 'path': access_path}, output)
                 print('\nHost launcher: http://127.0.0.1:8000/\nInvitations automatically use the private internet URL.', flush=True)
                 print(f'\nPrivate HTTPS launcher:\n{url}\n', flush=True)
                 if args.disc_mode == 'shared':
@@ -130,9 +183,12 @@ def main():
             raise RuntimeError(f'Tunnel startup timed out. See {CACHE / "tunnel.log"}')
         while True:
             check_processes()
+            update_mirror()
             time.sleep(0.5)
     finally:
-        for _, process, _ in reversed(processes):
+        for name, process, _ in reversed(processes):
+            if name == 'mirror-tunnel' and process.poll() is not None:
+                continue
             try:
                 os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError:
@@ -146,10 +202,10 @@ def main():
                 except ProcessLookupError:
                     pass
                 process.wait()
-        for stream in streams:
-            stream.close()
         link_file.unlink(missing_ok=True)
         public_file.unlink(missing_ok=True)
+        mirror_file.unlink(missing_ok=True)
+        mirror_temp.unlink(missing_ok=True)
         print('Online stack stopped.', flush=True)
 
 

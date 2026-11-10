@@ -2,6 +2,7 @@
  * A second instance of PCSX-ReARMed's upstream 2x rasterizer for presentation. */
 #include <stdlib.h>
 #include <string.h>
+#include <emscripten.h>
 #include "sled-view.h"
 
 #define gpu enhanced_gpu
@@ -31,6 +32,8 @@ static DrawPacket wide_packets[WIDE_PACKETS];
 static uint32_t wide_words[WIDE_WORDS];
 static unsigned packets_used, words_used, clear_before;
 static int recording_wide, wide_overflow;
+int sled_wide_gpu_capture;
+int sled_wide_gpu_ready;
 static uint16_t wide_output[SLED_WIDE_2X_WIDTH * 512];
 
 static void *allocate_buffer(unsigned size) { return calloc(1, size); }
@@ -62,6 +65,7 @@ static void begin_enhancement(const uint16_t *vram, unsigned y, unsigned width) 
 }
 
 void sled_enhanced_begin(const uint16_t *vram, unsigned y) {
+  sled_wide_gpu_capture = 0;
   begin_enhancement(vram, y, 512);
 }
 
@@ -70,6 +74,7 @@ void sled_enhanced_wide_begin(void) {
   clear_before = WIDE_PACKETS;
   wide_overflow = 0;
   recording_wide = 1;
+  sled_wide_gpu_capture = EM_ASM_INT({ return typeof Module.sledWideGpuCapture === 'function'; });
 }
 
 void sled_enhanced_wide_clear_center(void) {
@@ -155,7 +160,15 @@ static int render_tile(const uint16_t *vram, unsigned y, unsigned left) {
 uint16_t *sled_enhanced_wide_end(const uint16_t *vram, unsigned y, int present) {
   if (!recording_wide) return NULL;
   recording_wide = 0;
+  const int gpu_capture = sled_wide_gpu_capture;
+  sled_wide_gpu_capture = 0;
   if (!present || wide_overflow || !packets_used) return NULL;
+  if (gpu_capture && EM_ASM_INT({
+    return Module.sledWideGpuCapture($0, $1, $2, $3, $4, $5, $6) ? 1 : 0;
+  }, vram, y, wide_packets, packets_used, wide_words, words_used, clear_before)) {
+    sled_wide_gpu_ready = 1;
+    return NULL;
+  }
   egpu.hack_disable_main = 1;
   const int rendered = render_tile(vram, y, 0) && render_tile(vram, y, TILE_WIDTH);
   egpu.hack_disable_main = 0;

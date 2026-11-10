@@ -1,4 +1,5 @@
 import { sampleGamepad } from '/session-client.js';
+import { mirrorNetplayDownlink } from './netplay-downlink.js';
 
 const port = 55435;
 const toRetroPad = [2, null, null, 3, 4, 7, 5, 6, 12, 13, 10, 11, 9, 8, 0, 1];
@@ -26,7 +27,9 @@ export function checkNetplayInvitation({ room, token }) {
   });
 }
 
-export async function prepareNetplay(emulator, { invitation, identity, onInvite, onClose, onRoster, dedicated, worker, options, snapshot }) {
+export async function prepareNetplay(emulator, {
+  invitation, identity, onInvite, onClose, onRoster, dedicated, worker, widescreen, options, snapshot, netplayDelivery, mirrorOrigin,
+}) {
   const room = worker ? { room: worker.room, token: worker.workerKey, v: 7 } : invitation ?? {
     room: hex(crypto.getRandomValues(new Uint8Array(12))),
     token: hex(crypto.getRandomValues(new Uint8Array(32))),
@@ -49,9 +52,17 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
     try { preferredSlot = Number(sessionStorage.getItem(seatKey)); } catch { /* A free seat still works. */ }
   }
   const endpoint = netplayEndpoint();
+  const duplex = netplayDelivery === 'mirror-v2';
+  const mirrorParameter = duplex ? 'duplex' : 'downlink';
   let socket;
+  let mirrorKey;
   function connect() {
-    socket = new WebSocket(endpoint);
+    const primary = new URL(endpoint);
+    if (dedicated && client && (duplex || netplayDelivery === 'mirror-v1')) {
+      mirrorKey = hex(crypto.getRandomValues(new Uint8Array(24)));
+      primary.searchParams.set(mirrorParameter, mirrorKey);
+    }
+    socket = new WebSocket(primary);
     const handlers = new AbortController();
     const { signal } = handlers;
     return new Promise((resolve, reject) => {
@@ -119,9 +130,11 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
         socket.send('{"type":"release-for-load"}');
       });
     }
+    let delivery;
     if (!worker) {
       connection.markSynchronized = () => {
         if (socket.readyState === WebSocket.OPEN) socket.send('{"type":"synchronized"}');
+        delivery?.startMirror();
       };
       socket.addEventListener('message', event => {
         if (typeof event.data !== 'string') return;
@@ -132,6 +145,23 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
         else if (message?.type === 'released-for-load') finishRelease?.(message.allowed === true);
         else return;
         event.stopImmediatePropagation();
+      });
+    }
+    if (mirrorKey) {
+      const mirror = new URL('/netplay-mirror', endpoint);
+      mirror.searchParams.set(mirrorParameter, mirrorKey);
+      function separateMirror(origin) {
+        if (!duplex || !/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin ?? '')) return undefined;
+        const url = new URL(mirror);
+        url.host = new URL(origin).host;
+        if (url.host !== mirror.host) return url;
+      }
+      const discoverMirror = duplex ? async signal => {
+        const response = await fetch('/session-info', { cache: 'no-store', signal });
+        if (response.ok) return separateMirror(response.headers.get('X-Sled-Netplay-Mirror-Origin'));
+      } : undefined;
+      delivery = mirrorNetplayDownlink(socket, mirror, {
+        duplex, separateUrl: separateMirror(mirrorOrigin), discoverMirror,
       });
     }
     if (controllerKey) {
@@ -145,7 +175,7 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
     }
     const { Module: module, gameManager: manager } = emulator;
     if (!module.sledInstallNetplay || !module._sled_netplay_status) throw new Error('RetroArch Netplay core is missing. Rebuild the emulator.');
-    module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room);
+    module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room, delivery?.stream);
     socket.addEventListener('close', event => {
       if (!connection.releasedForLoad) onClose(event.reason ||
         'Disconnected from the room. Open the invitation again to rejoin.');
@@ -154,6 +184,9 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
     const existing = module.FS.readFile(config, { encoding: 'utf8' });
     module.FS.writeFile(config, existing + '\nnetplay_public_announce = "false"\nnetplay_nat_traversal = "false"\n'
       + 'pause_nonactive = "false"\nnetplay_check_frames = "0"\n'
+      // The client already skips private drawing during explicit recovery.
+      // Keep completed wide frames when RetroArch briefly goes nonblocking.
+      + (dedicated && client && widescreen ? 'fastforward_frameskip = "false"\n' : '')
       + (worker ? 'netplay_start_as_spectator = "true"\nnetplay_max_connections = "4"\n'
         + 'netplay_allow_slaves = "true"\nnetplay_require_slaves = "true"\n'
         : `netplay_request_device_p${slot + 1} = "true"\n`));
@@ -169,10 +202,11 @@ export async function prepareNetplay(emulator, { invitation, identity, onInvite,
   }
 }
 
-export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles }) {
+export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles }, controller = () => 0) {
   const { gameManager: manager, elements } = emulator;
   let keyboard = 0xffff;
   let last = 0xffff;
+  let previousController = controller();
   manager.setKeyboardEnabled(false);
   manager.simulateInput = () => {}; // The lobby owns keyboard and gamepad bindings.
   const release = () => { keyboard = 0xffff; };
@@ -193,14 +227,17 @@ export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles 
     }, true);
   }
   return () => {
+    const slot = controller();
+    if (slot !== previousController) last = 0xffff;
     const pad = document.hasFocus() && !document.hidden ? sampleGamepad(keyboard, gamepadIndex?.(), gamepadProfiles) : 0xffff;
     const changed = pad ^ last;
     for (let bit = 0; bit < 16; bit++) {
       const button = toRetroPad[bit];
       if (button !== null && (changed & (1 << bit))) {
-        manager.functions.simulateInput(0, button, Number(!(pad & (1 << bit))));
+        manager.functions.simulateInput(slot, button, Number(!(pad & (1 << bit))));
       }
     }
     last = pad;
+    previousController = slot;
   };
 }
