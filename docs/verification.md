@@ -1,5 +1,28 @@
 # Verification and known limits
 
+## 0.9.4 verification summary
+
+A dedicated two-client Pine Valley race on one Mac reproduced black gaps
+in the guest's view before lap three and before the finish on the 0.9.3
+render path. On the first affected frame the wide pass had a remaining
+primitive budget of -184 and the fallback pass still ran out at -56.
+The snowbanks, backdrop and some sled models were missing.
+
+The private multiplayer renderer now uses both of PAL's verified
+primitive banks throughout the race. The existing layout and cursor
+checks still apply. An identical four-player checkpoint replay recovered
+the snowbank and sleds under the banner in 4:3, 16:9 software 1× and
+Enhanced 2×, and WebGL2. A 20-frame WebGL2 replay needed one geometry pass
+per frame after the fix, down from two or three. The compared replays
+reached matching console-state digests across builds and display settings.
+
+In a fresh three-lap dedicated race with two Chrome clients, all 2,224
+sampled frames around the line used one build and showed no scenery gaps.
+Both clients saw their finish banner and reached matching standings.
+The 1,255 common confirmed gameplay samples agreed. The native
+presentation checks, 26 browser tests, 19 network tests and four HTTP
+tests passed.
+
 ## 0.9.3 verification summary
 
 The opening camera looks back through the Pine Valley start banner while

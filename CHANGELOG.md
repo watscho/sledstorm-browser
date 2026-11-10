@@ -3,6 +3,11 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 0.9.4 - 2026-11-10
+
+- Restore the slopes, backdrop and sleds in dense frames at the Pine
+  Valley lap and finish line in multiplayer.
+
 ## 0.9.3 - 2026-11-10
 
 - Restore the snowbanks and backdrop during the Pine Valley multiplayer

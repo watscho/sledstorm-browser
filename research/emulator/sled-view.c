@@ -130,7 +130,7 @@ static void set_half(unsigned address, uint16_t value) { memcpy(ram(address), &v
 
 static void use_both_primitive_banks(void) {
   /* PAL allocates two contiguous primitive banks for alternating frames
-   * (0x8004b7bc). The isolated start view submits synchronously, so it can
+   * (0x8004b7bc). The isolated race view submits synchronously, so it can
    * use both banks after verifying the layout and an empty current bank. */
   const unsigned frame = ram32(0x800d6968);
   const unsigned count = ram32(PRIMITIVE_CAPACITY);
@@ -363,10 +363,10 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
   if (configured) {
     native_error = 3;
     native_single_view = !(enabled & 8);
-    const int multiplayer_grid = native_single_view && players >= 2 && !ram32(RACER_BASE + RACER_RACE_CLOCK);
-    if (multiplayer_grid) use_both_primitive_banks();
+    const int personal_view = native_single_view && players >= 2;
+    if (personal_view) use_both_primitive_banks();
 #ifdef __EMSCRIPTEN__
-    starting_grid = multiplayer_grid;
+    starting_grid = personal_view && !ram32(RACER_BASE + RACER_RACE_CLOCK);
     grid_budget_reserved = 0;
 #endif
     const unsigned stock_cells = ram32(camera + 0x70);

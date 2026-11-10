@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.9.3 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.9.4 · experimental · [Changelog](CHANGELOG.md)**
 
 [Personal camera parity](#personal-camera-parity)
  · [Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
@@ -139,6 +139,11 @@ as it passes in front of the starting grid. The start checks used two, three
 and four Chrome clients in both room types on one Mac, with 4:3, widescreen,
 software Enhanced 2× and WebGL2. See the
 [verification record](docs/verification.md#093-verification-summary).
+
+Version 0.9.4 also keeps the Pine Valley scenery and sleds visible at the
+lap and finish line. Both Chrome clients in a three-lap dedicated race
+reached matching standings. See the
+[lap and finish checks](docs/verification.md#094-verification-summary).
 
 ## Pine Valley multiplayer fixes
 

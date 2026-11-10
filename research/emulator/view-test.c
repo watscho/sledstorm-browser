@@ -254,8 +254,9 @@ int main(void) {
     word(racer_base + 0x378, native_seat == 3);
     word(0x800d6968, frame);
     word(0x800c3eb0 + 4 * frame, cursor);
-    expected_primitive_cursor = native_seat < 2 ? first_bank : cursor;
-    expected_primitive_budget = (native_seat < 2 ? 2 : 1) * bank_capacity - 32;
+    const int use_both_banks = native_seat != 2;
+    expected_primitive_cursor = use_both_banks ? first_bank : cursor;
+    expected_primitive_budget = (use_both_banks ? 2 : 1) * bank_capacity - 32;
     word(native_view + native_seat * 0x224 + 0x220, 0x80030000 + native_seat * 0x110);
     word(native_view + native_seat * 0x224 + 0x20c, 128);
     word(native_view + native_seat * 0x224 + 0x210, 64);
