@@ -12,6 +12,8 @@ import sys
 import time
 import json
 
+from runtime_node import require_node
+
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / '.cache/online'
 
@@ -42,14 +44,14 @@ def main():
     if args.dedicated and not supports_dedicated:
         parser.error('--dedicated requires shared disc mode')
     dedicated = supports_dedicated and not args.browser_hosted
-    node = shutil.which('node')
+    node = require_node()
     cloudflared = os.environ.get('CLOUDFLARED_BIN') or shutil.which('cloudflared')
     if not cloudflared:
         local = ROOT / '.cache/cloudflared/cloudflared'
         if local.is_file() and os.access(local, os.X_OK):
             cloudflared = str(local)
-    if not node or not cloudflared:
-        raise RuntimeError('Install Node.js and cloudflared first. See docs/multiplayer.md.')
+    if not cloudflared:
+        raise RuntimeError('Install cloudflared first. See docs/multiplayer.md.')
     required = ('vendor/emulatorjs/loader.js', '.cache/emulator-native-build.json',
                 'research/network/node_modules/ws/package.json')
     for path in required:

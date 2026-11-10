@@ -32,6 +32,10 @@ Install Chrome on the host for dedicated rooms. Use a desktop browser with
 WebAssembly and WebGL2 to play. macOS has been tested;
 Linux setup has not been qualified.
 
+If you use nvm, run `nvm use` from the project folder before building or
+hosting. The project selects Node.js 24 in `.nvmrc`. Run `nvm install` first
+if that version is missing.
+
 Clone the project and build it from the terminal:
 
 ```sh

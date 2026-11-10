@@ -10,6 +10,10 @@ been qualified. Internet hosting also needs
 
 Dedicated hosting also needs Chrome on the host to run the room emulator.
 
+If you use nvm, run `nvm use` from the project folder before building or
+hosting. `.nvmrc` selects Node.js 24. Run `nvm install` if that version is
+missing.
+
 Friends joining an internet room only need a compatible desktop browser and the
 complete invitation. They can join with the host's disc in the default mode.
 In local-file mode, every player supplies a matching CUE/BIN set.
@@ -151,6 +155,7 @@ browser-hosted rooms. The creator's tab must stay open.
 | Problem | What to do |
 | --- | --- |
 | Missing Python, Node, npm, make or Git | Install the missing prerequisite, reopen the terminal and rerun setup. |
+| Launcher finds an older Node.js version | Run `node --version` in the hosting terminal. Activate Node.js 22 or newer. With nvm, run `nvm use` from the project folder. |
 | Cannot extract the release archive | Install bsdtar/libarchive. macOS system `tar` supports the archive format. |
 | Missing assets or native build manifest | Complete both setup commands successfully before hosting. |
 | Missing or ambiguous CUE | Keep one CUE-containing game folder directly under the project root. |

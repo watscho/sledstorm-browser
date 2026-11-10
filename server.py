@@ -12,6 +12,8 @@ import sys
 import argparse
 import os
 
+from tools.runtime_node import require_node
+
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.cache'
 IDENTITY = {}
@@ -226,6 +228,10 @@ if __name__ == '__main__':
             parser.error('Install Chrome, set SLED_CHROME_BIN, or use --browser-hosted')
     if args.retroarch_lab and DISC_MODE != 'shared':
         parser.error('--retroarch-lab requires shared disc mode')
+    try:
+        node = require_node()
+    except RuntimeError as error:
+        parser.error(str(error))
     CACHE.mkdir(exist_ok=True)
     native_build = CACHE / 'emulator-native-build.json'
     if not native_build.is_file():
@@ -239,9 +245,6 @@ if __name__ == '__main__':
     if chrome:
         IDENTITY['dedicated'] = True
     subprocess.run([sys.executable, str(ROOT / 'tools/prepare-emulator.py'), '--native'], check=True)
-    node = shutil.which('node')
-    if not node:
-        raise RuntimeError('Node.js is required for session rooms.')
     lab = None
     if args.retroarch_lab:
         from secrets import token_hex
