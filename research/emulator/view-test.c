@@ -18,6 +18,9 @@ static uint32_t expected_award, expected_ticks;
 static int expected_award_quad;
 static int check_finish, expected_finish_quad;
 static unsigned expected_finish_ticks;
+static int check_local_hud;
+static unsigned local_seat, local_speed;
+static const unsigned racer_base = 0x800dae20, racer_stride = 0x530;
 static const unsigned finish_timer = 0x800a7400, racer_finished = 0x800dae20 + 0x35c;
 static uint16_t canonical_vram[1024 * 512];
 static unsigned cache_saved;
@@ -79,6 +82,17 @@ static void simulate_world(psxRegisters *regs, enum blockExecCaller caller) {
         assert(read_word(native_view + 0x144 + 4 * i) == 0x80040000 + 12 * i);
       break;
     case 0x80051010: {
+      regs->pc = 0x8003d100;
+      regs->CP2C.n.h = 200;
+      for (unsigned i = 16; i <= 19; ++i) regs->CP2D.p[i].w.l = 101;
+      regs->CP2D.r[12] = 128u << 16;
+      assert(!sled_view_pc(regs));
+      regs->CP2D.r[12] = 129u << 16;
+      assert(sled_view_pc(regs) && regs->pc == 0x8003d168);
+      regs->pc = 0x8003d100;
+      regs->CP2D.r[12] = 0;
+      regs->CP2D.p[19].w.l = 100;
+      assert(sled_view_pc(regs) && regs->pc == 0x8003d168);
       regs->pc = 0x8004ede4;
       regs->GPR.n.a0 = 0;
       assert(!sled_view_pc(regs) && regs->GPR.n.a0 == native_seat);
@@ -115,6 +129,20 @@ static void simulate_world(psxRegisters *regs, enum blockExecCaller caller) {
 static void simulate_hud(psxRegisters *regs, enum blockExecCaller caller) {
   assert(sled_view_transaction && regs->GPR.n.gp == 0x800c1f18);
   assert(regs->GPR.n.sp == 0x801ff000 && !(regs->CP0.n.SR & 1));
+  if (check_local_hud) {
+    assert(read_word(racer_base) == 1000 + local_seat);
+    assert(read_word(racer_base + 0x288) == local_speed);
+    regs->pc = 0x80061eb0;
+    assert(sled_view_pc(regs) && regs->pc == 0x80061f78);
+    regs->pc = 0x80062948;
+    assert(!sled_view_pc(regs));
+    for (unsigned slot = 0; slot < 4; ++slot)
+      assert(read_word(racer_base + slot * racer_stride) == 1000 + slot);
+    regs->pc = 0x80062950;
+    assert(!sled_view_pc(regs));
+    assert(read_word(racer_base) == 1000 + local_seat);
+    assert(read_word(racer_base + 0x288) == local_speed);
+  }
   if (check_award) {
     assert(read_word(0x800dae20 + 0x514) == expected_award);
     assert(read_word(0x800e3928) == expected_ticks);
@@ -228,6 +256,30 @@ int main(void) {
   psxRegs.pc = 0x8004ede4;
   psxRegs.GPR.n.a0 = 2;
   assert(!sled_view_pc(&psxRegs) && psxRegs.GPR.n.a0 == 2);
+  word(0x800c34e0, 1);
+  native_seat = 0;
+  word(0x800d6968, 0);
+  sled_view_configure(native_seat, 7); sled_view_begin();
+  psxRegs.pc = 0x80014e88;
+  assert(!sled_view_pc(&psxRegs));
+  sled_view_present();
+  assert(native_submissions == 5 && !sled_view_status(7) && !sled_view_status(9));
+  word(0x800c34e0, 0);
+
+  sled_view_configure(0, 2 | 16); sled_view_begin();
+  psxRegs.pc = 0x8003c45c;
+  psxRegs.GPR.n.v0 = 1;
+  assert(!sled_view_pc(&psxRegs) && psxRegs.GPR.n.v0 == 4);
+  word(0x800ec148, 1);
+  psxRegs.pc = 0x8003c484;
+  psxRegs.GPR.n.s4 = psxRegs.GPR.n.s5 = 0;
+  assert(sled_view_pc(&psxRegs) && psxRegs.pc == 0x8003c48c);
+  assert(psxRegs.GPR.n.v0 == 16838 && read_word(0x800ec148) == 1);
+  psxRegs.pc = 0x8003c7f0;
+  psxRegs.GPR.n.v1 = 1; psxRegs.GPR.n.t6 = 0;
+  assert(!sled_view_pc(&psxRegs) && psxRegs.GPR.n.v1 == 1);
+  word(0x800dd4b8, 0x800b0500);
+  assert(!sled_view_pc(&psxRegs) && psxRegs.GPR.n.v1 == 4);
   stub_cpu.ExecuteBlock = simulate_hud;
   word(0x800c1f58, 0x80010000); word(0x800c3cb8, 0x80020000); word(0x800c1f18 + 0x1ff0, 7);
   psxRegs.pc = 0x80012340; psxRegs.CP0.n.SR = 0x401;
@@ -302,6 +354,32 @@ int main(void) {
   word(racer_finished + 2 * 0x530, 0);
   psxRegs.pc = 0x800650fc;
   assert(sled_view_pc(&psxRegs) && read_word(finish_timer + 8) == 0);
+  check_finish = 0;
+  check_local_hud = 1;
+  for (unsigned slot = 0; slot < 4; ++slot) {
+    word(racer_base + slot * racer_stride, 1000 + slot);
+    word(racer_base + slot * racer_stride + 0x284, 99 + slot);
+    word(racer_base + slot * racer_stride + 0x288, 0);
+  }
+  word(0x800a72d4 + 99, 0x0000aa96); // PAL curve entries 150 and 170.
+  const unsigned expected_speed[2][4] = {{75, 85, 87, 87}, {82, 93, 95, 95}};
+  for (unsigned tick = 0; tick < 2; ++tick) {
+    word(0x800c2824, tick); // Change from km/h to mph between canonical ticks.
+    sled_view_configure(0, 2 | 16); sled_view_begin();
+    psxRegs.pc = 0x800650fc;
+    assert(sled_view_pc(&psxRegs));
+    for (local_seat = 0; local_seat < 4; ++local_seat) {
+      local_speed = expected_speed[tick][local_seat];
+      assert(read_word(racer_base + local_seat * racer_stride + 0x288) == local_speed);
+      memcpy(saved_ram, psxM, 0x200000);
+      sled_view_configure(local_seat, 3);
+      pane(256 * (local_seat & 1), 255 + 256 * (local_seat & 1),
+           128 * (local_seat >> 1), 127 + 128 * (local_seat >> 1));
+      sled_view_present();
+      assert(sled_view_status(7) == 0 && !memcmp(psxM, saved_ram, 0x200000));
+    }
+  }
+  check_local_hud = 0;
   free(saved_ram);
   word(0x800c34e0, 1); calls = 0;
   sled_view_begin(); pane(0, 255, 0, 255); sled_view_present();

@@ -22,7 +22,7 @@ for details.
 | --- | --- | --- |
 | Progress | **All content unlocked** or **Original progression**. The preset changes temporary menu memory. | Yes; guests inherit it. |
 | Race aspect ratio | **16:9 · Widescreen** is the default in solo PAL races and PAL races with personal cameras in RetroArch rooms. Choose **4:3 · Original** for the original proportions. Menus and shared split-screen use 4:3. | No; personal. |
-| Draw distance (experimental) | **Original** is the default. Select up to **+100%** for extra terrain in solo PAL races and personal cameras in RetroArch rooms. Dense scenes can shorten the range, and higher values can cause brief stutters. | No; personal. |
+| Draw distance (experimental) | **Original** targets the solo range on personal PAL cameras. Select up to **+100%** for extra terrain. Dense scenes can shorten the range, and higher values can cause brief stutters. | Personal. |
 | Image filter | **Clean** (Sharp Bilinear) is the default. **Crisp pixels**, **Smooth**, and **CRT · Lottes** are also available. The toolbar and **F7** can change the filter during play. | No; personal. |
 | Enhanced 2× | Select before starting or joining. Solo PAL races and personal cameras in RetroArch rooms render at twice the width and height. Other scenes upscale the original frame. Off by default. | No; personal. |
 | Volume | Browser audio volume. | No; personal. |
@@ -104,8 +104,8 @@ Click the game to focus it. With Classic controls, use arrows, **S** for
 confirm/accelerate, **Enter** for Start/pause and **W** for triangle/back. The
 remaining Classic bindings are **A** (Square), **D** (Circle), **Q/E** (L1/R1),
 **Z/C** (L2/R2) and **Right Shift** (Select).
-The hint below the game reflects your selected keyboard bindings. The native pause menu affects the
-shared console, so all players see it in the original 4:3 proportions.
+The hint below the game reflects your selected keyboard bindings. The shared
+pause menu appears in its original 4:3 proportions over each personal view.
 
 ## Solo sessions
 

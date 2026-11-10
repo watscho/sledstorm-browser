@@ -1,8 +1,9 @@
 # Sled Storm Browser
 
-**Version 0.9.1 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.9.2 · experimental · [Changelog](CHANGELOG.md)**
 
-[Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
+[Personal camera parity](#personal-camera-parity)
+ · [Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
  · [Draw distance and race stability](#draw-distance-and-race-stability)
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
@@ -126,6 +127,19 @@ from the current race state once their game files load.
 > the launcher. To play again after stopping the tunnel, restart the helper
 > and send the new invitation.
 
+## Personal camera parity
+
+Personal cameras now keep the original speedometer smoothing, display all
+racers on the minimap and draw PAL tread marks on the snow. **Original** draw
+distance uses the solo terrain span when the scene fits the geometry budget.
+The shared pause menu appears in 4:3 over each player's own view.
+
+Six two-lap Pine Valley races reached matching results in browser-hosted
+and dedicated rooms with two, three and four Chrome clients on one Mac.
+The checks included the opening camera, countdown and first seconds of the
+race in 4:3, widescreen, software Enhanced 2× and WebGL2. See the
+[verification record](docs/verification.md#092-verification-summary).
+
 ## Pine Valley multiplayer fixes
 
 Version 0.9.1 restores the sign and ice-wall debris in personal cameras.
@@ -205,9 +219,10 @@ memory. Disc files and persistent memory cards are unchanged. Optional BIOS
 files must match across all players; leaving BIOS empty uses HLE.
 
 Guests inherit the room's progression and camera settings. Volume and image
-filtering are personal. Native pause menus remain shared and retain their 4:3
-proportions. Each browser emulates the console locally; networking exchanges
-controller inputs and emulator state through RetroArch Netplay.
+filtering are personal. Native pause menus retain their shared controls and
+4:3 proportions over each personal camera. Each browser emulates the console
+locally and exchanges controller inputs and emulator state through RetroArch
+Netplay.
 
 ## Current limits
 

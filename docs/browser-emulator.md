@@ -100,12 +100,18 @@ qualification limits.
 PAL full-size world renderer in a private pass, with the assigned racer's camera
 and render buffers. The adapter restores the canonical multiplayer state before
 the next console step. The GPU replay path serves as a fallback if a native
-render pass fails. Pause menus bypass the private pass.
+race render pass fails.
 
 The PAL layout routine clears three particle lists when it installs a camera.
 The private pass preserves their heads and lets the original particle routine
 update them for the selected camera. The world draw exits after that camera's
 viewport.
+
+The original tread recorder runs on every peer using the stock PAL buffers
+and its contact and surface rules. Personal cameras project the marks locally
+and discard quads that cross the GTE near plane or stretch more than 128 native
+pixels along either screen axis. The original shared renderer keeps its own
+draw rules.
 
 **Enhanced 2×** is a personal launch setting. Supported PAL races produce
 1024×512 in 4:3 or 1368×512 in 16:9. Run
@@ -117,13 +123,13 @@ and game textures. Menus and shared split-screen use the finished software
 frame. This setting only affects the local display.
 
 **Draw distance (experimental)** is a personal launch setting for the same
-PAL race modes. **Original** is the default. Values up to **+100%** set a
-ceiling for extra terrain. The opening camera sweep and countdown keep the
-original range and reserve geometry for sleds and shadows. The wide start view
-extends the original fog backdrop across the extra width. Once the race clock
-starts, the private camera increases the range as the geometry budget allows.
-Dense scenes can shorten the range, and higher values can still cause brief
-stutters. The canonical console state stays shared across the room.
+PAL race modes. **Original** targets the solo span of 10 terrain cells in
+personal views. Dense scenes can fall back to the stock multiplayer range.
+The opening sweep and countdown reserve geometry for sleds and shadows, and
+the widescreen view extends the fog backdrop across the extra width. Values
+up to **+100%** set a ceiling for extra terrain after the race clock starts.
+Higher values can cause brief stutters. The canonical console state stays
+shared across the room.
 
 When a visible WebGL2 client falls moderately behind the dedicated room, it
 can keep a recent image while processing more console steps. Full catch-up
@@ -180,7 +186,9 @@ pane starts at X=258, and the lower panes start at Y=129; both native divider
 margins are accounted for.
 
 For a multiplayer personal camera, the original single-player HUD routine
-runs once for the local racer in an isolated presentation pass. Four complete
+uses the local racer's values in an isolated presentation pass. The speedometer
+history advances in the shared simulation, and the minimap reads the actual
+positions of every racer. Four complete
 HUDs would overflow the game's
 256-slot UI pool. Instead, the adapter uses a private ordering table, freezes
 hardware event dispatch during that audited UI routine, then restores all
@@ -197,10 +205,11 @@ and after presentation passed while switching cameras. The native isolation
 test also covers partial HUD execution failure, register/RAM restoration,
 canonical VRAM preservation, native viewport bounds and menu bypass.
 
-Pause menus retain native 4:3 presentation. The world and asset selection
-still use the game's multiplayer session. Course, weather and race-phase
-coverage is limited to the scenarios in the verification record. Turn
-**Separate cameras** off before starting to use the game's shared screen.
+The shared pause menu retains its native 4:3 proportions and appears over
+each player's personal camera. The usual racing HUD is hidden while paused.
+Course, weather and race-phase coverage is recorded in the verification
+guide. Turn **Separate cameras** off before starting to use the game's shared
+screen.
 
 **16:9 · Widescreen** adds a private 684×256 race framebuffer and widens the
 PAL track edge checks identified by [SledStormPSXRecomp](../THIRD_PARTY_NOTICES.md#image-rendering).

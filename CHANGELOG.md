@@ -3,6 +3,16 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 0.9.2 - 2026-11-10
+
+- Restore the PAL speedometer's smoothing and keep every racer's marker on
+  each personal minimap.
+- Use the solo terrain span as the baseline for personal cameras. Fall back
+  to the stock multiplayer range when the geometry budget is tight.
+- Keep each racer's personal view behind the original shared pause menu.
+- Restore the original PAL tread marks in personal views and clip stretched
+  segments near the camera.
+
 ## 0.9.1 - 2026-11-10
 
 Pine Valley multiplayer presentation and reconnect fixes.

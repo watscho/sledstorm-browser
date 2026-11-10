@@ -26,6 +26,7 @@ enum {
 };
 static int32_t primitive_budget;
 static unsigned distance_target, distance_limit, distance_trim, distance_headroom;
+static int distance_match_solo;
 static unsigned native_passes;
 static unsigned respawn_fade_quad;
 static int starting_grid;
@@ -59,9 +60,15 @@ static void overlay_stock_hud(uint16_t *output, const uint16_t *frame, unsigned 
 #define VRAM_BYTES (1024 * 512 * 2)
 #define RACER_BASE 0x800dae20u
 #define RACER_SIZE 0x530u
+#define RACER_SPEED 0x284u
+#define RACER_DISPLAY_SPEED 0x288u
 #define RACER_FINISHED 0x35cu
 #define RACER_RACE_CLOCK 0x378u
+#define SPEED_CURVE 0x800a72d4u
+#define SPEED_UNITS 0x800c2824u
 #define PRIMITIVE_BUDGET 0x800c3efcu
+#define PAL_SOLO_RANGE 10u
+#define PAL_MIN_RANGE 7u
 #define RACER_AWARD 0x514u
 #define AWARD_LATCH 0x800c2f80u
 #define AWARD_DISPLAY 0x800c2f88u
@@ -70,6 +77,11 @@ static void overlay_stock_hud(uint16_t *output, const uint16_t *frame, unsigned 
 #define SNOW_LINE_BUFFERS 0x800c3cd8u
 #define SNOW_LINE_SIZE 20u
 #define SNOW_LINE_COUNT 200u
+#define TREAD_RINGS 0x800dd4b0u
+#define TREAD_RING_SIZE 0x14u
+#define TREAD_BUFFER 0x800b0500u
+#define TREAD_BUFFER_SIZE 0xf60u
+#define TREAD_RING_COUNT 12u
 typedef struct { uint32_t words[16], env[8]; unsigned count; } Primitive;
 static Primitive primitives[LIMIT];
 static uint16_t private_vram[1024 * 512];
@@ -83,8 +95,9 @@ static unsigned award_first, award_end;
 static unsigned finish_first, finish_end, local_finish_ticks;
 static uint32_t finish_ticks_before[4];
 static struct { uint32_t event, ticks; uint16_t latch, display; } award_before[4];
-static int awards_advanced;
+static int hud_advanced;
 static unsigned char hud_ram[0x200000];
+static unsigned char local_hud_racer[RACER_SIZE];
 static unsigned native_frames, native_error, native_pc, native_cursor, native_packets;
 static unsigned char render_ram[0x200000], render_scratch[0x400];
 static psxRegisters render_regs;
@@ -95,7 +108,7 @@ static unsigned missed_personal_frames;
 static int presented_personal, skip_personal;
 #endif
 static unsigned native_rank, native_mode, canonical_packets, submission_packets;
-static unsigned native_range;
+static unsigned native_range, native_treads;
 static int native_single_view;
 static int32_t snow_origin_x, snow_origin_y;
 static unsigned char native_scratch[sizeof(render_scratch)];
@@ -109,6 +122,47 @@ static void *ram(unsigned address) { return psxM + (address & 0x1fffff); }
 static void word(unsigned address, uint32_t value) { memcpy(ram(address), &value, 4); }
 static unsigned half(unsigned address) { uint16_t value; memcpy(&value, ram(address), 2); return value; }
 static void set_half(unsigned address, uint16_t value) { memcpy(ram(address), &value, 2); }
+
+static int personal_scene(unsigned players) {
+  if (!(enabled & 1) || players < 2 || players > 4 || seat >= players ||
+      ram32(0x800d6980) != 1 || ram32(0x800c3ca0)) return 0;
+  const unsigned menu = ram32(0x800c34e0);
+  return !menu || ((enabled & 4) && menu == 1);
+}
+
+static int tread_ring_ready(unsigned index) {
+  if (index >= TREAD_RING_COUNT) return 0;
+  const unsigned ring = TREAD_RINGS + index * TREAD_RING_SIZE;
+  return ram32(ring + 8) == TREAD_BUFFER + index * TREAD_BUFFER_SIZE && half(ring + 12) < 24;
+}
+
+static int tread_rings_ready(void) {
+  for (unsigned index = 0; index < TREAD_RING_COUNT; ++index)
+    if (!tread_ring_ready(index)) return 0;
+  return 1;
+}
+
+static int tread_projection_valid(const psxRegisters *regs) {
+  /* RTPS has shifted the quad's four depths into SZ0..SZ3. */
+  const unsigned near = (uint16_t)regs->CP2C.n.h / 2;
+  for (unsigned i = 16; i <= 19; ++i)
+    if (regs->CP2D.p[i].w.l <= near) return 0;
+  const uint32_t points[] = {
+    ram32(regs->GPR.n.a1 + 8), regs->CP2D.r[12], regs->CP2D.r[13], regs->CP2D.r[14]
+  };
+  int left = INT16_MAX, right = INT16_MIN, top = INT16_MAX, bottom = INT16_MIN;
+  for (unsigned i = 0; i < 4; ++i) {
+    const int x = (int16_t)points[i], y = (int16_t)(points[i] >> 16);
+    if (x < left) left = x;
+    if (x > right) right = x;
+    if (y < top) top = y;
+    if (y > bottom) bottom = y;
+  }
+  /* A single tread segment can stretch into the sky at grazing angles.
+   * Bound each segment in native pixels before the GPU clips the viewport. */
+  return right - left <= 128 && bottom - top <= 128;
+}
+
 #ifdef __EMSCRIPTEN__
 /* Spare PAL terrain primitives, not a wall-clock target: the decision stays
  * local to presentation and is stable across different refresh rates. */
@@ -117,9 +171,10 @@ enum {
   DISTANCE_RECOVERY = 30, DISTANCE_MAX_TRIM = 2
 };
 
-static unsigned adaptive_distance(unsigned target) {
-  if (target != distance_target) {
+static unsigned adaptive_distance(unsigned target, int match_solo) {
+  if (target != distance_target || match_solo != distance_match_solo) {
     distance_target = target;
+    distance_match_solo = match_solo;
     distance_limit = 0;
     distance_trim = distance_headroom = 0;
   }
@@ -127,10 +182,12 @@ static unsigned adaptive_distance(unsigned target) {
 }
 
 static void adjust_distance(int drawn, unsigned attempted) {
-  if (!distance_target) return;
+  if (!distance_target && !distance_match_solo) return;
   if (!drawn || primitive_budget < DISTANCE_LOW) {
     distance_limit = !drawn ? (attempted / (2 * DISTANCE_STEP)) * DISTANCE_STEP
       : attempted > DISTANCE_STEP ? attempted - DISTANCE_STEP : 0;
+    if (!attempted && distance_match_solo && distance_trim < PAL_SOLO_RANGE - PAL_MIN_RANGE)
+      distance_trim = drawn ? distance_trim + 1 : PAL_SOLO_RANGE - PAL_MIN_RANGE;
     distance_headroom = 0;
   } else if (primitive_budget >= DISTANCE_HIGH && (distance_trim || distance_limit < distance_target)) {
     /* Consecutive safe frames prevent repeated expensive probes on a bend. */
@@ -176,6 +233,10 @@ static unsigned walk_ordering_table(unsigned head, unsigned *tail, enum ordering
     if (cursor >= 0x200000 || (cursor & 3)) break;
     unsigned tag = ram32(cursor), count = tag >> 24;
     if (cursor + 4 + count * 4 > 0x200000) break;
+    if (count && sled_view_transaction == 2 &&
+        cursor >= (TREAD_BUFFER & 0x1fffff) &&
+        cursor < (TREAD_BUFFER & 0x1fffff) + TREAD_RING_COUNT * TREAD_BUFFER_SIZE)
+      ++native_treads;
 #ifdef __EMSCRIPTEN__
     /* Extend the stock backdrop to cover the exposed margins of the private
      * wide view with the original fog gradient. */
@@ -215,7 +276,7 @@ static unsigned walk_ordering_table(unsigned head, unsigned *tail, enum ordering
 /* Experimental native PAL world render. Build the original single-player
  * ordering table in an isolated interpreter pass and submit it to private VRAM. */
 static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsigned clear_width,
-                                   unsigned distance_boost, unsigned trim_cells) {
+                                   int match_solo, unsigned distance_boost, unsigned trim_cells) {
   if (!render_captured) return 0;
 #ifdef __EMSCRIPTEN__
   ++native_passes;
@@ -282,20 +343,28 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
     starting_grid = players >= 2 && !ram32(RACER_BASE + RACER_RACE_CLOCK);
     grid_budget_reserved = 0;
 #endif
-    unsigned cells = ram32(camera + 0x70);
-    if (native_single_view && (distance_boost || trim_cells)) {
-      /* PAL uses the camera's grid span for terrain selection and its
-       * far fade. Update both derived fields inside the private pass. */
-      if (cells >= 7 && cells <= 10) {
-        cells = cells + (cells * distance_boost + 50) / 100 - trim_cells;
+    const unsigned stock_cells = ram32(camera + 0x70);
+    unsigned cells = stock_cells;
+    if (native_single_view && stock_cells >= PAL_MIN_RANGE && stock_cells <= PAL_SOLO_RANGE) {
+      /* Full-size personal views use the solo range when the primitive pool
+       * permits it. Keep the split-screen span as the fallback floor. */
+      const unsigned base = match_solo ? PAL_SOLO_RANGE : stock_cells;
+      cells = base + (base * distance_boost + 50) / 100 - trim_cells;
+      if (match_solo && cells < stock_cells) cells = stock_cells;
+      if (cells != stock_cells) {
         word(camera + 0x70, cells);
         word(camera + 0x78, (cells / 2) * 512);
       }
     }
+    /* PAL projects the recorded tread rings before building the ordering table.
+     * Use the installed camera and leave the shared framebuffer untouched. */
+    if (render_prepare && native_single_view && players >= 2 && (enabled & 16) &&
+        ram32(0x800d6a34) >= 121 && tread_rings_ready() && !guest_call(&psxRegs, 0x8003cd94))
+      goto restore;
     if ((!render_prepare || guest_call(&psxRegs, 0x80079dec)) && guest_call(&psxRegs, 0x80051010)) {
 #ifdef __EMSCRIPTEN__
       primitive_budget = (int32_t)ram32(PRIMITIVE_BUDGET);
-      if (distance_boost && primitive_budget <= 0)
+      if (cells > stock_cells && primitive_budget <= 0)
         goto restore;
 #endif
       native_error = 4;
@@ -307,6 +376,7 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
       const unsigned head = ot + native_rank * 4;
       /* Solo has already queued its HUD in this table. Draw those quads
        * separately at native resolution, using the original frame's packets. */
+      native_treads = 0;
       native_packets = walk_ordering_table(head, &native_cursor, solo_render ? SKIP_HUD : KEEP_HUD);
       if (!(enabled & 8) && (native_cursor & 0x800000) && native_packets > 4) {
 #ifdef __EMSCRIPTEN__
@@ -354,6 +424,20 @@ restore:
   sled_view_cache_save(1);
   sled_view_transaction = 0;
   return !native_error;
+}
+
+/* PAL updates the speedometer history in the HUD draw. Advance it even when
+ * the canonical multiplayer HUD is suppressed, including on the server. */
+static void advance_speedometers(unsigned players) {
+  const int mph = half(SPEED_UNITS) != 0;
+  for (unsigned slot = 0; slot < players; ++slot) {
+    const unsigned racer = RACER_BASE + slot * RACER_SIZE;
+    const unsigned raw = ram32(racer + RACER_SPEED);
+    unsigned speed = raw <= 100 ? *(const uint8_t *)ram(SPEED_CURVE + raw) : 174;
+    if (mph) speed = speed * 3 / 5;
+    const unsigned address = racer + RACER_DISPLAY_SPEED;
+    word(address, (ram32(address) + speed) >> 1);
+  }
 }
 
 /* Mirror the PAL award state from 0x80060dec on every peer. Keep the original
@@ -420,6 +504,19 @@ static void move_previous_snow(const psxRegisters *regs) {
 int sled_view_pc(psxRegisters *regs) {
   if (sled_view_transaction) {
     if (sled_view_transaction == 1) {
+      if (regs->pc == 0x80061eb0 && hud_advanced) {
+        /* The private HUD formats the canonical speed without smoothing it again. */
+        regs->pc = 0x80061f78;
+        return 1;
+      }
+      if (seat && regs->pc == 0x80062948) {
+        /* The minimap walks every racer. Give it the real slot zero, then
+         * restore the local HUD's racer for the award and finish routines. */
+        memcpy(local_hud_racer, ram(RACER_BASE), RACER_SIZE);
+        memcpy(ram(RACER_BASE), hud_ram + (RACER_BASE & 0x1fffff), RACER_SIZE);
+      }
+      if (seat && regs->pc == 0x80062950)
+        memcpy(ram(RACER_BASE), local_hud_racer, RACER_SIZE);
       // The stock popup allocates its digit quads consecutively in the HUD pool.
       if (regs->pc == 0x80060dec) award_first = half(0x800c3f72);
       if (regs->pc == 0x8006126c) award_end = half(0x800c3f72);
@@ -428,7 +525,7 @@ int sled_view_pc(psxRegisters *regs) {
          * just the local racer, already copied into slot zero. */
         finish_first = half(0x800c3f72);
         word(0x800d6a10, 1);
-        local_finish_ticks = awards_advanced ? finish_ticks_before[seat] : ram32(FINISH_TICKS + seat * 4);
+        local_finish_ticks = hud_advanced ? finish_ticks_before[seat] : ram32(FINISH_TICKS + seat * 4);
         word(FINISH_TICKS, 0);
       }
       /* Use the stock animation tick after PAL has calculated the pivot for
@@ -437,6 +534,10 @@ int sled_view_pc(psxRegisters *regs) {
       if (regs->pc == 0x80061d14) finish_end = half(0x800c3f72);
     }
     if (native_single_view) {
+      if (regs->pc == 0x8003d100 && !tread_projection_valid(regs)) {
+        regs->pc = 0x8003d168;
+        return 1;
+      }
       // The snow positions and previous line buffer are partitioned by racer.
       if (regs->pc == 0x8004ede4) regs->GPR.n.a0 = seat;
       if (regs->pc == 0x80039c34 && ram32(0x800d6a10) > 1) move_previous_snow(regs);
@@ -518,6 +619,28 @@ int sled_view_pc(psxRegisters *regs) {
     return 0;
   }
   if (!(enabled & 2)) return 0;
+  if ((enabled & 16) &&
+      (regs->pc == 0x8003c45c || regs->pc == 0x8003c484 || regs->pc == 0x8003c7f0)) {
+    const unsigned players = ram32(0x800d6a10);
+    if (players >= 2 && players <= 4) {
+      /* Initialize and fill PAL's fixed tread buffers on every room peer.
+       * Keep the original recorder's surface, contact and spacing checks. */
+      /* Change the constant operand of each branch. The interpreter still
+       * has the player count in a pending MIPS load at these instructions. */
+      if (regs->pc == 0x8003c45c) regs->GPR.n.v0 = players;
+      if (regs->pc == 0x8003c7f0 && tread_ring_ready(regs->GPR.n.t6)) regs->GPR.n.v1 = players;
+      if (regs->pc == 0x8003c484) {
+        /* Reproduce the tint sequence without consuming the game's RNG. */
+        uint32_t seed = ram32(0x800ec148);
+        const unsigned index = 2 * regs->GPR.n.s4 + regs->GPR.n.s5;
+        for (unsigned i = 0; i <= index; ++i) seed = seed * 0x41c64e6du + 0x3039u;
+        regs->GPR.n.v0 = (seed >> 16) & 0x7fff;
+        regs->pc += 8; // The skipped call has a NOP delay slot.
+        return 1;
+      }
+    }
+    return 0;
+  }
   if (regs->pc == 0x8005f344) {
     const unsigned names[] = {0x10634, 0x10628, 0x1061c, 0x10610, 0x10604, 0x105f8, 0x105ec, 0x105e0};
     for (unsigned i = 0; i < 8; i++) {
@@ -533,9 +656,10 @@ int sled_view_pc(psxRegisters *regs) {
       || ram32(0x800c3ca0) != 0 || ram32(0x800c34e0)) return 0;
   /* The original multiplayer HUD is replaced at presentation. Building four
    * single-player HUDs canonically would overflow the game's 256 UI slots. */
+  advance_speedometers(players);
   advance_award_popups(players);
   advance_finish_popups(players);
-  awards_advanced = 1;
+  hud_advanced = 1;
   regs->pc = regs->GPR.n.ra;
   return 1;
 }
@@ -586,7 +710,7 @@ static void build_local_hud(void) {
   psxRegs.GPR.n.gp = gp; psxRegs.GPR.n.sp = 0x801ff000;
   psxRegs.CP0.n.SR &= ~1u;
   memcpy(ram(RACER_BASE), hud_ram + (RACER_BASE & 0x1fffff) + seat * RACER_SIZE, RACER_SIZE);
-  if (awards_advanced) {
+  if (hud_advanced) {
     word(RACER_BASE + RACER_AWARD, award_before[seat].event);
     set_half(AWARD_LATCH, award_before[seat].latch);
     set_half(AWARD_DISPLAY, award_before[seat].display);
@@ -633,7 +757,7 @@ void sled_view_configure(unsigned slot, unsigned flags) {
   seat = slot;
   enabled = flags;
 #ifdef __EMSCRIPTEN__
-  adaptive_distance(0);
+  adaptive_distance(0, 0);
   presented_personal = hold_frame = 0;
   missed_personal_frames = 0;
   presented_wide = missed_wide_frames = 0;
@@ -649,7 +773,7 @@ unsigned sled_view_status(unsigned field) {
     case 11: return native_cursor; case 12: return native_packets;
     case 13: return native_rank; case 14: return native_mode;
     case 15: return canonical_packets; case 16: return submission_packets;
-    case 17: return native_range;
+    case 17: return native_range; case 19: return native_treads;
 #ifdef __EMSCRIPTEN__
     case 18: return native_passes;
 #endif
@@ -667,8 +791,9 @@ void sled_view_begin(void) {
   native_passes = 0;
 #endif
   used = overflow = drawn = 0;
+  native_treads = 0;
   render_captured = solo_hud_captured = 0;
-  awards_advanced = 0;
+  hud_advanced = 0;
   unsigned players = ram32(0x800d6a10);
 #ifdef __EMSCRIPTEN__
   const int wide = EM_ASM_INT({ return !!Module.sledWidescreen; });
@@ -706,10 +831,8 @@ void sled_view_begin(void) {
 #endif
   solo_render = (wide || enhanced || extended_distance) && (enabled & 32) && players == 1;
   if (solo_render) hud_count = hud_error = 0;
-  recording = !skip_presentation && seat < players && (solo_render || ((enabled & 1) && players >= 2 && players <= 4))
-    && ram32(0x800d6980) == 1
-    && ram32(0x800c3ca0) == 0
-    && ram32(0x800c34e0) == 0;
+  recording = !skip_presentation && (personal_scene(players) ||
+    (solo_render && seat == 0 && ram32(0x800d6980) == 1 && !ram32(0x800c3ca0) && !ram32(0x800c34e0)));
 #ifdef __EMSCRIPTEN__
   wide_pending = recording && wide && ((enabled & 4) || solo_render);
 #endif
@@ -783,11 +906,13 @@ static int retain_wide_frame(int wide_race) {
 #endif
 void sled_view_present(void) {
   const unsigned players = ram32(0x800d6a10);
+  const int personal_race = personal_scene(players);
+  const int pause_view = personal_race && ram32(0x800c34e0) == 1;
 #ifdef __EMSCRIPTEN__
   const int active_race = ram32(0x800d6980) == 1 && !ram32(0x800c3ca0) && !ram32(0x800c34e0);
-  const int personal_race = active_race && (enabled & 1) && players >= 2 && players <= 4 && seat < players;
   const int wide_race = wide_requested && active_race &&
     (((enabled & 32) && players == 1 && seat == 0) || (personal_race && (enabled & 4)));
+  if (pause_view) wide_pending = 0;
   const int skip_view = skip_personal || (gpu.status & PSX_GPU_STATUS_BLANKING);
   if (!wide_race) presented_wide = missed_wide_frames = 0;
   if (!personal_race) {
@@ -803,7 +928,8 @@ void sled_view_present(void) {
     return;
   }
 #endif
-  if (!recording || (solo_render && (!render_captured || !solo_hud_captured))) {
+  if (!recording || (!solo_render && !personal_race) ||
+      (solo_render && (!render_captured || !solo_hud_captured))) {
 #ifdef __EMSCRIPTEN__
     if (!skip_view) retain_wide_frame(wide_race);
 #endif
@@ -828,13 +954,16 @@ void sled_view_present(void) {
   /* The start camera sweeps through dense track scenery with the whole grid
    * in view. Leave the PAL geometry budget to the original scene until GO. */
   const unsigned distance_boost = adaptive_distance(
-    (int32_t)ram32(RACER_BASE + RACER_RACE_CLOCK) > 0 ? requested_distance : 0);
+    (int32_t)ram32(RACER_BASE + RACER_RACE_CLOCK) > 0 ? requested_distance : 0,
+    personal_race);
+  const int match_solo = distance_match_solo;
   const unsigned trim_cells = distance_trim;
   unsigned hud_width = 0;
   EM_ASM({ if (Module.sledViewBefore) Module.sledViewBefore(); });
 #else
   const unsigned distance_boost = 0;
   const unsigned trim_cells = 0;
+  const int match_solo = 0;
 #endif
   struct psx_gpu saved = gpu;
   memcpy(private_vram, gpu.vram, VRAM_BYTES);
@@ -858,16 +987,16 @@ void sled_view_present(void) {
         sled_enhanced_begin(saved.vram, saved.screen.src_y);
     }
 #endif
-    world_drawn = build_native_world(saved.screen.src_y, 0, world_width, distance_boost, trim_cells);
+    world_drawn = build_native_world(saved.screen.src_y, 0, world_width, match_solo, distance_boost, trim_cells);
 #ifdef __EMSCRIPTEN__
     if (native_passes) adjust_distance(world_drawn, distance_boost);
-    if (!world_drawn && distance_boost && native_passes)
-      world_drawn = build_native_world(saved.screen.src_y, 0, world_width, 0, 0);
+    if (!world_drawn && (match_solo || distance_boost) && native_passes)
+      world_drawn = build_native_world(saved.screen.src_y, 0, world_width, 0, 0, 0);
     if (world_drawn && wide_world && primitive_budget <= 0) {
       /* Even the stock range can exhaust the pool at 16:9. When adaptive
        * distance is enabled, shorten the next pass rather than redraw
        * the same dense scene twice on every frame. */
-      if (distance_target && distance_trim < DISTANCE_MAX_TRIM) {
+      if (distance_target && !match_solo && distance_trim < DISTANCE_MAX_TRIM) {
         ++distance_trim;
         distance_limit = distance_headroom = 0;
       }
@@ -877,7 +1006,7 @@ void sled_view_present(void) {
        * the old screen edge stay whole. */
       wide_cull = 0;
       sled_enhanced_wide_clear_center();
-      world_drawn = build_native_world(saved.screen.src_y, SLED_WIDE_MARGIN, 512, 0, 0);
+      world_drawn = build_native_world(saved.screen.src_y, SLED_WIDE_MARGIN, 512, 0, 0, 0);
     }
 #endif
     if (world_drawn) {
@@ -899,9 +1028,9 @@ void sled_view_present(void) {
   /* Narrow replay can draw a valid personal camera, but must not replace
    * an established wide frame after one missed native presentation. */
   if (!wide_world && !skip_view) retain_wide_frame(wide_race);
-  const unsigned replay_count = world_drawn || solo_render || overflow || hold_frame ? 0 : used;
+  const unsigned replay_count = world_drawn || pause_view || solo_render || overflow || hold_frame ? 0 : used;
 #else
-  const unsigned replay_count = world_drawn || solo_render || overflow ? 0 : used;
+  const unsigned replay_count = world_drawn || pause_view || solo_render || overflow ? 0 : used;
 #endif
   for (unsigned i = 0; i < replay_count; i++) {
     Primitive *p = &primitives[i];
@@ -943,7 +1072,9 @@ void sled_view_present(void) {
     drawn++;
   }
   if (world_drawn) {
-    if ((enabled & 2) || solo_render) {
+    /* PAL queues its pause menu before the world pass. Keep it in the
+     * ordering table and omit the ordinary racing HUD while paused. */
+    if (!pause_view && ((enabled & 2) || solo_render)) {
       if (!solo_render) build_local_hud();
 #ifdef __EMSCRIPTEN__
       if (enhanced && hud_count) {

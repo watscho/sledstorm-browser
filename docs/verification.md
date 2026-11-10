@@ -1,5 +1,45 @@
 # Verification and known limits
 
+## 0.9.2 verification summary
+
+Chrome on one Apple M5 Pro ran six two-lap Pine Valley races from the original
+PAL SLES-02194 menus over loopback. Each human controller used its own browser
+and camera. The original game filled the spare rider slots with CPU opponents.
+
+| Players | Browser-hosted matching steps | Dedicated matching steps |
+| --- | ---: | ---: |
+| 2 | 814 | 841 |
+| 3 | 1,287 | 865 |
+| 4 | 874 | 1,106 |
+
+All 5,787 common samples matched after input reconciliation, including racer
+positions, speedometer history, lap and finish fields, tread ring cursors and
+the PAL random seed. Each room reached matching places, times and points.
+Every human racer saw the original finish banner. The shared pause stopped
+the same race clock on every client and displayed the selected camera behind
+the 4:3 menu.
+
+- The two-player speedometer replay matched all 72 samples against the stock
+  HUD. Moving controller 1 in a controlled presentation check changed the
+  same 46 minimap pixels on controllers 1 and 3.
+- A four-player race checkpoint drew visible tread marks in 4:3, widescreen
+  software Enhanced 2× and WebGL2 through Apple Metal. In a separate replay
+  with the camera looking back, clipping removed the stretched marks above
+  the slope while keeping the visible tread on the snow.
+- The 126 sampled start frames covered the opening camera, countdown, GO
+  and first seconds of racing in both room types. No black track patches
+  appeared in the sample. The dense opening with four racers still exposes
+  the gray fog backdrop at the edges where the primitive budget limits
+  scenery. Personal cameras reached 10 terrain cells at Original. The two
+  four-player rooms also reached 20 cells on a client set to +100%.
+- The sign and ice-wall replays on controller 2 passed on the final build
+  with the original fragments and single awards of 50 and 500 points.
+  All 26 browser tests, 19 network tests, four HTTP tests and the native
+  presentation checks passed.
+
+This release check covers Pine Valley on one Mac. Other tracks, separate
+computers and internet connections have separate coverage requirements.
+
 ## 0.9.1 verification summary
 
 Release verification used Chrome on one Mac with the PAL SLES-02194 disc.

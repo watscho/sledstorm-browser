@@ -77,7 +77,8 @@ their saved disc copies and other site data, such as access cookies.
 
 The room acts like one console with up to **four controllers**. Each browser
 has its own camera and original single-player HUD when **Separate cameras** is
-enabled. Native pause/options menus are shared and keep their 4:3 proportions.
+enabled. The native pause/options menu is shared and keeps its 4:3 proportions
+over each player's personal view.
 PAL personal cameras support 16:9 and Enhanced 2× independently for
 each player. A room can mix 4:3 and 16:9 displays. Experimental draw distance
 is also personal, with **Original** as the default. See
