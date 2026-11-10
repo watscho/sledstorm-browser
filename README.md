@@ -1,8 +1,9 @@
 # Sled Storm Browser
 
-**Version 0.9.0 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.9.1 · experimental · [Changelog](CHANGELOG.md)**
 
-[Draw distance and race stability update](#draw-distance-and-race-stability)
+[Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
+ · [Draw distance and race stability](#draw-distance-and-race-stability)
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -125,10 +126,25 @@ from the current race state once their game files load.
 > the launcher. To play again after stopping the tunnel, restart the helper
 > and send the new invitation.
 
+## Pine Valley multiplayer fixes
+
+Version 0.9.1 restores the sign and ice-wall debris in personal cameras.
+The PAL game awards 50 points for the sign and 500 for the ice wall. Both
+browser-hosted and dedicated rooms use the full-size PAL camera for these
+effects, snowfall, widescreen scenery and the local finish banner.
+
+Browser-hosted guests return to their original controller when they reopen
+the invitation in the same browser. Dedicated rooms compress the rejoin
+snapshot faster, shortening the audio interruption for players still racing.
+
+Verification covered full races with two, three and four Chrome clients on
+one Mac. The [verification record](docs/verification.md#091-verification-summary)
+lists the render modes, test results and follow-up coverage.
+
 ## Draw distance and race stability
 
-Version 0.9.0 adds an opt-in way to see farther down the course and
-makes it easier to keep a dedicated race going when a player reconnects or
+Version 0.9.0 added an opt-in way to see farther down the course and
+made it easier to keep a dedicated race going when a player reconnects or
 packets arrive in bursts.
 
 | Area | What changed and why |
@@ -140,7 +156,7 @@ packets arrive in bursts.
 > [!NOTE]
 > **Draw distance is experimental.** **Original** is the default. In
 > **Display and audio**, set a personal maximum up to **+100%** for solo PAL
-> races or dedicated races with separate cameras. The visible range can vary by
+> races or RetroArch rooms with personal cameras. The visible range can vary by
 > scene, and higher settings can cause brief stutters, especially with 16:9
 > and Enhanced 2×. Lower the slider or select **Original** if you notice them.
 
@@ -171,8 +187,8 @@ its HTTPS invitation.
 ## Settings and session behavior
 
 Choose race aspect ratio, draw distance, image filtering, volume and
-**Enhanced 2×** in **Display and audio**. Solo PAL races and dedicated personal
-cameras default to **16:9** with **Clean · Sharp Bilinear** filtering.
+**Enhanced 2×** in **Display and audio**. Solo PAL races and personal cameras in
+RetroArch rooms default to **16:9** with **Clean · Sharp Bilinear** filtering.
 **Draw distance** is experimental and defaults to **Original**.
 **4:3 · Original** is available for races, and menus and shared split-screen
 stay in 4:3.
@@ -205,9 +221,9 @@ controller inputs and emulator state through RetroArch Netplay.
   catch up or reconnect. Empty rooms stay available for a limited time while
   the hosting process runs.
   [Rooms and synchronization](docs/multiplayer.md#rooms-and-synchronization)
-- **Presentation.** Dedicated personal cameras and solo PAL races support
-  widened race geometry and native 2× rendering. Browser-hosted multiplayer,
-  shared split-screen and menus use the original frame for upscaling. The HUD
+- **Presentation.** Solo PAL races and personal cameras in RetroArch
+  rooms support widened race geometry and native 2× rendering. Shared
+  split-screen and menus use the original frame for upscaling. The HUD
   keeps native rasterization in Enhanced 2×.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
 - **Test coverage.** Current Pine Valley tunnel checks used two to four Chrome

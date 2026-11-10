@@ -39,6 +39,9 @@ upload also carries the initial game download for guests without a saved copy.
 
 ## One-time setup
 
+Run `python3 --version` first. If macOS selects an older system Python, use
+the path to your Python 3.10 or newer executable for both setup commands.
+
 ```sh
 git clone https://github.com/watscho/sledstorm-browser.git
 cd sledstorm-browser
@@ -173,9 +176,9 @@ browser-hosted rooms. The creator's tab must stay open.
 | Catching up to the live race | This appears when recovery lasts more than a brief delay. The dedicated server keeps advancing even when only one controller is connected. If the connection closes, reopen the invitation in the same browser and select **Join game**. |
 | Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
-| 16:9 is unavailable | Use the verified PAL disc and start a solo race or a dedicated room with **Separate cameras** enabled. Menus and shared split-screen use 4:3. |
-| Enhanced 2× looks like the original resolution | Enter a solo PAL race or a dedicated race with personal cameras to use native 2×. Other scenes upscale the finished frame. |
-| Draw distance is unavailable, varies by scene or stutters | **Display and audio → Draw distance (experimental)** applies to solo PAL races and dedicated personal cameras. Higher values set a ceiling, and the renderer can shorten the range in dense scenes. If you see brief stutters, try a lower value or **Original**. |
+| 16:9 is unavailable | Use the verified PAL disc and start a solo race or a RetroArch room with **Separate cameras** enabled. Menus and shared split-screen use 4:3. |
+| Enhanced 2× looks like the original resolution | Enter a solo PAL race or a RetroArch room with personal cameras to use native 2×. Other scenes upscale the finished frame. |
+| Draw distance is unavailable, varies by scene or stutters | **Display and audio → Draw distance (experimental)** applies to solo PAL races and personal cameras in RetroArch rooms. Higher values set a ceiling, and the renderer can shorten the range in dense scenes. If you see brief stutters, try a lower value or **Original**. |
 | Save or load icon is hidden | Use the room creator's browser, with only its controller connected and no reserved seats or active multiplayer race. |
 | Guests download the disc on every launch | In Chrome with a Quick Tunnel, keep **Keep or choose game data** checked and use **Use existing ZIP** to select the same archive. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |

@@ -66,7 +66,9 @@ their saved disc copies and other site data, such as access cookies.
 ## Start a race
 
 1. Invite everyone before entering a race.
-2. In the original game, player 1 chooses **Start → Multiplayer quick race**.
+2. If PAL shows the language screen, player 1 chooses a language with the
+   arrows and confirms with **S**. Wait for the title menu, then choose
+   **Start → Multiplayer quick race**.
 3. Each participant presses **S** to join with the default keyboard layout,
    then selects and confirms a rider.
 4. Player 1 advances to course selection and starts the race.
@@ -76,14 +78,15 @@ their saved disc copies and other site data, such as access cookies.
 The room acts like one console with up to **four controllers**. Each browser
 has its own camera and original single-player HUD when **Separate cameras** is
 enabled. Native pause/options menus are shared and keep their 4:3 proportions.
-Dedicated personal cameras support 16:9 and Enhanced 2× independently for
+PAL personal cameras support 16:9 and Enhanced 2× independently for
 each player. A room can mix 4:3 and 16:9 displays. Experimental draw distance
 is also personal, with **Original** as the default. See
 [display settings](browser-lobby.md#before-launch).
-RetroArch restores the current race state after the disc loads. In a
-browser-hosted room, the host must stay connected and a returning player can
-resume their racer if the corresponding slot is free. Dedicated rooms
-reserve controllers for returning players.
+RetroArch restores the current race state after the disc loads. The host
+must stay connected in a browser-hosted room. Guests who reopen the same
+invitation in the same browser and at the same address can resume their
+previous racer if its controller is free. Dedicated rooms reserve
+controllers for returning players.
 
 Solo saving pauses while a guest is connected or holds a reserved race seat.
 On the verified PAL disc, the creator can save again when playing alone after

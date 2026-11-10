@@ -161,10 +161,12 @@ bool sled_unserialize_checkpoint(const void *data, size_t size)
 	u32 pc = regs->pc;
 	if ((pc == 0x80014e88u || pc == 0x80014e90u || pc == 0x80014e98u ||
 	     pc == 0x80053e68u || pc == 0x8004a41cu || pc == 0x8004c700u ||
-	     pc == 0x8004ac84u || pc == 0x80051e38u || pc == 0x80051af0u ||
+	     pc == 0x8004ac84u || pc == 0x80051e3cu || pc == 0x80051af0u ||
+	     pc == 0x8004ede4u || pc == 0x80039c34u ||
 	     pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu ||
 	     pc == 0x80051520u || pc == 0x80051680u || pc == 0x80051b38u ||
 	     pc == 0x80051c20u || pc == 0x80060decu || pc == 0x8006126cu ||
+	     pc == 0x8006159cu || pc == 0x80061940u || pc == 0x80061d14u ||
 	     pc == 0x8007ec9cu || pc == 0x8007f2c0u || pc == 0x8007f8c4u ||
 	     pc == 0x8007fe7cu) &&
 	    sled_view_pc(regs))
@@ -420,6 +422,17 @@ unsigned sled_netplay_status(unsigned field)
    return netplay->self_devices;
 }
 #endif""")
+    text = once(text, '''   if (!ctrans->compression_stream)
+      ctrans->compression_stream   = ctrans->compression_backend->stream_new();''', '''   if (!ctrans->compression_stream)
+   {
+      ctrans->compression_stream = ctrans->compression_backend->stream_new();
+#if defined(__EMSCRIPTEN__) && defined(HAVE_ZLIB)
+      /* Snapshot compression runs on the room's emulation thread. */
+      if (ctrans->compression_stream && ret == NETPLAY_COMPRESSION_ZLIB &&
+          netplay->is_server && EM_ASM_INT({ return !!Module.sledDedicatedHost; }))
+         ctrans->compression_backend->define(ctrans->compression_stream, "level", 3);
+#endif
+   }''')
     text = once(text, '''            if (resim && (dtype == RETRO_DEVICE_JOYPAD || dtype == RETRO_DEVICE_ANALOG))''',
                 '''            /* Dedicated clients predict the entire pad from committed input.
              * Keep that prediction during replay so a held direction does not

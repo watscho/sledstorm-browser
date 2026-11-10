@@ -138,8 +138,16 @@ static int render_tile(const uint16_t *vram, unsigned y, unsigned left) {
     uint32_t env[8], words[256];
     if (packet->count > sizeof(words) / sizeof(*words)) { sled_enhanced_end(0); return 0; }
     memcpy(env, packet->env, sizeof(env));
+    /* The stock-range pass will clear and redraw the center. For full-view
+     * packets in the preceding pass, rasterize only this tile's margin. */
+    const int margin_pass = index < clear_before && clear_before < packets_used &&
+      !(env[3] & 1023u) && (env[4] & 1023u) == 511;
     env[4] = tile_command(env[4], left);
     env[5] = tile_command(env[5], left);
+    if (margin_pass) {
+      if (left) env[3] |= TILE_WIDTH - SLED_WIDE_MARGIN;
+      else env[4] = (env[4] & ~1023u) | (SLED_WIDE_MARGIN - 1);
+    }
     memcpy(words, wide_words + packet->start, packet->count * sizeof(*words));
     for (unsigned i = 0; i < packet->count;) {
       unsigned command = words[i] >> 24;

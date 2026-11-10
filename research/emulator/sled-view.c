@@ -59,6 +59,7 @@ static void overlay_stock_hud(uint16_t *output, const uint16_t *frame, unsigned 
 #define VRAM_BYTES (1024 * 512 * 2)
 #define RACER_BASE 0x800dae20u
 #define RACER_SIZE 0x530u
+#define RACER_FINISHED 0x35cu
 #define RACER_RACE_CLOCK 0x378u
 #define PRIMITIVE_BUDGET 0x800c3efcu
 #define RACER_AWARD 0x514u
@@ -66,8 +67,9 @@ static void overlay_stock_hud(uint16_t *output, const uint16_t *frame, unsigned 
 #define AWARD_DISPLAY 0x800c2f88u
 #define AWARD_TICKS 0x800e3928u
 #define FINISH_TICKS 0x800a7400u
-#define FINISH_ORIGIN_X 0x800e3550u
-#define FINISH_ORIGIN_Y 0x800e3560u
+#define SNOW_LINE_BUFFERS 0x800c3cd8u
+#define SNOW_LINE_SIZE 20u
+#define SNOW_LINE_COUNT 200u
 typedef struct { uint32_t words[16], env[8]; unsigned count; } Primitive;
 static Primitive primitives[LIMIT];
 static uint16_t private_vram[1024 * 512];
@@ -78,7 +80,8 @@ enum hud_popup { HUD_STATIC, HUD_AWARD, HUD_FINISH };
 static unsigned char hud_popup[256];
 static unsigned hud_count, hud_error;
 static unsigned award_first, award_end;
-static unsigned finish_first, finish_end;
+static unsigned finish_first, finish_end, local_finish_ticks;
+static uint32_t finish_ticks_before[4];
 static struct { uint32_t event, ticks; uint16_t latch, display; } award_before[4];
 static int awards_advanced;
 static unsigned char hud_ram[0x200000];
@@ -94,6 +97,7 @@ static int presented_personal, skip_personal;
 static unsigned native_rank, native_mode, canonical_packets, submission_packets;
 static unsigned native_range;
 static int native_single_view;
+static int32_t snow_origin_x, snow_origin_y;
 static unsigned char native_scratch[sizeof(render_scratch)];
 int sled_view_transaction, sled_view_hardware_access;
 extern void sled_renderer_set_vram(void *pointer);
@@ -173,10 +177,9 @@ static unsigned walk_ordering_table(unsigned head, unsigned *tail, enum ordering
     unsigned tag = ram32(cursor), count = tag >> 24;
     if (cursor + 4 + count * 4 > 0x200000) break;
 #ifdef __EMSCRIPTEN__
-    /* PAL queues a shaded backdrop sized to the stock viewport. Extend its
-     * corners in the private wide grid view so uncovered edges show the
-     * same fog gradient as the center. */
-    if (sled_view_transaction == 2 && starting_grid && wide_world && wide_cull &&
+    /* Extend the stock backdrop to cover the exposed margins of the private
+     * wide view with the original fog gradient. */
+    if (sled_view_transaction == 2 && wide_world && wide_cull &&
         count == 8 && (ram32(cursor + 4) >> 24) == 0x38 &&
         ram32(cursor + 8) == 0 && ram32(cursor + 16) == 512 &&
         ram32(cursor + 24) == 0x01000000 && ram32(cursor + 32) == 0x01000200) {
@@ -240,6 +243,8 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
     goto restore;
   const unsigned ot = context + 0x70;
   const unsigned players = ram32(0x800d6a10);
+  snow_origin_x = (int32_t)ram32(selected + 0x20c);
+  snow_origin_y = (int32_t)ram32(selected + 0x210);
   native_mode = ram32(0x800d6a5c);
   psxRegs.CP0.n.SR &= ~1u;
   native_error = 2;
@@ -247,6 +252,10 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
   if (!(enabled & 8) && !(solo_render && ram32(view + 0x158) == 0x01000200)) {
     /* Keep view zero's render buffers. The layout function installs the
      * selected racer's camera without aliasing the other view's buffers. */
+    const unsigned particle_lists[] = {0x144, 0x148, 0x14c};
+    uint32_t particle_heads[3];
+    for (unsigned i = 0; i < 3; ++i)
+      particle_heads[i] = ram32(view + particle_lists[i]);
     word(0x800d6a10, 1);
     psxRegs.GPR.n.a0 = view;
     psxRegs.GPR.n.a1 = camera;
@@ -254,6 +263,10 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
     configured = guest_call(&psxRegs, 0x8005aea0) &&
       ram32(view + 0x158) == 0x01000200;
     word(0x800d6a10, players);
+    /* Layout clears the existing emitter lists. Keep slot zero's nodes so
+     * particle preparation can update them for the installed camera. */
+    for (unsigned i = 0; i < 3; ++i)
+      word(view + particle_lists[i], particle_heads[i]);
     /* The frame begins with player one's projection origin and matrix.
      * Set both before rebuilding objects for the selected full view. */
     psxRegs.GPR.n.a0 = ram32(view + 0x20c);
@@ -373,6 +386,37 @@ static void advance_award_popups(unsigned players) {
   }
 }
 
+/* Mirror the PAL finish loop's timer update without queuing banners from the
+ * shared screen. The private HUD uses the pre-update tick for its own racer. */
+static void advance_finish_popups(unsigned players) {
+  const int show_finish = !(ram32(0x800d6990) & 2);
+  for (unsigned slot = 0; slot < players; ++slot) {
+    const unsigned timer = FINISH_TICKS + slot * 4;
+    const uint32_t ticks = ram32(timer);
+    const int finished = ram32(RACER_BASE + slot * RACER_SIZE + RACER_FINISHED) == 1;
+    const uint32_t next = show_finish && finished ? (ticks < 200 ? ticks + 1 : 200) : 0;
+    finish_ticks_before[slot] = ticks;
+    if (next != ticks) word(timer, next);
+  }
+}
+
+/* PAL joins each flake to its previous screen position and rejects long
+ * segments. Move those endpoints from the split pane to the full-size origin. */
+static void move_previous_snow(const psxRegisters *regs) {
+  const unsigned frame = ram32(0x800d6968);
+  const unsigned first = regs->GPR.n.a1, end = regs->GPR.n.a2;
+  if (frame > 1 || first >= end || end > SNOW_LINE_COUNT) return;
+  const unsigned buffer = ram32(SNOW_LINE_BUFFERS + 4 * (1 - frame));
+  if (buffer < 0x80010000 || buffer > 0x80200000 - end * SNOW_LINE_SIZE) return;
+  const int dx = regs->CP2C.n.ofx / 65536 - snow_origin_x;
+  const int dy = regs->CP2C.n.ofy / 65536 - snow_origin_y;
+  for (unsigned line = first; line < end; ++line) {
+    const unsigned xy = buffer + line * SNOW_LINE_SIZE + 8;
+    set_half(xy, (uint16_t)(half(xy) + dx));
+    set_half(xy + 2, (uint16_t)(half(xy + 2) + dy));
+  }
+}
+
 int sled_view_pc(psxRegisters *regs) {
   if (sled_view_transaction) {
     if (sled_view_transaction == 1) {
@@ -384,13 +428,18 @@ int sled_view_pc(psxRegisters *regs) {
          * just the local racer, already copied into slot zero. */
         finish_first = half(0x800c3f72);
         word(0x800d6a10, 1);
-        word(FINISH_TICKS, ram32(FINISH_TICKS + seat * 4));
-        word(FINISH_ORIGIN_X, ram32(FINISH_ORIGIN_X + seat * 4));
-        word(FINISH_ORIGIN_Y, ram32(FINISH_ORIGIN_Y + seat * 4));
+        local_finish_ticks = awards_advanced ? finish_ticks_before[seat] : ram32(FINISH_TICKS + seat * 4);
+        word(FINISH_TICKS, 0);
       }
+      /* Use the stock animation tick after PAL has calculated the pivot for
+       * the private full-size banner. The stock pane has a different pivot. */
+      if (regs->pc == 0x80061940) word(FINISH_TICKS, local_finish_ticks);
       if (regs->pc == 0x80061d14) finish_end = half(0x800c3f72);
     }
     if (native_single_view) {
+      // The snow positions and previous line buffer are partitioned by racer.
+      if (regs->pc == 0x8004ede4) regs->GPR.n.a0 = seat;
+      if (regs->pc == 0x80039c34 && ram32(0x800d6a10) > 1) move_previous_snow(regs);
 #ifdef __EMSCRIPTEN__
       /* The private full-size start camera can fill PAL's primitive pool
        * before the draw reaches the grid. Share the original pool between
@@ -428,7 +477,7 @@ int sled_view_pc(psxRegisters *regs) {
 #endif
       /* Keep the multiplayer preparation and resource tables. Stop after
        * the first drawing pass, using the full-size view in that slot. */
-      if (regs->pc == 0x80051e38) regs->GPR.n.v0 = 1;
+      if (regs->pc == 0x80051e3c) regs->GPR.n.v0 = 0;
       /* Allow the stock background draw in this isolated full-size view.
        * The original four-view branch has a NOP delay slot. */
       if (regs->pc == 0x80051af0 && ram32(0x800e2cb0 + 0x80)) {
@@ -485,6 +534,7 @@ int sled_view_pc(psxRegisters *regs) {
   /* The original multiplayer HUD is replaced at presentation. Building four
    * single-player HUDs canonically would overflow the game's 256 UI slots. */
   advance_award_popups(players);
+  advance_finish_popups(players);
   awards_advanced = 1;
   regs->pc = regs->GPR.n.ra;
   return 1;

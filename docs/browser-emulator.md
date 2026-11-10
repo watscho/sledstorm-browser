@@ -96,11 +96,16 @@ qualification limits.
 
 ## Cameras, progression and technical settings
 
-**Separate cameras** is enabled by default. Dedicated rooms use the original
+**Separate cameras** is enabled by default. RetroArch rooms use the original
 PAL full-size world renderer in a private pass, with the assigned racer's camera
 and render buffers. The adapter restores the canonical multiplayer state before
 the next console step. The GPU replay path serves as a fallback if a native
 render pass fails. Pause menus bypass the private pass.
+
+The PAL layout routine clears three particle lists when it installs a camera.
+The private pass preserves their heads and lets the original particle routine
+update them for the selected camera. The world draw exits after that camera's
+viewport.
 
 **Enhanced 2×** is a personal launch setting. Supported PAL races produce
 1024×512 in 4:3 or 1368×512 in 16:9. Run
@@ -167,8 +172,8 @@ ordering-table submission. It removes those packets from the private world
 pass and draws them once at native resolution. This preserves the original
 award timing and avoids drawing a second HUD over the minimap and points.
 
-Browser-hosted rooms use the GPU replay path. The adapter replays the selected
-player's geometry into private VRAM. Two-player panes gain a wider clip;
+When native rendering is unavailable, the GPU replay path draws the selected
+player's split-screen geometry into private VRAM. Two-player panes gain a wider clip;
 three/four-player geometry is rerasterized at full viewport size, preserving
 texture coordinates. It does not stretch a framebuffer crop. The PAL right
 pane starts at X=258, and the lower panes start at Y=129; both native divider
@@ -224,7 +229,7 @@ unlock individually remains unqualified.
 Diagnostic files stay under ignored `.cache/`. These are developer tools; use
 the normal launcher for multiplayer play.
 
-1. Open [the local diagnostic launcher](http://127.0.0.1:8000/?dev=1&transport=legacy) and start
+1. Open [the local diagnostic launcher](http://127.0.0.1:8000/?dev=1) and start
    a room. Wait until it is synchronized and reach the desired game state.
 2. Expand **Technical details** and click **Save local diagnostic snapshot**.
    The server writes `.cache/emulator-state-3-1000.bin`.

@@ -176,7 +176,7 @@ const launcherInfo = fetch('/session-info').then(async response => {
   netplayMirrorOrigin = response.headers.get('X-Sled-Netplay-Mirror-Origin');
   const info = await response.json();
   lobby.discMode(info.discMode);
-  const nativeCamera = retroArch && info.dedicated &&
+  const nativeCamera = retroArch &&
     (invitation ? invitation.nativeCamera : new URLSearchParams(location.search).get('nativeCamera') !== '0');
   lobby.widescreenAvailable(lab || (invitation ? Boolean(nativeCamera) : info.pal || info.discMode === 'local'));
   if (invitation && info.discMode === 'shared' &&
@@ -331,8 +331,8 @@ async function startGame(loadRequest) {
     const nativeCamera = dedicatedWorker?.nativeCamera ?? (invitation
       ? invitation.nativeCamera === true
       : new URLSearchParams(location.search).get('nativeCamera') !== '0');
-    if (retroArch && launchInfo.dedicated && roomOptions.camera && nativeCamera) roomOptions.nativeCamera = true;
-    if (invitation?.nativeCamera && !roomOptions.nativeCamera) throw new Error('This room requires the dedicated native camera.');
+    if (retroArch && roomOptions.camera && nativeCamera) roomOptions.nativeCamera = true;
+    if (invitation?.nativeCamera && !roomOptions.nativeCamera) throw new Error('This room requires the native PAL camera.');
     if (retroArch && launchInfo.dedicated && bios)
       throw new Error('Dedicated rooms use the built-in BIOS. Remove the custom BIOS before joining.');
     if (retroArch && invitation && launchInfo.roomCheck) {
@@ -973,10 +973,22 @@ function startBenchmark() {
     save.id = 'save-diagnostic';
     save.textContent = 'Save local diagnostic snapshot';
     save.addEventListener('click', async () => {
-      if (!localConsole && (!session?.active || session.replaying)) { showStatus('Wait until the session is synchronized.'); return; }
-      const response = await fetch('/diagnostic-state?frame=1000&seat=3', { method: 'POST', body: window.EJS_emulator.gameManager.getState() });
-      if (!response.ok) { showStatus('Could not save the local snapshot.'); return; }
-      save.textContent = 'Saved local diagnostic snapshot'; save.disabled = true;
+      const { Module: module, gameManager: manager } = window.EJS_emulator;
+      const synchronized = retroArch
+        ? roomSynchronized && retroRoom && !retroRoom.failed && !module.sledCatchup && !module.sledReplayPending &&
+          !module._sled_netplay_status(3) && module._sled_netplay_status(0) === (1 << retroRoom.slot)
+        : session?.active && !session.replaying;
+      if (!localConsole && !synchronized) { showStatus('Wait until the session is synchronized.'); return; }
+      save.disabled = true;
+      try {
+        const state = retroArch ? captureState(module, manager.functions.saveStateInfo) : manager.getState();
+        const response = await fetch('/diagnostic-state?frame=1000&seat=3', { method: 'POST', body: state });
+        if (!response.ok) throw new Error('Snapshot upload failed.');
+        save.textContent = 'Saved local diagnostic snapshot';
+      } catch {
+        save.disabled = false;
+        showActionNotice('Could not save the local snapshot.');
+      }
     });
     output.after(save);
   }

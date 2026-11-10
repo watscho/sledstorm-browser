@@ -1,7 +1,7 @@
 # Documentation
 
 [Draw distance and race stability update](../README.md#draw-distance-and-race-stability)
- · [Current verification summary](verification.md#090-verification-summary)
+ · [Current verification summary](verification.md#091-verification-summary)
 
 ## Start here
 

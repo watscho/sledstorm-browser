@@ -3,6 +3,35 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 0.9.1 - 2026-11-10
+
+Pine Valley multiplayer presentation and reconnect fixes.
+
+### Race presentation
+
+- Restore the original PAL fragment effects from signs and the Pine Valley
+  ice wall in personal cameras.
+- Restore PAL snowfall in personal cameras using each racer's snow positions.
+- Extend the PAL fog backdrop to the widescreen edges during a race.
+- Draw only the side margins in the first software Enhanced 2× pass when
+  PAL's stock-range pass redraws the center.
+- Use the full-size PAL renderer for browser-hosted personal cameras to
+  restore terrain outside the original split-screen pane.
+- Stop the private PAL world draw after the selected camera's view.
+- Play the original finish placement animation in the finishing player's
+  personal camera.
+
+### Room stability
+
+- Remember a synchronized browser-hosted guest's controller after the tab closes.
+- Use faster compression for dedicated room snapshots to shorten the sound
+  interruption for players who stay in the race when someone rejoins.
+
+### Build and diagnostics
+
+- Save local diagnostic snapshots from synchronized RetroArch rooms.
+- Check the Python version and prepare the Emscripten zlib port on fresh builds.
+
 ## 0.9.0 - 2026-11-10
 
 Draw distance and dedicated race stability update.

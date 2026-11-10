@@ -1,5 +1,22 @@
 # Verification and known limits
 
+## 0.9.1 verification summary
+
+Release verification used Chrome on one Mac with the PAL SLES-02194 disc.
+
+| Check | Result |
+| --- | --- |
+| Pine Valley impacts | Sign and ice fragments appeared in the striking guest's camera in both room types. The confirmed awards were 50 and 500 points. Both impact replays passed for each of the four controllers. |
+| Personal camera and HUD | Checked 4:3 and 16:9 at 1×, software Enhanced 2× and the supported WebGL2 path. The checks covered snowfall, the finish banner, respawn fade, widescreen edges and isolation of the console state. |
+| Rejoining | Guests recovered their controller assignments. In the dedicated loopback comparison, the remaining clients' scheduled audio gaps during a rejoin fell from 271–278 ms to 26–34 ms. |
+| Full races | Races with two, three and four clients reached matching standings. The four-client loopback TLS race matched all 1,241 common confirmed gameplay samples. |
+| Release build | Rebuilt the pinned core and verified the launcher in fresh Chrome profiles. Controller 2 stayed connected after the room creator left. All 26 browser tests, 19 network tests, four HTTP tests and the native presentation checks passed. |
+
+The [Pine Valley checks](#development-checks--pine-valley-impact-effects)
+record the test conditions and the remaining limits. The
+[multi-device checklist](#follow-up-multi-device-verification) extends
+coverage to separate computers and networks.
+
 ## 0.9.0 verification summary
 
 The build that became 0.9.0 was checked on 2026-11-10 with the PAL SLES-02194
@@ -18,6 +35,366 @@ same Mac. The [current limits](#current-limits) describe the scope of these chec
 See [render settings in isolation](#pine-valley-render-settings-in-isolation),
 [input timing](#pine-valley-input-timing-on-one-tunnel) and
 [room stability](#pine-valley-room-stability) for the measurement details.
+
+## Development checks — Pine Valley impact effects
+
+Local Chrome replays on PAL SLES-02194 started from checkpoints prepared just
+before contact with the yellow direction sign and the shortcut's ice wall.
+The original game handled the collision and scoring in each replay.
+
+- The stock solo camera displayed both impact effects. The four-player and
+  two-player personal views restored the sign and the ice shatter for
+  controllers 1 and 2 respectively. The ice wall retained the 500-point
+  award. The tested 4:3 and 16:9 software paths, software Enhanced 2× and
+  WebGL2 through SwiftShader matched the race state at seven sampled steps
+  per replay.
+- For the four-player ice wall, the WebGL2 command stream changed from zero
+  matching fragment commands to 50 on the first sampled frame after contact.
+  The canonical state digests matched across both builds. The captured
+  private passes preserved the serialized console state.
+- Two dedicated loopback rooms on one Mac loaded intact Pine Valley targets
+  through the normal save-resume flow. The test held each checkpoint until
+  the 4:3 host and 16:9 WebGL2 guest had synchronized. With the guest holding
+  accelerate, the test resumed both clients at the same Netplay step. Both
+  clients recorded the target breaking at the same confirmed step. All 78
+  sampled steps around the sign hit and all 77 around the ice hit matched.
+  The guest received one 50-point award for the sign and one 500-point award
+  for the ice. The guest's Metal WebGL2 view submitted matching fragment
+  commands in five sign frames and 38 ice frames. Its composed captures show
+  both effects with the personal HUD. The sign capture shows the same
+  floating 49 as the solo control while the HUD total is 50.
+- The same checkpoints ran in two browser-hosted rooms on one Mac. Each
+  client selected its own PAL CUE and BIN files, and the launcher returned
+  404 for the disc archive. Only the host loaded the test checkpoint. The
+  guest received it through Netplay. With the same scheduled start, the host
+  and guest matched all 77 confirmed steps for each hit, including the
+  50-point sign award and 500-point ice award. Two native screenshots per
+  event at 1368×512 show the fragments moving in the guest's 16:9 software
+  Enhanced 2× view. The sign popup advanced from 49 to 50 while the HUD
+  total stayed at 50. Both clients reported zero camera and HUD errors.
+- The native regression check now exercises the full-size layout with each
+  controller, verifies that particle preparation receives its existing lists
+  and checks that the private draw exits at the first viewport branch. The
+  stock branch still runs with its original result outside presentation.
+- A dense four-player widescreen checkpoint still needed two geometry builds
+  on each of ten new frames at Original draw distance. A diagnostic trace
+  reached the viewport exit once per build.
+- One loopback dedicated room advanced through Pine Valley with four, three,
+  then two connected controllers. Controller 4 rejoined in the original slot.
+  Scene and racer fields agreed at nine common steps in each of the four
+  sampled windows. Full serialized states differed across browsers in both
+  the patched and baseline four-client runs. These were short tests on one
+  computer using a prepared course-selection checkpoint.
+- Dedicated rooms on one Mac completed full Pine Valley races from the
+  original menus with two, three and four Chrome clients. A test driver
+  sent ordinary accelerator and steering inputs. The two-, three- and
+  four-client races ran three, two and three laps and matched at 118, 81 and
+  128 common sampled steps respectively. Every client in each room showed
+  the same order, finish times and points. The rooms mixed 4:3 and 16:9.
+  The three- and four-client rooms also mixed 1× and software Enhanced 2×.
+  PAL filled unoccupied racer slots with CPU opponents and used four
+  viewports with three connected controllers.
+- A repeat on the clean rebuild joined four fresh headless Chrome profiles
+  to a loopback dedicated room with 4:3, 16:9 and WebGL2 Enhanced 2× through
+  SwiftShader.
+  The other clients advanced 70–94 race steps between closing controller 4's
+  tab and reopening it. About 7.7 seconds after reopening, controller 4 was
+  back in its own slot with its camera, HUD and non-silent stereo
+  buffers. No client reported a camera or HUD error at that point.
+  Three racers finished both laps. The scripted driver for controller 3
+  completed one lap before the test deadline, leaving the settled standings
+  and full-race audio comparison unmeasured in this repeat.
+- A second four-client repeat forced Chrome to run WebGL2 through SwiftShader
+  on the CPU. All four clients matched the sampled racer positions, scores
+  and finish timers at 1,029 common confirmed steps. Controller 3 trailed the
+  others by up to 36 sampled steps and its scripted driver timed out before
+  finishing. Its browser scheduled 516 gaps over 5 ms between stereo buffers,
+  with a maximum of 501 ms. The other three scheduled 4–22 gaps apiece,
+  with a maximum of 395 ms. This was a single-Mac load test with the browser
+  output muted. Chrome with its normal settings selected Apple Metal on
+  the same Mac.
+- With Chrome's normal graphics settings, all four clients completed both
+  laps from the PAL menus in a dedicated room on the same Mac. Controller 3
+  used WebGL2 Enhanced 2× through Apple Metal. The other views used 4:3 and
+  16:9 at 1×. Controller 4 returned to its assigned slot in about 5.8 seconds,
+  with its camera, HUD and audio buffers. Each of the other clients advanced
+  70 race steps before controller 4 reopened the tab. The clients' core
+  counters stayed within two steps at the sampled in-race checkpoints. All
+  1,270 common confirmed samples matched, and the settled screens showed the
+  same places, times and points on all four clients.
+  The probe read the correct local rank and 91 HUD packets on each client at
+  finish tick 23. The three software captures showed the placement banners.
+  The WebGL2 capture read the underlying canvas, which showed the loading screen.
+  The controlled WebGL2 replay below captures the composed finish animation.
+  The audio probe counted 7, 2, 9 and 3 gaps over 5 ms by seat, with the
+  longest gap measuring 293 ms. The fourth client's count covers the window
+  after its return. Chrome's physical audio output was muted for the test.
+- A timed comparison in four-client loopback rooms on the same Mac isolated
+  the large scheduling gaps to controller 4's rejoin. With the previous
+  dedicated host compression, the three remaining clients went 306–307 ms
+  between core steps at the same race clock and recorded 271–278 ms audio
+  scheduling gaps. The dedicated host now uses lossless zlib level 3 for its
+  outgoing Netplay snapshots. Offline compression of two local checkpoints
+  took 39–42 ms at level 3 and 204–217 ms at level 9 in native zlib, with
+  level 3 increasing the compressed sizes by about 4.4%.
+  In the repeat the corresponding core gaps were 75–77 ms and the audio
+  scheduling gaps were 26–34 ms. No client recorded an audio gap over 5 ms
+  in the 27 seconds after return. Controller 4 recovered the same slot,
+  camera and HUD 5.3 seconds after reopening. The 132 common confirmed
+  samples matched after rejoin. Audio was measured from the browser's buffer
+  schedule.
+- The same build completed two laps with four clients on one Mac through a
+  loopback TLS gateway. The creator used the local launcher. Three guests
+  opened matching PAL ZIP files from disk. The primary WebSocket used TLS
+  with the fallback route enabled. The test selected the online branch on
+  localhost. The gateway required a private access cookie and refused disc
+  and diagnostic data requests. During controller 4's rejoin, a probe held a
+  1,579,199-byte synchronization block for 184 ms before releasing it and the
+  queued primary messages in order. Controller 4 recovered the same seat
+  6.1 seconds after reopening. The other clients advanced 68 steps while the
+  tab was closed.
+  All 1,241 common confirmed gameplay samples matched. F8 captures showed
+  matching places, best laps and points. The stored total times matched too.
+  The local client scheduled six audio gaps over 5 ms, with a 38 ms maximum.
+  The three guests scheduled none over 5 ms in the sampled race windows.
+  The offline startup probe reproduced a vendor version-check TypeError
+  when the test blocked that request. A locally supplied 503 response
+  removed the exception. The game advanced in both cases.
+- A separate two-client loopback run paused the guest's emulator for 1.3
+  seconds. The guest reached a backlog of 62 steps and recovered to five
+  steps behind with the same controller slot. The other player advanced
+  130 steps over the interruption and recovery. The sampled race fields
+  agreed at nine common steps both before and after the interruption.
+- Local RWebAudio replays of the sign and ice wall scheduled 159–160
+  non-silent buffers per 80-step replay, with no gap over 5 ms in either
+  build. The console state matched at the end of each paired replay.
+  Physical output remains part of the listening test.
+- A diagnostic build checked stereo PCM from PCSX-ReARMed before browser
+  resampling. All 100 batch checksums matched across the stock and enhanced
+  cameras for the multiplayer sign, multiplayer ice and solo ice replays.
+  Each replay collected 88,200 stereo frames at 44.1 kHz. A run without the
+  sign hit changed the PCM at contact. Moving the ice collider away on the
+  impact step preserved the active object and changed the PCM at that step
+  in both modes.
+- Bootstrap installed the pinned EmulatorJS assets into an empty destination
+  from the cached official archive. The installed assets passed the pinned
+  checksum check. A separate PCSX-ReARMed and RetroArch build from clean
+  object directories loaded in Chrome and reproduced the ice impact in all
+  four tested render configurations. Download and setup on a separate
+  computer remain open.
+- A clean source copy downloaded and verified the official EmulatorJS
+  archive, checked out the pinned sources and installed the pinned SDK.
+  The native build completed with Python 3.14 selected explicitly while
+  the terminal still resolved `python3` to macOS Python 3.9. The build now
+  checks the Python version up front and builds the Emscripten zlib port
+  before compiling PCSX-ReARMed. The clean build generated the WebGL2
+  module and passed both impact replays on all four controller slots.
+- The clean build hosted a two-lap Pine Valley race in browser-hosted
+  local-file mode. The creator used loopback and the guest joined through a
+  temporary HTTPS tunnel. The game and diagnostic data routes refused
+  requests through that tunnel. Both clients ran on one Mac and displayed
+  the same standings. The live sampler matched 73 of 78 common steps and
+  skipped rollback replays, so it did not establish agreement after
+  reconciliation at the five differing steps.
+- A separate short run through the same online path captured each sampled
+  step on its first execution and again on rollback replays. It compared
+  the latest samples for steps with confirmed inputs. The first executions
+  differed at 23 of 159 common steps. All 159 matched after reconciliation.
+- A three-client browser-hosted room reproduced a controller change through
+  the HTTPS tunnel. When both guests closed their tabs, controller 3 returned
+  first and received controller 2 on the earlier build. With the preference
+  saved after synchronization, guests reopened the same invitation in fresh
+  tabs and recovered controllers 3 and 2 in that order. The two remaining
+  clients advanced 90 race steps while controller 3 was away. The host
+  advanced another 424 steps while both guests returned. The returning
+  clients resumed their native camera and HUD with no reported render errors.
+  All three clients ran on one Mac and completed the two-lap race with
+  matching standings. After both guests returned, the first executions
+  differed at 274 of 737 common sampled steps. All 737 matched after
+  reconciliation.
+- Two four-client browser-hosted runs used the HTTPS tunnel and local disc
+  files on one Mac. A probe buffered only controller 4's incoming messages
+  for 150–167 ms and 1,305–1,307 ms, then delivered each batch in order.
+  During the longer holds, controller 4 trailed the host by up to 18 and 24
+  sampled steps. Its longest intervals between live core steps were 359
+  and 436 ms. The sampled clients stayed connected and the step gap returned
+  to within nine steps within about 1.7 seconds of release. One client
+  reported a stall during the repeat. These intervals measure emulator
+  processing during the hold, separate from display and audio output.
+  Both rooms completed two laps. The sampled race fields matched after
+  reconciliation at all 752 and 798 common steps respectively. The first
+  run's early standings captures showed different times during the screen
+  transition. In the repeat, two captures taken 1.2 seconds apart from
+  300 steps after the standings appeared showed the same places, times
+  and points on all four clients. The displayed times matched the stored
+  race clocks.
+- A four-controller Pine Valley checkpoint exercised the finish banner in
+  4:3 at 1×, 16:9 at 1×, software Enhanced 2× and WebGL2. The check set
+  the finish fields for one racer at a time. The earlier personal-camera
+  build kept the finish timer at zero. The corrected build matched the
+  original's 28 ticks after 56 core steps and drew the growing banner in
+  the center. The captures showed **1st**, **2nd**, **3rd** and the original
+  **last!** for fourth place. When a different racer finished, the local
+  HUD stayed at its baseline packet count. The WebGL2 HUD layer had no
+  banner pixels in the center.
+- The launcher’s **F8** shortcut downloaded the composed finish frame on the
+  clean build with WebGL2 through Apple Metal. The 910×512 PNG matched all
+  23,196 sampled opaque banner pixels from the local HUD. The baseline and
+  the capture after a different racer finished had no center banner. The
+  same shortcut downloaded the local banner at 512×256 in 4:3, 684×256 in
+  widescreen 1× and 1368×512 in software Enhanced 2×. All six captures
+  preserved the canonical console-state digest. These were controlled
+  checkpoints, with the game's own racer ranking and a scripted finish flag.
+- The same checkpoint exercised the stock respawn fade one camera at a
+  time. The selected camera darkened at the center and at both side margins
+  in each wide render mode. At 4:3, fading a different camera left the local
+  frame pixel-identical. In the wide modes, average brightness changed by
+  at most 0.2 on a 0–255 scale in the sampled bands of the unaffected view.
+  All 96 private passes sampled across the fade and finish replays preserved
+  the canonical console-state digest. These are controlled local replays.
+- A solo Pine Valley checkpoint on the same build confirmed the fade and
+  finish animation with the stock 4:3 view, 16:9 at 1×, software Enhanced
+  2× and WebGL2. The stock finish timer and all three wide paths reached
+  28 ticks at the same step. Both side margins darkened in the wide views.
+  The 12 sampled solo private passes preserved the console-state digest.
+- Four browser-hosted Chrome clients on one Mac completed two laps from the
+  original menus after the finish fix. Controller 4 saw **1st**, controller
+  1 saw **2nd**, controller 3 saw **3rd** and controller 2 saw **last!** in
+  their own cameras as they crossed the finish. The room mixed 4:3 and
+  16:9 with 1× and software Enhanced 2×. The settled places, times and points
+  matched on all four displays. The sampled gameplay fields, including
+  finish timers, initially differed at 321 of 781 common steps. All 781
+  matched after reconciliation. The eight sign and ice impact replays also
+  passed on this build.
+- Recorded controller inputs reproduced one natural landing per controller
+  on Pine Valley and one in solo. The five jumps lasted 36–66 core steps.
+  The personal views covered 4:3 and 16:9 at 1× and software Enhanced 2×,
+  plus the 16:9 WebGL2 path. Racer positions, velocities, airtime and scores
+  matched the reference at 1,692 replayed steps. The 169 sampled private
+  passes preserved the console-state digest. The controller 3 captures
+  showed snow spray behind the sled as it settled. The separate tread marks
+  on the surface are drawn by PAL's solo-only trail routine.
+- The same replays exposed missing snowfall in the personal view. PAL
+  rejected lines whose previous endpoint still used split-screen coordinates.
+  The private draw now selects the original racer's snow range and moves
+  those endpoints to its full-size projection origin. Four sampled WebGL2
+  frames per four-player seat contained 35–46 shaded snow lines after the
+  fix, compared with 0–3 before. The sampled solo line counts stayed the same.
+  In a separate two-player replay, the counts ranged from 93 to 98 across
+  the two cameras with snow enabled and stayed at zero with the weather flag
+  cleared. Before the fix, the counts were 0–2 for controller 1 and 13–27 for
+  controller 2. Both builds ended each paired replay with the same
+  console-state digest.
+- Four alternating runs of the same dense four-controller checkpoint at
+  16:9, software Enhanced 2× and Original draw distance measured 120 new
+  frames and 231 geometry builds each. The 95th-percentile private render
+  time was 26.9 ms before the snowfall fix and 27.8–29.0 ms after it. The
+  95th-percentile interval between prepared frames was 50.8–51.3 ms before
+  and 56.9–66.0 ms after. All four runs ended with the same state digest.
+- Two Pine Valley landing frames exposed black corners beyond the 4:3
+  viewport. The private ordering tables showed that PAL's fog gradient still
+  covered only the original width. Extending that quad to the 684-pixel
+  viewport removed all near-black pixels from the sampled corners of both
+  frames in software 1×, software Enhanced 2× and WebGL2. Pixels inside
+  the original projection matched in the compared areas. The state digests
+  matched across the two builds.
+- The software Enhanced 2× fallback now clips the first pass to the side
+  margins when the next pass clears and redraws the center. All 176 compared
+  software frames matched pixel for pixel, including 76 frames with two
+  passes. The sample covered normal play and a forced respawn fade.
+  Four alternating timing runs on the same dense Pine Valley checkpoint
+  each prepared 120 frames with 231 geometry builds and the same final state
+  digest. The 95th-percentile private render time went from 27.4–27.8 ms to
+  25.4–26.1 ms. The 95th-percentile intervals between prepared frames were
+  51.3–52.3 ms before and 51.1–51.3 ms after.
+- The local browser-hosted GPU replay path displayed both impacts for
+  controller 2. The original split-screen also displayed the ice shatter.
+  The enlarged browser-hosted view showed missing terrain at the edges
+  outside the original pane. This check used a local snapshot and covers the
+  impact visuals. The snapshot contains the personal-camera HUD atlas.
+- Browser-hosted RetroArch rooms now negotiate the full-size PAL renderer.
+  A local Chrome room started Pine Valley from a course-selection checkpoint
+  with four controllers and mixed 4:3 and 16:9 views. All four used the native
+  pass and had no reported camera or HUD errors. The sampled race fields
+  agreed in windows with four, three and two connected controllers and
+  after controller 3 rejoined. These were short tests on one computer.
+- The opt-in impact regression passed both events for each of the four
+  controller slots on the clean build. On the earlier build, the ice replay
+  for controller 1 and sign replay for controller 2 both failed because
+  their personal camera received no matching fragment commands.
+- Local diagnostic snapshots saved through the launcher in browser-hosted
+  and dedicated RetroArch rooms passed the pinned state-format check.
+  The dedicated room started from the original game menu.
+- Four alternating headless Chrome runs replayed the same dense four-player
+  checkpoint at 16:9, software Enhanced 2× and Original draw distance.
+  Each measured 120 new frames, 231 geometry builds and the same end-state
+  digest. The 95th-percentile private render time was 26.1–26.3 ms on the
+  earlier build and 26.6–26.7 ms on the patched build. The 95th-percentile
+  interval between prepared frames was 51.0–51.6 ms across all runs. One
+  patched repeat reached a 99th-percentile interval of 63.1 ms. These are
+  browser preparation timings from a local replay.
+
+Repeat the effects check on Pine Valley with **Draw distance** set to
+**Original**. Drive into a yellow direction sign and the ice wall at the
+shortcut. Compare the moment of contact and the following frames in solo,
+shared split-screen and dedicated personal cameras. Check the fragments and
+sound alongside the object's removal and the single award. For a repeatable
+renderer comparison, use the same local snapshot and inputs for each render
+setting. Keep disc-derived snapshots and captures under ignored `.cache/`.
+
+For an automated local comparison, run the launcher with the current native
+build and install Playwright in your local Node environment. Generate the
+WebGL2 renderer with `python3 tools/prepare-hardware-preview.py`. Save a
+[local diagnostic snapshot](browser-emulator.md#local-diagnostics) in a
+Pine Valley multiplayer race with personal cameras. Aim at the yellow
+left-arrow sign on the approach to the start/finish banner or at the
+shortcut's ice wall. Save while
+the selected controller is close enough to hit the intact target by holding
+accelerate for 31 core steps.
+
+```sh
+node tools/test-pal-impact.mjs sign .cache/sign-before.state 2
+node tools/test-pal-impact.mjs ice .cache/ice-before.state 1
+```
+
+Use the controller number stored in the checkpoint. If Playwright is
+installed outside the checkout, set `SLED_PLAYWRIGHT_MODULE` to the path of
+its `index.mjs`. Set `SLED_TEST_CORE` to a local core archive to repeat the
+test against another build. The test compares the impact step and console
+state with and without local presentation, checks private-pass isolation
+and verifies that WebGL2 receives matching fragment commands. It checks
+the single 50-point or 500-point award and the presence of personal HUD
+packets. Its fixtures stay local.
+
+### Follow-up multi-device verification
+
+1. On a separate computer, extract the current source archive or use a clean
+   checkout containing these changes. From the source folder, begin setup with
+   `python3 tools/bootstrap-emulator.py`.
+   [Setup guide](setup.md)
+2. On Pine Valley, compare solo, shared split-screen and personal cameras at
+   Original draw distance. Check the yellow sign and ice wall on the striking
+   racer's screen and any nearby camera with a clear view. Record the
+   fragments, impact sound and one award to the racer who hit the object.
+3. Start the online host with `python3 tools/play-online.py --disc-mode local`.
+   This starts a browser-hosted room with a local PAL copy in each browser
+   and the native build served by the host. Finish a full race with two,
+   three and four players on separate computers across at least two networks.
+   Include both 4:3 and 16:9, 1× and software Enhanced 2×.
+   Check the start countdown, snowfall, snow spray, landings, respawn fade,
+   lap counter and finish placement. Compare places, times and points once
+   the results screen finishes updating.
+4. Disconnect a controller during one race and return to its assigned racer.
+   Confirm the race advances for the others and check HUD, audio and camera
+   after rejoining. Note any visible or audible interruption and its duration.
+
+Record the build, controller assignments, display settings and outcome for each
+run. Identify each device and network by a short label and record whether its
+VPN was on. Select **Time** in the settled standings and press **F8** to capture
+the table without the browser address bar. Keep invitations, disc files and
+diagnostic snapshots out of the shared results. Check the dedicated WebGL2
+path separately on loopback using `python3 server.py --dedicated`, the
+optional WebGL2 module, 16:9 Enhanced 2× and the Clean or Crisp pixels filter.
 
 ## Development checks — M5 Pro tunnel experiments
 
@@ -1989,14 +2366,14 @@ requires a C compiler and the pinned source checkout from the build.
 ## Current limits
 
 - The current Quick Tunnel checks used two to four Chrome clients on one
-  M5 Pro. Separate computers and networks, longer mixed-render sessions and
-  remote input latency still need coverage. A pause on both delivery routes
-  can still produce a visible hitch or an audio gap.
+  M5 Pro. Full races on separate computers and networks, longer mixed-render
+  sessions and remote input latency still need coverage. A pause on both
+  delivery routes can still produce a visible hitch or an audio gap.
 - Extended draw distance is experimental and defaults to **Original**. The
   current graphics matrix covers Pine Valley. Higher settings can cause brief
   stutters and the renderer can shorten the range in dense scenes. The native
-  camera also has earlier checks on Hard Pack and Kodiak Canyon. Full race
-  completion and more course and weather combinations remain open.
+  camera also has earlier checks on Hard Pack and Kodiak Canyon. More course
+  and weather combinations remain open.
 - Dedicated rooms preserve controller slots across browser reconnects while
   the server is running. A server restart requires a new room and invitation.
   In browser-hosted mode the room lasts as long as the host stays connected.

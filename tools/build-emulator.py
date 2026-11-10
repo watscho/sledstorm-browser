@@ -52,6 +52,9 @@ def checkout(spec, check=False):
 
 
 def main():
+    if sys.version_info < (3, 10):
+        version = sys.version.split()[0]
+        raise SystemExit(f'Building the emulator requires Python 3.10 or newer. Found {version} at {sys.executable}.')
     for tool in ('git', 'bash', 'make', 'node', 'npm'):
         if not shutil.which(tool):
             raise RuntimeError('Required tool is missing: ' + tool)
@@ -64,17 +67,26 @@ def main():
     run([sys.executable, 'emsdk.py', 'activate', sdk['version']], sdk_path)
     run([sys.executable, ROOT / 'tools/prepare-emulator-native.py'])
 
-    def build(arguments):
-        subprocess.run(['bash', '-c', 'source "$1/emsdk_env.sh" >/dev/null 2>&1; shift; exec "$@"',
-                        'emulator-build', str(sdk_path), str(sdk_path / 'upstream/emscripten/emmake'),
-                        'make', *arguments], cwd=ROOT, check=True)
+    def run_sdk(tool, *arguments):
+        # SDK activation can clear an inherited EMSDK_PYTHON.
+        script = ('export EMSDK_PYTHON="$2"\n'
+                  'source "$1/emsdk_env.sh" >/dev/null 2>&1 || exit\n'
+                  'export EMSDK_PYTHON="$2"\n'
+                  'shift 2\n'
+                  'exec "$@"')
+        subprocess.run(['bash', '-c', script, 'emulator-build', str(sdk_path), sys.executable,
+                        str(sdk_path / 'upstream/emscripten' / tool), *arguments], cwd=ROOT, check=True)
 
-    build(['-C', str(ROOT / CORE['path']), '-f', 'Makefile.libretro', 'platform=emscripten', 'HAVE_CHD=0', '-j4'])
+    # The core includes zlib.h before RetroArch links the zlib port.
+    run_sdk('embuilder', 'build', 'zlib')
+    run_sdk('emmake', 'make', '-C', str(ROOT / CORE['path']), '-f', 'Makefile.libretro',
+            'platform=emscripten', 'HAVE_CHD=0', '-j4')
     frontend = ROOT / FRONTEND['path']
     shutil.copyfile(ROOT / CORE['path'] / 'pcsx_rearmed_libretro_emscripten.bc', frontend / 'libretro_emscripten.bc')
-    build(['-C', str(frontend), '-f', 'Makefile.emulatorjs', 'HAVE_7ZIP=0', 'HAVE_CHD=0', 'HAVE_THREADS=0',
-           'ASYNC=1', 'HAVE_OPENGLES3=1', 'STACK_SIZE=4194304', 'INITIAL_HEAP=536870912',
-           'HAVE_AL=1', 'HAVE_RWEBAUDIO=1', 'TARGET=pcsx_rearmed_libretro.js', '-j4'])
+    run_sdk('emmake', 'make', '-C', str(frontend), '-f', 'Makefile.emulatorjs',
+            'HAVE_7ZIP=0', 'HAVE_CHD=0', 'HAVE_THREADS=0', 'ASYNC=1', 'HAVE_OPENGLES3=1',
+            'STACK_SIZE=4194304', 'INITIAL_HEAP=536870912', 'HAVE_AL=1', 'HAVE_RWEBAUDIO=1',
+            'TARGET=pcsx_rearmed_libretro.js', '-j4')
     files = {name: hashlib.sha256((frontend / name).read_bytes()).hexdigest()
              for name in ('pcsx_rearmed_libretro.js', 'pcsx_rearmed_libretro.wasm')}
     (ROOT / '.cache/emulator-native-build.json').write_text(json.dumps({'core': CORE, 'frontend': FRONTEND,

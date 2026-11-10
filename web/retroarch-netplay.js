@@ -1,8 +1,9 @@
-import { sampleGamepad } from '/session-client.js';
+import { sampleGamepad } from './session-client.js';
 import { mirrorNetplayDownlink } from './netplay-downlink.js';
 
 const port = 55435;
 const toRetroPad = [2, null, null, 3, 4, 7, 5, 6, 12, 13, 10, 11, 9, 8, 0, 1];
+const guestSeatStores = ['sessionStorage', 'localStorage'];
 const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 
 function netplayEndpoint() {
@@ -48,8 +49,16 @@ export async function prepareNetplay(emulator, {
   }
   let rememberController = true;
   let preferredSlot;
-  if (invitation) {
-    try { preferredSlot = Number(sessionStorage.getItem(seatKey)); } catch { /* A free seat still works. */ }
+  if (invitation && !dedicated) {
+    for (const store of guestSeatStores) {
+      try {
+        const value = globalThis[store].getItem(seatKey);
+        if (/^[1-3]$/.test(value ?? '')) {
+          preferredSlot = Number(value);
+          break;
+        }
+      } catch { /* Continue with any available storage. */ }
+    }
   }
   const endpoint = netplayEndpoint();
   const duplex = netplayDelivery === 'mirror-v2';
@@ -133,7 +142,14 @@ export async function prepareNetplay(emulator, {
     let delivery;
     if (!worker) {
       connection.markSynchronized = () => {
-        if (socket.readyState === WebSocket.OPEN) socket.send('{"type":"synchronized"}');
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send('{"type":"synchronized"}');
+          if (invitation && !dedicated) {
+            for (const store of guestSeatStores) {
+              try { globalThis[store].setItem(seatKey, String(slot)); } catch { /* Optional. */ }
+            }
+          }
+        }
         delivery?.startMirror();
       };
       socket.addEventListener('message', event => {
@@ -169,9 +185,6 @@ export async function prepareNetplay(emulator, {
       if (rememberController) {
         try { localStorage.setItem(controllerStorage, controllerKey); } catch { /* Optional. */ }
       }
-    }
-    if (invitation && !dedicated) {
-      try { sessionStorage.setItem(seatKey, String(slot)); } catch { /* A free seat still works. */ }
     }
     const { Module: module, gameManager: manager } = emulator;
     if (!module.sledInstallNetplay || !module._sled_netplay_status) throw new Error('RetroArch Netplay core is missing. Rebuild the emulator.');
