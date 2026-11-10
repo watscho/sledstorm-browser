@@ -1,18 +1,31 @@
 // Loaded into the Emscripten module closure by prepare-emulator.py.
 // The WebSocket is already open when synchronous POSIX connect() runs.
-Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
+Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room, stream = socket) => {
   Module.sledNetplayActive = true;
   Module.sledDedicatedHost = role === 'worker';
   const animationFrame = MainLoop.requestAnimationFrame;
   let scheduled;
   let recoveryTasks;
   let recoveryTaskId = 0;
+  let lastCallbackAt = performance.now();
+  Module.sledResumeReplay = () => {
+    if (!Module.sledNetplayActive || !Module.sledReplayPending) return false;
+    Module._sled_netplay_resume_replay();
+    if (!Module.sledReplayPending) Module.sledAfterFrame?.();
+    return true;
+  };
   const schedule = callback => {
     scheduled?.cancel?.();
     const catchup = Module.sledCatchup;
     const hidden = document.hidden;
-    const run = () => { scheduled = undefined; callback(); };
-    if (catchup && !hidden) {
+    const run = () => {
+      if (scheduled?.run !== run) return;
+      scheduled.cancel?.();
+      scheduled = undefined;
+      lastCallbackAt = performance.now();
+      callback();
+    };
+    if ((catchup || Module.sledReplayPending) && !hidden) {
       // Yield between frames without the minimum delay of nested timeouts.
       if (!recoveryTasks) {
         recoveryTasks = new MessageChannel();
@@ -25,8 +38,21 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
       recoveryTasks.port2.postMessage(taskId);
       return;
     }
-    const id = hidden ? setTimeout(run, catchup ? 0 : 1000 / 60) : requestAnimationFrame(run);
-    scheduled = { callback, cancel: () => hidden ? clearTimeout(id) : cancelAnimationFrame(id) };
+    if (hidden) {
+      const id = setTimeout(run, catchup ? 0 : 1000 / 60);
+      scheduled = { callback, run, cancel: () => clearTimeout(id) };
+      return;
+    }
+    const frame = requestAnimationFrame(run);
+    // A 30 Hz animation callback cannot keep up with the room's console clock.
+    // Run an emulation step between paints when Chrome delays the callback.
+    const timer = Module.sledDedicatedClient && !Module.sledPaintWideFrame
+      ? setTimeout(run, Math.max(0, 1000 / 60 - (performance.now() - lastCallbackAt)))
+      : undefined;
+    scheduled = { callback, run, cancel: () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    } };
   };
   const reschedule = () => {
     if (!scheduled) return;
@@ -80,7 +106,7 @@ Module.sledInstallNetplay = (role, socket, endpoint, netplayPort, room) => {
       return connect(sock, addr, port);
     }
     used = true;
-    attach(sock, socket, port);
+    attach(sock, stream, port);
   };
 
   ops.listen = (sock, backlog) => {

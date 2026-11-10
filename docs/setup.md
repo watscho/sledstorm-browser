@@ -36,7 +36,7 @@ upload also carries the initial game download for guests without a saved copy.
 ## One-time setup
 
 ```sh
-git clone https://github.com/watscho/sledstorm-browser.git
+git clone --branch feature/draw-distance https://github.com/watscho/sledstorm-browser.git
 cd sledstorm-browser
 python3 tools/bootstrap-emulator.py
 python3 tools/build-emulator.py
@@ -54,8 +54,10 @@ optional WebGL2 renderer. The generated module stays under `web/generated/`.
 
 ## Upgrade an existing installation
 
-Stop the hosting helper with **Ctrl+C**. From a clean project directory,
-update the source, refresh the pinned assets and rebuild the emulator:
+Stop the hosting helper with **Ctrl+C**. From a clean project directory on
+`feature/draw-distance`, update the source, refresh the pinned assets and rebuild
+the emulator. If your checkout is on another branch, fetch and switch to
+`feature/draw-distance` first.
 
 ```sh
 git pull --ff-only
@@ -65,9 +67,9 @@ python3 tools/build-emulator.py
 
 If you use the WebGL2 renderer, rerun `python3 tools/prepare-hardware-preview.py`.
 Start the launcher again and create a new room. If playing online, send a
-fresh invitation so everyone loads the same build. The v0.8.1 respawn fade
-fix requires the rebuilt emulator. Solo saves are matched to the disc, BIOS
-and emulator build at the same browser address.
+fresh invitation so everyone loads the same build. The camera, Netplay and
+audio changes in this update require the rebuilt emulator. Solo saves are
+matched to the disc, BIOS and emulator build at the same browser address.
 
 ## Add the game files
 
@@ -169,7 +171,7 @@ browser-hosted rooms. The creator's tab must stay open.
 | Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
 | 16:9 is unavailable | Use the verified PAL disc and start a solo race or a dedicated room with **Separate cameras** enabled. Menus and shared split-screen use 4:3. |
 | Enhanced 2× looks like the original resolution | Enter a solo PAL race or a dedicated race with personal cameras to use native 2×. Other scenes upscale the finished frame. |
-| Draw distance is unavailable or varies by scene | **Display and audio → Draw distance** applies to solo PAL races and dedicated personal cameras. **Original** uses the game's default range. Higher values set a maximum: the renderer reduces extra terrain as the scene approaches its geometry limit and raises the range again when there is room. In a particularly dense 16:9 scene, it can briefly use a shorter range than **Original** to avoid repeated redraws. |
+| Draw distance is unavailable, varies by scene or stutters | **Display and audio → Draw distance (experimental)** applies to solo PAL races and dedicated personal cameras. Higher values set a ceiling, and the renderer can shorten the range in dense scenes. If you see brief stutters, try a lower value or **Original**. |
 | Save or load icon is hidden | Use the room creator's browser, with only its controller connected and no reserved seats or active multiplayer race. |
 | Guests download the disc on every launch | In Chrome with a Quick Tunnel, keep **Keep or choose game data** checked and use **Use existing ZIP** to select the same archive. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |

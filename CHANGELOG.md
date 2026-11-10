@@ -3,36 +3,78 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
-## Unreleased
+## 0.9.0-dev.2 - 2026-11-10
 
-Development build **0.9.0-dev.1** on 2026-11-08.
+Development build for the draw distance branch.
 
-- Add a draw distance slider for solo PAL races and dedicated personal
-  cameras, with the original range selected by default.
+### Graphics
+
+- Add an experimental draw distance slider for solo PAL races and dedicated
+  personal cameras. Keep the original range as the default and explain the
+  risk of brief stutters at higher settings in the launcher.
+- Reserve geometry for sleds and shadows during the opening countdown in
+  personal cameras.
+- Extend the original fog backdrop across the wide multiplayer start view
+  so uncovered edges match the center of the scene.
 - Use the optional WebGL2 renderer for Enhanced 2× in dedicated 16:9 PAL
   races with Clean or Crisp pixels. Keep the software renderer as a fallback.
 - Add an opt-in local WebGL2 preview that draws the 16:9 PAL race world at
   2736×1024 with eNGE and keeps the original HUD.
 - Add optional Sharp Bilinear texture sampling to the local WebGL2 preview.
-- Use RetroArch's browser-native WebAudio driver in the local preview to
-  keep audio queue waits outside the emulator step.
-- Speed up frame recovery for dedicated rooms and delay the catch-up overlay
-  until recovery lasts a second. Room creators see a startup message while
-  their browser connects to the dedicated runtime.
-- Briefly retain a recent WebGL2 camera frame while a dedicated client works
-  through a moderate backlog. Keep full recovery for large or persistent
-  backlogs.
 - Center the local player's finish placement banner on personal cameras.
-- Keep the last personal camera frame during catch-up or a brief interruption
-  in local rendering to avoid flashes of the shared split-screen.
-- Keep the last 16:9 race frame during catch-up or a brief rendering gap so
-  the view does not flash back to 4:3.
-- Treat the draw distance setting as a maximum and adapt the extra terrain
-  to the available geometry budget to avoid repeated redraws in dense scenes.
+- Keep the last personal widescreen frame during catch-up or brief gaps in
+  rendering so the view does not flash to 4:3 or shared split-screen.
+- Adapt the extra terrain to the available geometry budget and keep the
+  original terrain range through the opening camera sweep and countdown.
 - Skip unused center pixels in the widescreen fallback and avoid setting up
   a private render when PAL supplies no new world geometry.
 - Reuse the initialized solo camera and skip split-screen packet capture in
   solo races. Keep extra ordering-table scans in diagnostic mode only.
+
+### Netplay and audio
+
+- Use RetroArch's browser-native WebAudio driver in the local preview and
+  dedicated rooms when available. Yield between emulator steps when the
+  audio queue fills.
+- Speed up frame recovery for dedicated rooms and delay the catch-up overlay
+  until recovery lasts a second. Room creators see a startup message while
+  their browser connects to the dedicated runtime.
+- Keep held controller inputs through short delivery gaps shared by multiple
+  players, avoiding spurious releases and the resulting race replay.
+- Send each dedicated Netplay step and its committed controller inputs
+  together before the server emulates the step.
+- Yield long Netplay replays between groups of emulation steps in visible
+  dedicated PAL races through Quick Tunnel.
+- Apply newly confirmed input before drawing the next frame in dedicated
+  PAL races so the camera shows the corrected turn sooner.
+- Keep dedicated PAL clients moving when late inputs arrive in small batches
+  during a delivery gap.
+- Use a 160 ms WebAudio queue for dedicated PAL clients through Quick Tunnel.
+  Keep more audio queued during multiplayer races and refill it faster when
+  late inputs trigger several replayed steps.
+- Preserve a short steering tap for one step when a brief delivery gap
+  batches the press and release in a dedicated PAL race.
+- Briefly retain a recent WebGL2 camera frame while a dedicated client works
+  through a moderate backlog. Keep full recovery for large or persistent
+  backlogs.
+- Pace dedicated rooms independently of display refresh. Keep PAL prediction
+  short during steady delivery, widen it during a brief interruption and
+  reuse the latest confirmed controller state for predicted steps.
+- Mirror small dedicated-room messages and controller input over a separate
+  Quick Tunnel connector. Use the first ordered copy and fall back to the
+  primary connector's mirror endpoint when the separate route is unavailable.
+- Allow direct and tunneled connections to the same room by checking game
+  compatibility independently of the mirror address.
+- Restore the separate mirror after its connector exits while keeping the
+  current room and controller assignments. Keep the temporary mirror available
+  until the replacement's first packet reaches the ordered stream.
+- Prefer QUIC for Quick Tunnel connectors with cloudflared's automatic
+  HTTP/2 fallback.
+- Keep the room invitation when a guest returns to the lobby so they can
+  select **Join game** again.
+
+See the [verification summary](docs/verification.md#090-dev2-verification-summary)
+for the tested configurations and remaining limits.
 
 ## 0.8.3 - 2026-11-08
 

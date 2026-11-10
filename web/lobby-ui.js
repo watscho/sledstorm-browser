@@ -1,7 +1,7 @@
 import { initControls } from './controls-ui.js';
 
 // Presentation controls only. Console state and room settings remain in app.js.
-export function initLobby(notify) {
+export function initLobby(notify, returnToLobby) {
   const $ = selector => document.querySelector(selector);
   const storageKey = 'sledstorm.display.v1';
   let preferences = {};
@@ -115,7 +115,7 @@ export function initLobby(notify) {
     button.disabled = true;
     try {
       await saveBeforeExit?.();
-      location.assign('/');
+      returnToLobby();
     } catch {
       dialog.close();
       notify('Could not save this session. Use Save to retry or close the tab.');

@@ -53,7 +53,16 @@ test('private gateway requires its access cookie for assets and WebSocket upgrad
 test('emulator gateway protects the archive, preserves reshare access and excludes diagnostics', async () => {
   assert.throws(() => createPublicGateway({ port: 0, discMode: 'shared' }), /private access token/);
   assert.throws(() => createPublicGateway({ port: 0, discMode: 'invalid' }), /Disc mode/);
-  const source = http.createServer((request, response) => response.end(request.url));
+  let truncateArchive = false;
+  const source = http.createServer((request, response) => {
+    response.setHeader('content-length', Buffer.byteLength(request.url));
+    if (truncateArchive && request.url === '/disc.zip' && request.method === 'GET') {
+      response.write('/disc');
+      setImmediate(() => response.destroy());
+      return;
+    }
+    response.end(request.url);
+  });
   source.listen(0, '127.0.0.1'); await once(source, 'listening');
   const token = 'd'.repeat(48), headers = { cookie: `sled_access=${token}` };
   try {
@@ -64,7 +73,19 @@ test('emulator gateway protects the archive, preserves reshare access and exclud
       const base = `http://127.0.0.1:${gateway.address().port}`;
       try {
         assert.equal((await fetch(base + '/disc.zip')).status, 401);
-        assert.equal((await fetch(base + '/disc.zip', { headers })).status, discMode === 'shared' ? 200 : 403);
+        const archive = await fetch(base + '/disc.zip', { headers });
+        assert.equal(archive.status, discMode === 'shared' ? 200 : 403);
+        if (discMode === 'shared') {
+          assert.equal(archive.headers.get('transfer-encoding'), 'chunked');
+          assert.equal(archive.headers.get('content-length'), null);
+          assert.equal(archive.headers.get('x-sledstorm-disc-size'), String(Buffer.byteLength('/disc.zip')));
+          assert.equal(await archive.text(), '/disc.zip');
+          const metadata = await fetch(base + '/disc.zip', { headers, method: 'HEAD' });
+          assert.equal(metadata.status, 200);
+          assert.equal(metadata.headers.get('content-length'), String(Buffer.byteLength('/disc.zip')));
+          truncateArchive = true;
+          await assert.rejects(async () => (await fetch(base + '/disc.zip', { headers })).arrayBuffer(), TypeError);
+        }
         const info = await fetch(base + '/session-info', { headers });
         assert.equal(info.headers.get('x-invite-path'), '/access/' + token);
         for (const path of ['/invitation.js', '/session-client.js', '/local-disc.js', '/disc-identity.js', '/game-data-folder.js', '/network-core.data', '/lobby-ui.js', '/sled-storm-pal-cover.jpg', '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-mountains.svg', '/lobby-snow-trail.svg', '/display.js', '/solo-save.js', '/shaders/sharp-bilinear.glsl', '/shaders/crt-lottes.glsl', '/hardware-preview.js', '/generated/enge-hardware.js'])

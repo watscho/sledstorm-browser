@@ -45,8 +45,8 @@ def prepare(native=False, retroarch_lab=False):
         if text.count('var Module=moduleArg;') != 1:
             raise RuntimeError('Pinned core module anchor changed')
         text = text.replace('var Module=moduleArg;', f'var Module=moduleArg;Module.sledFrameGateVersion={3 if native else 2};')
-        text = text.replace(before, before + 'for(var sledRepeat=0;sledRepeat<(Module.sledFrameBudget?Module.sledFrameBudget():1);sledRepeat++){if(Module.sledBeforeFrame&&Module.sledBeforeFrame()===false)return;')
-        text = text.replace(after, after + ';if(Module.sledAfterFrame)Module.sledAfterFrame();}')
+        text = text.replace(before, before + 'for(var sledRepeat=0;sledRepeat<(Module.sledFrameBudget?Module.sledFrameBudget():1);sledRepeat++){if(Module.sledResumeReplay?.())return;if(Module.sledBeforeFrame&&Module.sledBeforeFrame()===false)return;')
+        text = text.replace(after, after + ';if(Module.sledAfterFrame&&!Module.sledReplayPending)Module.sledAfterFrame();}')
         if native:
             anchor = 'Module["callMain"]=callMain;'
             if text.count(anchor) != 1:

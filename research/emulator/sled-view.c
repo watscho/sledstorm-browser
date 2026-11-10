@@ -28,6 +28,9 @@ static int32_t primitive_budget;
 static unsigned distance_target, distance_limit, distance_trim, distance_headroom;
 static unsigned native_passes;
 static unsigned respawn_fade_quad;
+static int starting_grid;
+static unsigned grid_budget_reserved;
+enum { GRID_PRIMITIVE_RESERVE = 768, GRID_SHADOW_RESERVE = 16 };
 static uint16_t hud_background[SLED_WIDE_WIDTH * 256];
 const uint16_t *sled_view_enhanced_frame(void) { return enhanced_frame; }
 const uint16_t *sled_view_wide_frame(void) { return wide_frame; }
@@ -56,6 +59,8 @@ static void overlay_stock_hud(uint16_t *output, const uint16_t *frame, unsigned 
 #define VRAM_BYTES (1024 * 512 * 2)
 #define RACER_BASE 0x800dae20u
 #define RACER_SIZE 0x530u
+#define RACER_RACE_CLOCK 0x378u
+#define PRIMITIVE_BUDGET 0x800c3efcu
 #define RACER_AWARD 0x514u
 #define AWARD_LATCH 0x800c2f80u
 #define AWARD_DISPLAY 0x800c2f88u
@@ -111,7 +116,7 @@ enum {
 static unsigned adaptive_distance(unsigned target) {
   if (target != distance_target) {
     distance_target = target;
-    distance_limit = target < 2 * DISTANCE_STEP ? target : 2 * DISTANCE_STEP;
+    distance_limit = 0;
     distance_trim = distance_headroom = 0;
   }
   return distance_limit;
@@ -167,6 +172,20 @@ static unsigned walk_ordering_table(unsigned head, unsigned *tail, enum ordering
     if (cursor >= 0x200000 || (cursor & 3)) break;
     unsigned tag = ram32(cursor), count = tag >> 24;
     if (cursor + 4 + count * 4 > 0x200000) break;
+#ifdef __EMSCRIPTEN__
+    /* PAL queues a shaded backdrop sized to the stock viewport. Extend its
+     * corners in the private wide grid view so uncovered edges show the
+     * same fog gradient as the center. */
+    if (sled_view_transaction == 2 && starting_grid && wide_world && wide_cull &&
+        count == 8 && (ram32(cursor + 4) >> 24) == 0x38 &&
+        ram32(cursor + 8) == 0 && ram32(cursor + 16) == 512 &&
+        ram32(cursor + 24) == 0x01000000 && ram32(cursor + 32) == 0x01000200) {
+      set_half(cursor + 8, (uint16_t)-SLED_WIDE_MARGIN);
+      set_half(cursor + 16, 512 + SLED_WIDE_MARGIN);
+      set_half(cursor + 24, (uint16_t)-SLED_WIDE_MARGIN);
+      set_half(cursor + 32, 512 + SLED_WIDE_MARGIN);
+    }
+#endif
     if (is_hud_packet(cursor, count, table, 256)) {
       if (action == SKIP_HUD && cursor != (head & 0xffffff)) {
         word(previous, (ram32(previous) & 0xff000000) | (tag & 0xffffff));
@@ -246,6 +265,10 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
   if (configured) {
     native_error = 3;
     native_single_view = !(enabled & 8);
+#ifdef __EMSCRIPTEN__
+    starting_grid = players >= 2 && !ram32(RACER_BASE + RACER_RACE_CLOCK);
+    grid_budget_reserved = 0;
+#endif
     unsigned cells = ram32(camera + 0x70);
     if (native_single_view && (distance_boost || trim_cells)) {
       /* PAL uses the camera's grid span for terrain selection and its
@@ -258,7 +281,7 @@ static unsigned build_native_world(unsigned base_y, unsigned clear_start, unsign
     }
     if ((!render_prepare || guest_call(&psxRegs, 0x80079dec)) && guest_call(&psxRegs, 0x80051010)) {
 #ifdef __EMSCRIPTEN__
-      primitive_budget = (int32_t)ram32(0x800c3efc);
+      primitive_budget = (int32_t)ram32(PRIMITIVE_BUDGET);
       if (distance_boost && primitive_budget <= 0)
         goto restore;
 #endif
@@ -369,6 +392,22 @@ int sled_view_pc(psxRegisters *regs) {
     }
     if (native_single_view) {
 #ifdef __EMSCRIPTEN__
+      /* The private full-size start camera can fill PAL's primitive pool
+       * before the draw reaches the grid. Share the original pool between
+       * scenery, shadows and racers without increasing its capacity. */
+      if (starting_grid && regs->pc == 0x80051520) {
+        const int32_t remaining = (int32_t)ram32(PRIMITIVE_BUDGET);
+        if (remaining > GRID_PRIMITIVE_RESERVE) {
+          grid_budget_reserved = GRID_PRIMITIVE_RESERVE;
+          word(PRIMITIVE_BUDGET, remaining - grid_budget_reserved);
+        }
+      }
+      if (grid_budget_reserved && (regs->pc == 0x80051b38 || regs->pc == 0x80051c20)) {
+        const unsigned released = regs->pc == 0x80051b38 ? GRID_SHADOW_RESERVE : grid_budget_reserved;
+        const int32_t remaining = (int32_t)ram32(PRIMITIVE_BUDGET);
+        grid_budget_reserved -= released;
+        word(PRIMITIVE_BUDGET, (remaining > 0 ? (unsigned)remaining : 0) + released);
+      }
       /* PAL has just filled the corners of its respawn fade quad. */
       if (wide_world && regs->pc == 0x80051680) respawn_fade_quad = regs->GPR.n.v0;
       /* PAL track edge checks documented by SledStormPSXRecomp. Only the
@@ -733,9 +772,13 @@ void sled_view_present(void) {
     return;
   }
   const int enhanced = EM_ASM_INT({ return !!Module.sledEnhancedGraphics; });
-  const unsigned distance_boost = adaptive_distance(EM_ASM_INT({
+  const unsigned requested_distance = EM_ASM_INT({
     return Math.max(0, Math.min(100, Module.sledDrawDistance | 0));
-  }));
+  });
+  /* The start camera sweeps through dense track scenery with the whole grid
+   * in view. Leave the PAL geometry budget to the original scene until GO. */
+  const unsigned distance_boost = adaptive_distance(
+    (int32_t)ram32(RACER_BASE + RACER_RACE_CLOCK) > 0 ? requested_distance : 0);
   const unsigned trim_cells = distance_trim;
   unsigned hud_width = 0;
   EM_ASM({ if (Module.sledViewBefore) Module.sledViewBefore(); });

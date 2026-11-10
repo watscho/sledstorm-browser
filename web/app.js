@@ -40,7 +40,10 @@ let roomSynchronized = false;
 let roomMessage = status.textContent;
 let actionNotice = '';
 let noticeTimer;
-const lobby = initLobby(showActionNotice);
+const lobby = initLobby(showActionNotice, () => {
+  if (invitation) location.reload();
+  else location.assign('/');
+});
 const loadRequestId = /^#load=([0-9a-f-]{36})$/.exec(location.hash)?.[1];
 if (loadRequestId) history.replaceState(null, '', location.pathname + location.search);
 try {
@@ -164,9 +167,13 @@ for (const button of gameDataDialogActions) {
 }
 let availableArchive;
 let hardwareRendererAvailable = false;
+let netplayDelivery, netplayMirrorOrigin;
 const launcherInfo = fetch('/session-info').then(async response => {
   if (!response.ok) throw new Error('Could not read launcher settings.');
   hardwareRendererAvailable = response.headers.get('X-Sled-Hardware-Renderer') === 'webgl2';
+  // Keep transport discovery separate from the launcher info used for room compatibility.
+  netplayDelivery = quickTunnel && response.headers.get('X-Sled-Netplay-Delivery');
+  netplayMirrorOrigin = response.headers.get('X-Sled-Netplay-Mirror-Origin');
   const info = await response.json();
   lobby.discMode(info.discMode);
   const nativeCamera = retroArch && info.dedicated &&
@@ -248,7 +255,7 @@ async function sharedDiscFile({ disc: fingerprint }, keep) {
     resetDeadline();
     const response = await fetch(url, { cache: 'no-store', signal: transfer.signal });
     if (response.status !== 200) throw new Error('Could not download the game disc. Reload the invitation to try again.');
-    expectedSize = Number(response.headers.get('content-length'));
+    expectedSize = Number(response.headers.get('x-sledstorm-disc-size') ?? response.headers.get('content-length'));
     let received = 0, lastUpdate = 0;
     const stream = response.body?.pipeThrough(new TransformStream({
       transform(chunk, controller) {
@@ -382,14 +389,31 @@ async function startGame(loadRequest) {
     EJS_disableLocalStorage: true,
     EJS_disableDatabases: true,
     EJS_shaders: shaders,
-    EJS_defaultOptions: { pcsx_rearmed_multitap: 'port 1', rewindEnabled: 'disabled' },
+    EJS_defaultOptions: {
+      pcsx_rearmed_multitap: 'port 1', rewindEnabled: 'disabled',
+      ...(dedicatedWorker && { vsync: 'disabled' }),
+    },
     EJS_Buttons: Object.fromEntries(['playPause', 'play', 'pause', 'restart', 'saveState', 'loadState', 'cheat', 'settings', 'saveSavFiles', 'loadSavFiles', 'quickSave', 'quickLoad', 'contextMenu', 'gamepad'].map(key => [key, false])),
     EJS_ready: () => {
       const originalConfig = window.EJS_GameManager.prototype.getRetroArchCfg;
+      // The WebAudio driver handles a full queue between emulator steps.
+      // OpenAL can suspend a step while the core is still preparing a frame.
+      const webAudio = (window.AudioContext || window.webkitAudioContext) &&
+        ((retroArch && launchInfo.dedicated) || (hardwarePreview && enableHardwarePreview));
       window.EJS_GameManager.prototype.getRetroArchCfg = function (...args) {
-        const previewAudio = hardwarePreview && enableHardwarePreview && (window.AudioContext || window.webkitAudioContext);
-        return originalConfig.apply(this, args) + '\nvideo_smooth = "false"\n'
-          + (previewAudio ? 'audio_driver = "rwebaudio"\n' : '');
+        let config = originalConfig.apply(this, args);
+        if (dedicatedWorker) {
+          // Pace the headless room at the core's rate independently of display refresh.
+          config = config.replace(/^video_vsync\s*=[^\r\n]*/m, 'video_vsync = false');
+          config += '\nvrr_runloop_enable = true\n';
+        }
+        if (webAudio && retroArch && launchInfo.dedicated && quickTunnel) {
+          // PAL clients need room for both late input batches and the replay they trigger.
+          const audioLatency = launchInfo.pal ? 160 : 128;
+          config = config.replace(/^audio_latency\s*=[^\r\n]*/m, `audio_latency = ${audioLatency}`);
+        }
+        return config + '\nvideo_smooth = "false"\n'
+          + (webAudio ? 'audio_driver = "rwebaudio"\n' : '');
       };
       if (retroArch) {
         const instance = window.EJS_emulator;
@@ -404,6 +428,7 @@ async function startGame(loadRequest) {
               invitation, identity, onInvite: shareInvitation, onClose: netplayFailed,
               onRoster: renderControllerSlots,
               dedicated: launchInfo.dedicated, worker: dedicatedWorker, widescreen, options: roomOptions,
+              netplayDelivery, mirrorOrigin: netplayMirrorOrigin,
               snapshot: launchInfo.dedicated && !dedicatedWorker ? resumeSnapshot : undefined,
             });
             start.apply(this, args);
@@ -620,6 +645,13 @@ function isMultiplayerRace(module) {
   return ram.getUint32(0xd6980, true) === 1 && players >= 2 && players <= 4;
 }
 
+function isLiveMultiplayerRace(module) {
+  if (!isMultiplayerRace(module)) return false;
+  const ram = new DataView(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000);
+  // The first racer's PAL race clock starts after the countdown.
+  return !ram.getUint32(0xc3ca0, true) && !ram.getUint32(0xc34e0, true) && ram.getInt32(0xdb198, true) > 0;
+}
+
 function startRetroArchRoom() {
   const emulator = window.EJS_emulator;
   const { Module: module, gameManager: manager } = emulator;
@@ -650,6 +682,36 @@ function startRetroArchRoom() {
   let waiting = false;
   let reportedRace = false;
   const catchupBacklog = 12;
+  if (dedicatedWorker && launchInfo.pal) module.sledCanRetainSteering = () => isLiveMultiplayerRace(module);
+  if (module.sledDedicatedClient && launchInfo.pal && quickTunnel) {
+    let confirmedThrough, confirmedAt, pacedBudget;
+    const predictionCap = 18;
+    const liveRace = () => ready && !document.hidden && !module.sledCatchup && isLiveMultiplayerRace(module);
+    module.sledCanSliceReplay = liveRace;
+    module.sledPredictionLimit = unreadFrame => {
+      if (!liveRace()) {
+        confirmedThrough = undefined;
+        return 0;
+      }
+      const now = performance.now();
+      if (unreadFrame !== confirmedThrough) {
+        const progress = unreadFrame - (confirmedThrough ?? unreadFrame);
+        const partialRecovery = progress > 0 && progress <= 3 &&
+          (pacedBudget || now - confirmedAt >= 40);
+        const lead = partialRecovery ? module._sled_netplay_status(2) - unreadFrame : 0;
+        pacedBudget = lead >= 2 ? lead + 1 : 0;
+        confirmedThrough = unreadFrame;
+        confirmedAt = now;
+      }
+      const age = now - confirmedAt;
+      // Keep paced progress when a small batch leaves earlier steps unconfirmed.
+      if (pacedBudget) return Math.min(predictionCap, pacedBudget + Math.floor(age / 30));
+      // Keep ordinary rollback short. Widen the window when confirmations pause,
+      // bounded by the existing outage budget and the 18-step ceiling.
+      const missedSteps = Math.max(0, Math.floor(age / 20) - 1);
+      return Math.min(2 + 2 * missedSteps, 6 + missedSteps, predictionCap);
+    };
+  }
   module.sledBeforeFrame = () => {
     if (module.sledPaintWideFrame) {
       module.sledPaintWideFrame = false;
@@ -679,6 +741,7 @@ function startRetroArchRoom() {
       const wasWaiting = waiting;
       const now = performance.now();
       if (module.sledDedicatedClient) {
+        if (launchInfo.pal && quickTunnel) module.sledNetplayAudioReserve = isMultiplayerRace(module);
         const behind = module._sled_netplay_status(5);
         const canRelieveRender = !document.hidden && game.classList.contains('hardware-preview-active') &&
           Boolean(module.sledShouldHoldWideFrame);

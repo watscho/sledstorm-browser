@@ -42,13 +42,41 @@ A loopback relay pairs each guest stream with its host stream. The private HTTPS
 gateway forwards the same binary traffic at `/netplay` through Cloudflare.
 The relay issues a one-time ticket to the host to pair each guest stream.
 
+Dedicated Quick Tunnel clients open a second `/netplay-mirror` WebSocket
+after synchronizing. The launcher starts a separate HTTP/2 connector for
+this endpoint. Small messages, including controller input, carry sequence
+numbers on both connections. The browser and gateway forward the first
+available copy of each message to RetroArch in order. Large snapshots travel
+on the primary connection. When the separate route is unavailable, the
+browser uses the mirror endpoint through the primary connector. The launcher
+retries an exited mirror connector and the browser keeps its fallback socket
+until the replacement's first packet reaches the ordered stream. During the
+overlap, both open mirrors can deliver input. The room and controller streams
+continue through the handover.
+
 In dedicated mode, the relay starts a headless Chrome/RetroArch runtime for
-each room. That runtime owns the console clock and committed controller input.
+each room. The runtime follows the core's frame rate and owns the committed
+controller input.
 The relay owns seat reservations, readiness and room ownership. A player can
 become owner while keeping their existing controller number. When a client
 joins or requests resynchronization, the runtime sends the current snapshot
 to that client. Existing clients continue receiving the live input stream.
-Clients that fall behind temporarily skip personal presentation to catch up.
+In an active PAL multiplayer race through a Cloudflare Quick Tunnel, visible
+clients can run up to two steps on the last confirmed inputs during steady
+delivery. When confirmations pause, the limit grows toward 18 steps based on
+the number of missing PAL ticks. Small batches of delayed confirmations keep
+that progress paced until the backlog closes. Input is still sent on the
+usual schedule. When newly confirmed input changes an earlier prediction,
+RetroArch reconciles before drawing the next view. During replay, confirmed
+steps use the room's input and unconfirmed steps reuse the latest full
+controller state, including held steering. Clients that fall behind
+temporarily skip personal presentation to catch up.
+
+Dedicated rooms use WebAudio when the browser supports it. PAL clients through
+Quick Tunnel configure a 160 ms queue. During multiplayer races, RetroArch
+targets three quarters of that capacity and refills a depleted queue faster
+with a bounded resampling adjustment. Audio queue waits yield between
+emulator steps.
 
 Guests load matching content before the handshake. The game becomes
 visible after the guest receives the host state and RetroArch assigns the
@@ -83,11 +111,14 @@ uses the PCSX-ReARMed rasterizer as its fallback. Both use the original HUD
 and game textures. Menus and shared split-screen use the finished software
 frame. This setting only affects the local display.
 
-**Draw distance** is a personal launch setting for the same PAL race modes.
-**Original** keeps the original terrain range. Values up to **+100%** set a
-ceiling for extra terrain. The private camera render adjusts that range as
-the scene approaches its primitive budget. The canonical console state stays
-shared across the room.
+**Draw distance (experimental)** is a personal launch setting for the same
+PAL race modes. **Original** is the default. Values up to **+100%** set a
+ceiling for extra terrain. The opening camera sweep and countdown keep the
+original range and reserve geometry for sleds and shadows. The wide start view
+extends the original fog backdrop across the extra width. Once the race clock
+starts, the private camera increases the range as the geometry budget allows.
+Dense scenes can shorten the range, and higher values can still cause brief
+stutters. The canonical console state stays shared across the room.
 
 When a visible WebGL2 client falls moderately behind the dedicated room, it
 can keep a recent image while processing more console steps. Full catch-up
@@ -121,9 +152,9 @@ VRAM words and decodes indexed palettes on the GPU. The HUD still uses the origi
 rasterizer. Menus, pause, other image filters, and unhandled frames use the
 existing software renderer. The preview does not change the simulated console.
 
-The preview uses RetroArch's browser-native WebAudio driver. When its audio
-queue is full, RetroArch yields between emulator steps after the current frame
-has been submitted. The regular launcher keeps the OpenAL driver.
+The preview also uses RetroArch's browser-native WebAudio driver when
+available. When its audio queue is full, RetroArch yields between emulator
+steps after submitting the current frame.
 
 The local console can also display a selected multiplayer camera. Live-room
 checks covered separate Chrome contexts on one Mac. See the

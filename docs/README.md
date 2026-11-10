@@ -1,5 +1,8 @@
 # Documentation
 
+[Draw distance and race stability update](../README.md#draw-distance-and-race-stability)
+ · [Current verification summary](verification.md#090-dev2-verification-summary)
+
 ## Start here
 
 | Guide | What you will find |
@@ -15,11 +18,11 @@
 | Guide | What you will find |
 | --- | --- |
 | [Emulator architecture](browser-emulator.md) | RetroArch Netplay, camera/HUD isolation, local diagnostics and source pins. |
-| [Verification](verification.md) | Current limits and historical gameplay results. |
+| [Verification](verification.md) | Current results, known limits and the development test record. |
 | [Contributing](../CONTRIBUTING.md) | Source conventions, checks and versioning. |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Component attribution and license boundaries. |
 | [Preserved license texts](licenses/README.md) | Scope and origin of the upstream files in `licenses/`. |
-| [Changelog](../CHANGELOG.md) | Release history. |
+| [Changelog](../CHANGELOG.md) | Development builds and release history. |
 
 Play instructions describe the browser emulator on port **8000**. The normal
 internet command is `python3 tools/play-online.py`. Press **Ctrl+C** in that

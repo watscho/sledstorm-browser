@@ -56,8 +56,9 @@ original contribution licensing separate from derived output.
 ## Versions and changelog
 
 Use semantic versions for this wrapper, independently of the game and upstream
-components. Bump the wrapper version before every push to `main`, including
-documentation changes. Keep `VERSION`, `research/network/package.json` and its lockfile
+components. Bump the wrapper version before publishing a development build or
+pushing to `main`, including documentation changes. Keep `VERSION`,
+`research/network/package.json` and its lockfile
 root/package versions in sync with the release labels in `README.md` and
 `web/index.html`, including the launcher script's version parameter. Record
 changes in `CHANGELOG.md` with an ISO date and use Unreleased while working.

@@ -1,4 +1,5 @@
 import { sampleGamepad } from '/session-client.js';
+import { mirrorNetplayDownlink } from './netplay-downlink.js';
 
 const port = 55435;
 const toRetroPad = [2, null, null, 3, 4, 7, 5, 6, 12, 13, 10, 11, 9, 8, 0, 1];
@@ -27,7 +28,7 @@ export function checkNetplayInvitation({ room, token }) {
 }
 
 export async function prepareNetplay(emulator, {
-  invitation, identity, onInvite, onClose, onRoster, dedicated, worker, widescreen, options, snapshot,
+  invitation, identity, onInvite, onClose, onRoster, dedicated, worker, widescreen, options, snapshot, netplayDelivery, mirrorOrigin,
 }) {
   const room = worker ? { room: worker.room, token: worker.workerKey, v: 7 } : invitation ?? {
     room: hex(crypto.getRandomValues(new Uint8Array(12))),
@@ -51,9 +52,17 @@ export async function prepareNetplay(emulator, {
     try { preferredSlot = Number(sessionStorage.getItem(seatKey)); } catch { /* A free seat still works. */ }
   }
   const endpoint = netplayEndpoint();
+  const duplex = netplayDelivery === 'mirror-v2';
+  const mirrorParameter = duplex ? 'duplex' : 'downlink';
   let socket;
+  let mirrorKey;
   function connect() {
-    socket = new WebSocket(endpoint);
+    const primary = new URL(endpoint);
+    if (dedicated && client && (duplex || netplayDelivery === 'mirror-v1')) {
+      mirrorKey = hex(crypto.getRandomValues(new Uint8Array(24)));
+      primary.searchParams.set(mirrorParameter, mirrorKey);
+    }
+    socket = new WebSocket(primary);
     const handlers = new AbortController();
     const { signal } = handlers;
     return new Promise((resolve, reject) => {
@@ -121,9 +130,11 @@ export async function prepareNetplay(emulator, {
         socket.send('{"type":"release-for-load"}');
       });
     }
+    let delivery;
     if (!worker) {
       connection.markSynchronized = () => {
         if (socket.readyState === WebSocket.OPEN) socket.send('{"type":"synchronized"}');
+        delivery?.startMirror();
       };
       socket.addEventListener('message', event => {
         if (typeof event.data !== 'string') return;
@@ -134,6 +145,23 @@ export async function prepareNetplay(emulator, {
         else if (message?.type === 'released-for-load') finishRelease?.(message.allowed === true);
         else return;
         event.stopImmediatePropagation();
+      });
+    }
+    if (mirrorKey) {
+      const mirror = new URL('/netplay-mirror', endpoint);
+      mirror.searchParams.set(mirrorParameter, mirrorKey);
+      function separateMirror(origin) {
+        if (!duplex || !/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin ?? '')) return undefined;
+        const url = new URL(mirror);
+        url.host = new URL(origin).host;
+        if (url.host !== mirror.host) return url;
+      }
+      const discoverMirror = duplex ? async signal => {
+        const response = await fetch('/session-info', { cache: 'no-store', signal });
+        if (response.ok) return separateMirror(response.headers.get('X-Sled-Netplay-Mirror-Origin'));
+      } : undefined;
+      delivery = mirrorNetplayDownlink(socket, mirror, {
+        duplex, separateUrl: separateMirror(mirrorOrigin), discoverMirror,
       });
     }
     if (controllerKey) {
@@ -147,7 +175,7 @@ export async function prepareNetplay(emulator, {
     }
     const { Module: module, gameManager: manager } = emulator;
     if (!module.sledInstallNetplay || !module._sled_netplay_status) throw new Error('RetroArch Netplay core is missing. Rebuild the emulator.');
-    module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room);
+    module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room, delivery?.stream);
     socket.addEventListener('close', event => {
       if (!connection.releasedForLoad) onClose(event.reason ||
         'Disconnected from the room. Open the invitation again to rejoin.');

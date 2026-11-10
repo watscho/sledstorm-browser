@@ -1,6 +1,8 @@
 # Sled Storm Browser
 
-**Version 0.9.0-dev.1 · experimental · [Changelog](CHANGELOG.md)**
+**Version 0.9.0-dev.2 · experimental · [Changelog](CHANGELOG.md)**
+
+[Draw distance and race stability update](#draw-distance-and-race-stability)
 
 Play **Sled Storm (1999), PlayStation PAL SLES-02194**, in your browser with up
 to **four players in one room**. Each browser runs PCSX-ReARMed and controls one
@@ -33,7 +35,7 @@ Linux setup has not been qualified.
 Clone the project and build it from the terminal:
 
 ```sh
-git clone https://github.com/watscho/sledstorm-browser.git
+git clone --branch feature/draw-distance https://github.com/watscho/sledstorm-browser.git
 cd sledstorm-browser
 python3 tools/bootstrap-emulator.py
 python3 tools/build-emulator.py
@@ -119,6 +121,34 @@ from the current race state once their game files load.
 > the launcher. To play again after stopping the tunnel, restart the helper
 > and send the new invitation.
 
+## Draw distance and race stability
+
+This development build adds an opt-in way to see farther down the course and
+makes it easier to keep a dedicated race going when a player reconnects or
+packets arrive in bursts.
+
+| Area | What changed and why |
+| --- | --- |
+| **More terrain in view** | The PAL renderer draws farther while the scene has room in its geometry budget. It reduces the extra range in dense scenes and reserves space for sleds and shadows during the opening sweep and countdown. The wide start view extends the original fog backdrop across the sides. |
+| **Fewer interruptions online** | The dedicated runtime advances at the PAL console rate. Small input messages can arrive over either of two WebSocket routes, and the client reconciles late input before the next view. A larger audio reserve and faster refill cover short bursts of replay work. |
+| **Keep your controller** | The dedicated room keeps running when the creator closes their tab. Another player can take ownership while keeping their controller number, and returning players recover their original seats. |
+
+> [!NOTE]
+> **Draw distance is experimental.** **Original** is the default. In
+> **Display and audio**, set a personal maximum up to **+100%** for solo PAL
+> races or dedicated races with separate cameras. The visible range can vary by
+> scene, and higher settings can cause brief stutters, especially with 16:9
+> and Enhanced 2×. Lower the slider or select **Original** if you notice them.
+
+We tested the same Pine Valley section in **4:3 and 16:9**, at **1× and 2×**,
+with both **Original** and **+100%** range. Final Cloudflare runs with two,
+three and four Chrome clients matched the dedicated server at each of 900
+sampled steps per window, including a second four-player window after rejoining.
+Those runs recorded zero catch-up episodes, room stalls or scheduled audio gaps
+over 5 ms. The longest displayed interval was 117 ms after a 97 ms pause in
+ordered delivery. The clients ran on one M5 Pro. See the
+[verification summary](docs/verification.md#090-dev2-verification-summary).
+
 ## Other ways to play
 
 | What you want | Command |
@@ -139,10 +169,9 @@ its HTTPS invitation.
 Choose race aspect ratio, draw distance, image filtering, volume and
 **Enhanced 2×** in **Display and audio**. Solo PAL races and dedicated personal
 cameras default to **16:9** with **Clean · Sharp Bilinear** filtering.
-**Draw distance** defaults to **Original**. Higher values set a personal limit
-for extra terrain, which the renderer adjusts to fit the scene's geometry
-budget. **4:3 · Original** is available for races, and menus and shared
-split-screen stay in 4:3.
+**Draw distance** is experimental and defaults to **Original**.
+**4:3 · Original** is available for races, and menus and shared split-screen
+stay in 4:3.
 The in-game toolbar also offers filter switching, PNG screenshots and
 fullscreen (**Alt+Enter**).
 
@@ -169,19 +198,18 @@ controller inputs and emulator state through RetroArch Netplay.
   once they load the disc. Register each rider in the game's multiplayer menu
   before starting the race. A returning controller can resume its existing
   racer. In a dedicated room, the server keeps the race moving while browsers
-  catch up or reconnect. A room stays available while the hosting process runs
-  and players remain connected.
+  catch up or reconnect. Empty rooms stay available for a limited time while
+  the hosting process runs.
   [Rooms and synchronization](docs/multiplayer.md#rooms-and-synchronization)
 - **Presentation.** Dedicated personal cameras and solo PAL races support
   widened race geometry and native 2× rendering. Browser-hosted multiplayer,
   shared split-screen and menus use the original frame for upscaling. The HUD
   keeps native rasterization in Enhanced 2×.
   [Camera details](docs/browser-emulator.md#cameras-progression-and-technical-settings)
-- **Test coverage.** Two- and four-player Pine Valley runs through Cloudflare
-  used separate Chrome contexts on one Apple M1 Mac. All clients agreed on
-  sampled race state. The four-player runs still had presentation gaps.
-  Separate computers, physical gamepads and soundtrack quality still need
-  hands-on testing.
+- **Test coverage.** Current Pine Valley tunnel checks used two to four Chrome
+  clients on one M5 Pro. Separate computers, other courses at extended draw
+  distances, physical gamepads and soundtrack quality still need hands-on
+  testing. Shared delivery interruptions can still cause visible hitches.
   [Verification record](docs/verification.md)
 
 ## Documentation
