@@ -242,7 +242,8 @@ export function driveRetroPad(emulator, { keyMap, gamepadIndex, gamepadProfiles 
   return () => {
     const slot = controller();
     if (slot !== previousController) last = 0xffff;
-    const pad = document.hasFocus() && !document.hidden ? sampleGamepad(keyboard, gamepadIndex?.(), gamepadProfiles) : 0xffff;
+    const pad = document.hasFocus() && !document.hidden && !document.querySelector('dialog[open]')
+      ? sampleGamepad(keyboard, gamepadIndex?.(), gamepadProfiles) : 0xffff;
     const changed = pad ^ last;
     for (let bit = 0; bit < 16; bit++) {
       const button = toRetroPad[bit];

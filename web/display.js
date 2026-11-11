@@ -43,12 +43,12 @@ export function enableSessionDisplay(emulator, initial, shaders, notify, remembe
     try {
       emulator.enableShader(selected === 'crisp' ? 'disabled' : selected);
       filter.value = selected;
-      if (remember) rememberFilter(selected);
     } catch {
       emulator.enableShader('disabled');
       filter.value = 'crisp';
       notify('Display filter unavailable. Using Crisp pixels.');
     }
+    if (remember) rememberFilter(filter.value);
   }
   filter.addEventListener('change', () => apply(filter.value, true));
   apply(initial);

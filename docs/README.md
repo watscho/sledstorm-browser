@@ -1,7 +1,7 @@
 # Documentation
 
-[Version 1.0.0](../README.md#version-100)
- · [Current verification summary](verification.md#100-verification-summary)
+[Version 1.1.0](../README.md#version-110)
+ · [Current verification summary](verification.md#110-verification-summary)
 
 ## Start here
 
@@ -10,7 +10,7 @@
 | [Quick start](../README.md#-start-invite-stop) | One-time setup, one-command launch, invitations and shutdown. |
 | [Installation and troubleshooting](setup.md) | Prerequisites, disc layout, local play, updates and common errors. |
 | [Playing with friends](multiplayer.md) | Host/guest steps, original multiplayer menus, disc modes and room lifetime. |
-| [Launcher settings](browser-lobby.md) | Graphics presets, saved preferences, controls, toolbar shortcuts and solo saves. |
+| [Launcher settings](browser-lobby.md) | Graphics presets, diagnostics, controls, save slots and portable backups. |
 | [All-content preset](unlocked-profile.md) | Unlock behavior and the guarded PAL memory fields. |
 
 ## Development and reference

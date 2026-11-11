@@ -1,5 +1,83 @@
 # Verification and known limits
 
+## 1.1.0 verification summary
+
+Release checks on 2026-11-12 used one Mac. This release combines the graphics,
+diagnostics and save-library work recorded below, with unchanged emulator and
+native adapter pins.
+
+| Check | Result |
+| --- | --- |
+| Browser logic | All 48 tests passed, covering graphics preferences, timing/report semantics, portable save validation and input release during dialogs. |
+| Relay and gateway | All 19 tests passed; new modules are available through the authenticated gateway in both disc modes. |
+| Launcher HTTP | All four synthetic tests passed. |
+| Native presentation | The pinned-header isolation, four PAL viewports and native-menu bypass checks passed. Python sources compiled successfully. |
+| Save storage and UI | Eight real IndexedDB checks passed. Desktop/390 px layouts, consistent actions, rename, confirmed deletion/undo, autosave copying, backdrop dismissal and focus/scroll restoration were exercised in Chrome. |
+| Live emulator | Imported manual and selected automatic checkpoints restored into fresh dedicated rooms. Custom graphics survived restoration, and the former exit-time `ErrnoError` was absent. The earlier graphics check also synchronized Quality and Balanced clients with independent personal settings. |
+
+The detailed checks below distinguish synthetic fixtures from live emulator
+verification. These results do not add remote multi-device, Linux/WSL, mobile
+play or other-course qualification. Source archives exclude game/BIOS data,
+snapshots, private invitations, generated emulator binaries and local test media.
+
+## Save-library interaction polish
+
+Checks on 2026-11-12 used desktop Chrome and the isolated save-library fixture.
+The disk icon beside Join game opened the real checkpoint library. Existing
+manual saves and autosaves kept Load game first, followed by Save current game
+or Keep in manual slot. The fixture exercised overwrite confirmation/cancel,
+explicit rename with the original date retained, confirmed deletion/undo and
+backdrop dismissal with focus returned to the opener.
+
+At 390×844, the page scrolled by 367 px while the dialog's scroll position
+stayed zero; its client/content height both measured 1,161 px. The page width
+remained 390 px. Desktop scrolling also moved the document rather than the
+dialog. Native dialog modality remains responsible for focus trapping and
+inert background controls. Viewport overrides were reset after verification.
+All 48 browser-logic tests and eight real IndexedDB checks still passed. This
+pass changed the library interaction and layout, without changing snapshot
+serialization or the emulator.
+
+## 1.1.0 save-library checks
+
+Checks on 2026-11-12 used one Mac and desktop Chrome, with isolated loopback
+origins for synthetic storage checks and actual PAL game restoration.
+
+| Check | Result |
+| --- | --- |
+| Browser logic | All 48 tests passed, including gzip/raw save round trips, incompatible identities and versions, corrupted/truncated files, decompression limits, preview/name bounds and gamepad release while a modal is open. |
+| Relay, gateway and HTTP | All 19 network tests and four launcher HTTP tests passed. The gateway serves all three save-library modules in both disc modes. |
+| Real IndexedDB | All eight browser checks passed: independent launcher/library tabs, exact legacy migration without a version upgrade, six manual/three automatic slots, stale and simultaneous writer rejection, injected quota-failure rollback, persistent delete undo, file round trip/BIOS mismatch, and one-use/cancelled restoration requests. |
+| Library UI | Manual slots, autosave selection, naming, export and staged import were exercised in Chrome. An imported checkpoint retained its original date. The desktop library and a 390 px viewport had no horizontal overflow, and the viewport override was reset afterward. The library remained accessible after returning to an invitation's lobby. |
+| Real snapshots | Two manual checkpoints captured distinct real game previews. A UI-exported file was 1,800,933 bytes, decoded to the pinned 4,456,472-byte state and a 384×216 JPEG, and imported into a third manual slot. |
+| Actual restoration | The imported manual checkpoint and a selected older autosave each opened a fresh dedicated room and returned to LIVE. Personal Custom graphics and Crisp pixels survived the autosave restoration. The library stayed separate from the original localhost player's storage. |
+| ErrnoError | After replacing the missing save-filesystem mount with a fresh MEMFS mount, the two live load navigations and Return to lobby produced no `ErrnoError` in the captured Chrome console. The pinned emulator binaries were unchanged. |
+
+These checks cover one desktop browser and local dedicated-room restoration.
+They do not add mobile play, cross-browser or remote multiplayer qualification.
+The exit-time error recorded in the earlier graphics checks below is resolved
+by the save-filesystem change described here.
+
+## 1.1.0 graphics and diagnostics checks
+
+Checks on 2026-11-11 used one Mac and desktop Chrome.
+
+| Check | Result |
+| --- | --- |
+| Browser logic | All 41 tests passed, including preset migration, sticky Custom selection, shader fallback after a manual edit, saved manual settings, independent timing measurements, background/recovery resets and report contents. |
+| Relay and gateway | All 19 tests passed. The authenticated emulator asset checks include all three new graphics/diagnostics modules in both disc modes. |
+| HTTP and native presentation | All four launcher HTTP tests passed. Presentation isolation, four PAL viewports and native-menu bypass passed. |
+| Launcher in Chrome | All three presets applied their full settings; volume left the preset unchanged. Manual edits and reloads retained Custom. Switching back to Custom restored its settings. Old/corrupt preferences, Reset settings and unsupported-room fallback passed. |
+| Diagnostics in Chrome | A synthetic UI fixture exercised synchronization, stalled confirmations, catch-up, backgrounding, disconnect/recovery and JSON download. Preset and diagnostics layouts were checked at desktop and 390 px widths. |
+| Live dedicated emulator | A Quality creator and Balanced guest synchronized with distinct personal graphics settings. Both measured about 50 live timeline steps/s. A separate Performance client used 4:3, 1× and Original draw distance at about 50 steps/s. Changing the creator's live filter selected Custom without changing the guest's preset; the downloaded report matched the active settings. |
+| Solo-save graphics | A live save/load opened a fresh dedicated room and restored Custom, Crisp pixels, 16:9, 1× and +50% distance. During the old page's exit, EmulatorJS emitted `ErrnoError` from `FS.unmount`; the same exception reproduced with the original `app.js` and `lobby-ui.js` from HEAD. The new room restored and synchronized successfully in both cases. |
+
+These live checks exercised the original menus and room synchronization, not a
+new full-race or multi-device performance qualification. Browser animation
+intervals are measured separately from console timeline speed; neither metric
+measures painted game FPS, audio quality or end-to-end input latency. Existing
+course, hardware and remote-network coverage limits still apply.
+
 ## 1.0.0 verification summary
 
 Release checks on 2026-11-11 used one Mac. The release removes the experimental

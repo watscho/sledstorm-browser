@@ -1,124 +1,93 @@
-import { captureState, validateStateFormat } from './core-state.js';
+import { captureState } from './core-state.js';
+export { openSoloSave, takeLoadRequest } from './save-storage.js';
 
-function openSaves() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('sledstorm-solo', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('sessions');
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('Close other tabs to update save storage.'));
-  });
+async function capturePreview(emulator) {
+  const wide = await emulator.Module.sledWideGpuScreenshot?.();
+  const bytes = wide ?? await emulator.gameManager.screenshot();
+  const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+  try {
+    const bounds = emulator.Module.canvas?.getBoundingClientRect();
+    const aspect = wide ? 16 / 9 : bounds?.width && bounds?.height ? bounds.width / bounds.height : 4 / 3;
+    const canvas = document.createElement('canvas');
+    canvas.width = 384; canvas.height = Math.round(384 / Math.max(1, Math.min(2.5, aspect)));
+    const context = canvas.getContext('2d', { alpha: false });
+    context.fillStyle = '#081322'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const jpeg = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.78));
+    return jpeg ? new Uint8Array(await jpeg.arrayBuffer()) : new Uint8Array();
+  } finally { bitmap.close(); }
 }
 
-function sessionRecord(db, key, record) {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction('sessions', record ? 'readwrite' : 'readonly');
-    const store = transaction.objectStore('sessions');
-    const request = record ? store.put(record, key) : store.get(key);
-    transaction.oncomplete = () => resolve(request.result);
-    transaction.onabort = () => reject(transaction.error);
-  });
-}
-
-function removeRequest(db, id, read = false) {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction('sessions', 'readwrite');
-    const store = transaction.objectStore('sessions');
-    const key = `load:${id}`;
-    const request = read ? store.get(key) : null;
-    store.delete(key);
-    transaction.oncomplete = () => resolve(request?.result);
-    transaction.onabort = () => reject(transaction.error);
-  });
-}
-
-export async function takeLoadRequest(id) {
-  const db = await openSaves();
-  try { return await removeRequest(db, id, true); }
-  finally { db.close(); }
-}
-
-export async function openSoloSave({ disc, core }, bios) {
-  if (!disc || !core) throw new Error('Missing game or emulator identity.');
-  const biosKey = bios
-    ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())),
-        byte => byte.toString(16).padStart(2, '0')).join('')
-    : 'hle';
-  const key = [disc, core, biosKey].join(':');
-  const db = await openSaves();
-  return {
-    async readSnapshot() {
-      for (const slot of [`${key}:quick`, key]) {
-        const record = await sessionRecord(db, slot);
-        if (!(record?.state instanceof Uint8Array)) continue;
-        try { validateStateFormat(record.state); }
-        catch { continue; }
-        return record;
-      }
-    },
-    write: (state, manual) => sessionRecord(db, manual ? `${key}:quick` : key, { state, savedAt: Date.now() }),
-    async prepareLoad(state, options) {
-      const id = crypto.randomUUID();
-      await sessionRecord(db, `load:${id}`, { ...options, state, disc, core, bios });
-      return { id, cancel: () => removeRequest(db, id) };
-    },
-  };
-}
-
-export function trackSoloSave(emulator, storage, canSave, beforeExit, notify, restore) {
+export function trackSoloSave(emulator, storage, canSave, beforeExit, notify, restore, manager, settings, unavailableReason) {
   const button = document.querySelector('#solo-save');
   const loadButton = document.querySelector('#solo-load');
   const exitHelp = document.querySelector('#exit-help');
-  let pending;
+  let pending, stopped = false;
   let displayedAvailability;
   let loading = false;
-  async function save(manual = false) {
+  async function capture() {
+    if (loading || !canSave()) throw new Error('Wait until you are playing alone to save a checkpoint.');
+    const { Module, gameManager } = emulator;
+    const savedAt = Date.now();
+    const state = captureState(Module, gameManager.functions.saveStateInfo);
+    const gameSettings = settings();
+    let timeout, preview;
+    try {
+      preview = await Promise.race([capturePreview(emulator), new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Preview timed out')), 3500);
+      })]);
+    } catch { preview = new Uint8Array(); }
+    finally { clearTimeout(timeout); }
+    return { state, preview, savedAt, settings: gameSettings };
+  }
+  async function save() {
     if (pending) await pending.catch(() => {});
     if (loading || !canSave()) return false;
-    const { Module, gameManager } = emulator;
-    const state = captureState(Module, gameManager.functions.saveStateInfo);
-    const write = storage.write(state, manual);
+    const write = (async () => {
+      const source = await capture();
+      if (loading || !canSave()) return false;
+      await storage.writeAuto(source);
+      return true;
+    })();
     pending = write;
-    try { await write; return true; }
+    try { return await write; }
     finally { if (pending === write) pending = undefined; }
   }
   const refresh = () => {
     const available = Boolean(canSave());
     if (displayedAvailability === available) return;
     displayedAvailability = available;
-    button.hidden = loadButton.hidden = !available;
+    button.hidden = !available;
+    loadButton.hidden = false;
     exitHelp.textContent = available
       ? 'Your game is saved before returning to the lobby.'
       : 'Your controller will disconnect. Others can continue if they are still connected.';
+    manager.updateAvailability();
   };
-  button.addEventListener('click', async () => {
-    button.disabled = true;
-    try { if (await save(true)) notify('Game saved.'); }
-    catch { notify('Could not save the game.'); }
-    finally { button.disabled = false; }
+  const open = mode => manager.open({
+    storage, mode, playing: true, opener: mode === 'save' ? button : loadButton,
+    canCapture: () => !loading && canSave(), canLoad: () => !loading && canSave(),
+    unavailableReason,
+    capture: async () => { if (pending) await pending; return capture(); },
+    async load(record) {
+      if (loading || !canSave()) throw new Error('Wait until you are playing alone to load a save.');
+      await save();
+      if (!canSave()) throw new Error('The room changed. Wait until you are playing alone to load a save.');
+      loading = true;
+      try { await restore(record, storage, canSave); }
+      catch (error) { loading = false; refresh(); throw error; }
+    },
   });
-  loadButton.addEventListener('click', async () => {
-    if (loading || !canSave()) return;
-    loading = loadButton.disabled = true;
-    let navigating = false;
-    try {
-      if (pending) await pending.catch(() => {});
-      const record = await storage.readSnapshot();
-      if (!record) { notify('No saved game yet.'); return; }
-      if (!canSave()) { notify('Wait until you are playing alone to load a save.'); return; }
-      await restore(record.state, storage, canSave);
-      navigating = true;
-    } catch (error) {
-      notify(error.message || 'Could not load the saved game.');
-    } finally {
-      if (!navigating) loading = loadButton.disabled = false;
-    }
-  });
+  button.addEventListener('click', () => open('save'));
+  loadButton.addEventListener('click', () => open('load'));
   beforeExit(save);
   const autosave = () => {
-    if (!pending) save().catch(() => notify('Could not save the game.'));
+    if (!stopped && !pending && !loading && !manager.isOpen()) save().catch(error => notify(error.name === 'QuotaExceededError'
+      ? 'Autosave storage is full. Open Saved games to export a backup.' : 'Could not autosave the game. Open Saved games to try a manual save.'));
   };
-  setInterval(() => { if (!document.hidden) autosave(); }, 15000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) autosave(); });
+  const interval = setInterval(() => { if (!document.hidden) autosave(); }, 15000);
+  const visibility = () => { if (document.hidden) autosave(); };
+  document.addEventListener('visibilitychange', visibility);
+  window.addEventListener('pagehide', () => { stopped = true; clearInterval(interval); document.removeEventListener('visibilitychange', visibility); }, { once: true });
   return refresh;
 }

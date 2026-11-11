@@ -88,7 +88,7 @@ test('emulator gateway protects the archive, preserves reshare access and exclud
         }
         const info = await fetch(base + '/session-info', { headers });
         assert.equal(info.headers.get('x-invite-path'), '/access/' + token);
-        for (const path of ['/invitation.js', '/session-client.js', '/local-disc.js', '/disc-identity.js', '/game-data-folder.js', '/network-core.data', '/lobby-ui.js', '/sled-storm-pal-cover.jpg', '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-mountains.svg', '/lobby-snow-trail.svg', '/display.js', '/solo-save.js', '/shaders/sharp-bilinear.glsl', '/shaders/crt-lottes.glsl', '/hardware-preview.js', '/generated/enge-hardware.js'])
+        for (const path of ['/invitation.js', '/session-client.js', '/local-disc.js', '/disc-identity.js', '/game-data-folder.js', '/network-core.data', '/lobby-ui.js', '/graphics-presets.js', '/performance-metrics.js', '/performance-ui.js', '/save-file.js', '/save-storage.js', '/save-manager.js', '/sled-storm-pal-cover.jpg', '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-mountains.svg', '/lobby-snow-trail.svg', '/display.js', '/solo-save.js', '/shaders/sharp-bilinear.glsl', '/shaders/crt-lottes.glsl', '/hardware-preview.js', '/generated/enge-hardware.js'])
           assert.equal((await fetch(base + path, { headers })).status, 200, path);
         for (const path of ['/lab-state', '/diagnostic-state', '/.cache/disc.zip', '/.git/config',
           '/game.wasm', '/manifest', '/disc/1?offset=0&length=2048'])

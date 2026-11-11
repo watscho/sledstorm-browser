@@ -12,9 +12,10 @@ locked to the invitation. The selected tab and personal settings are remembered
 in the same browser at the same address. Select local disc or BIOS files again
 after a refresh.
 
-Version 1.0.0 applies **Enhanced 2×** and **+100%** draw distance once when
-upgrading saved preferences from 0.x. Later personal changes are remembered;
-**Reset settings** restores the new defaults. Host disc ZIP selection is
+**Quality** retains the 1.0.0 graphics defaults: **16:9**, **Clean**,
+**Enhanced 2×** and **+100%** draw distance. Existing personal graphics choices
+are preserved and matched to a preset when possible; other combinations use
+**Custom**. **Reset settings** restores Quality. Host disc ZIP selection is
 remembered separately from local CUE/BIN and BIOS inputs.
 
 The lobby lists the browser requirements and hardware starting points for
@@ -25,6 +26,7 @@ for details.
 
 | Setting | What it does | Shared with the room? |
 | --- | --- | --- |
+| Graphics preset | **Performance**, **Balanced**, **Quality** or **Custom**. Presets set aspect ratio, filter, Enhanced 2× and draw distance together. | No; personal. |
 | Progress | **All content unlocked** or **Original progression**. The preset changes temporary menu memory. | Yes; guests inherit it. |
 | Race aspect ratio | **16:9 · Widescreen** is the default in solo PAL races and PAL races with personal cameras in RetroArch rooms. Choose **4:3 · Original** for the original proportions. Menus and shared split-screen use 4:3. | No; personal. |
 | Draw distance (experimental) | Defaults to **+100%** for extra terrain. **Original** targets the solo range on personal PAL cameras. Dense scenes can shorten the range, and higher values can cause brief stutters. | Personal. |
@@ -41,6 +43,29 @@ can also change during play. The launcher remembers these settings, along
 with progress, camera and game data preferences, on the same browser origin.
 Create a new room to change progression or camera behavior.
 Choose game modes, riders and courses in the game.
+
+## Graphics presets
+
+Choose a preset in **Display and audio** before starting or joining:
+
+| Preset | Race aspect ratio | Image filter | Enhanced 2× | Extra draw distance |
+| --- | --- | --- | --- | --- |
+| **Performance** | 4:3 | Crisp pixels | Off | Original |
+| **Balanced** | 16:9 | Clean | Off | +50% |
+| **Quality** (default) | 16:9 | Clean | On | +100% |
+
+All individual graphics controls remain available. Changing one immediately
+selects **Custom**, including changing the filter from the toolbar or with
+**F7** during play. Custom remains selected even if the values happen to match
+a preset. Volume, controls, progression and the room's camera option do not
+change the graphics preset.
+
+The browser remembers both the selected preset and your latest Custom settings.
+After trying a preset, select **Custom** to restore your manual combination.
+If the current room does not support widescreen or extra draw distance, those
+features use 4:3 and Original distance while the preferred settings are kept
+for a supported room. Presets are starting points; performance depends on the
+device, course and active renderer.
 
 ## Personal controls
 
@@ -82,9 +107,9 @@ These shortcuts are listed separately in **Controls** and work once the game is 
 
 - **F7** — cycle image filters.
 - **F8** — download a PNG screenshot.
-- **⌘S**, **Ctrl+S**, or **F9** — save the game.
-- **⌘L**, **Ctrl+L**, or **F10** — load a save. Use **F10** if the browser opens its address bar.
-- **Alt+Enter** — toggle fullscreen. **Esc** exits fullscreen.
+- **⌘S**, **Ctrl+S**, or **F9** — choose a manual save slot.
+- **⌘L**, **Ctrl+L**, or **F10** — open Saved games. Use **F10** if the browser opens its address bar.
+- **Alt+Enter** — toggle fullscreen. **Esc** closes the save dialog first, then exits fullscreen.
 
 ## After launch
 
@@ -114,22 +139,65 @@ pause menu appears in its original 4:3 proportions over each personal view.
 
 ## Solo sessions
 
-Start a room normally. While the creator plays alone, the browser saves a
-snapshot about every 15 seconds while the tab is visible, and attempts a save
-when the tab becomes hidden. **Return to lobby** updates the autosave. The
-**Save game** icon writes a separate manual snapshot. A guest joining pauses saves and
-preserves the last solo snapshot. With the verified PAL disc, saving resumes
-when the creator is alone again and the multiplayer race has ended. A controller
-reserved for a player to rejoin also keeps saving paused.
+Open the **Saved games** disk icon beside **Start game / Join game**, or use
+**Saved games** in the game toolbar. Click outside the dialog or its close
+button to dismiss it. A tall library scrolls with the whole page; it has no
+internal scroll area. Closing restores the launcher's scroll position and focus.
+The library has six
+**Manual slots** and the three latest **Autosaves**, each with a scene preview,
+name and local checkpoint date. Select either type explicitly before loading.
+Older saves migrate automatically: the previous manual save becomes Slot 1,
+and the previous autosave joins the automatic history. They retain their dates
+and may have no preview until you save again.
 
-Use **Load last save** in the game toolbar while playing alone. It opens a new
-room from your manual save, or from the latest autosave if you have no manual
-save. The toolbar shows a message if there is no compatible save. You can
-share a fresh invitation after loading. **Start game** starts
+**Save game / F9** opens the manual slots. Choose an empty slot, enter a name
+and save. On an existing checkpoint, **Load game** is the primary action on
+both tabs. **Save current game…** below it asks before overwriting the selected
+manual slot. **Rename** opens an inline name editor with **Save name / Cancel**;
+renaming keeps the
+checkpoint date unchanged. **Delete** also asks for confirmation. **Undo
+deletion** restores the most recent deleted checkpoint even after closing and
+reopening the library. If its original slot has been reused, the button offers
+another empty slot. Only the latest deleted checkpoint is retained. Select an
+autosave and choose **Keep in manual slot** to preserve it beyond rotation.
+
+While the creator plays alone, a snapshot is taken about every 15 seconds while
+the tab is visible, with another attempt when it becomes hidden. **Return to
+lobby** updates the autosave. The game continues while the library is open;
+automatic saving pauses until it closes, and controller input is released while
+using dialogs. Manual slots are independent of autosave rotation.
+
+Saving and loading require a synchronized solo session. They pause when a guest
+joins, a controller is reserved for rejoining, or the game is in a multiplayer
+race or attract demo. Existing checkpoints stay available for browsing and
+export. With the verified PAL disc, saving resumes when the creator is alone
+again and has returned to the solo game. The library explains what is blocking
+saving or loading.
+
+**Load game** starts a fresh solo room from the selected checkpoint. During an
+active game, confirm loading first; the current game is backed up to an
+autosave before leaving. The checkpoint's progression and camera settings are
+restored, while your current graphics, volume and controls remain personal.
+You can share the fresh room's invitation after loading. **Start game** starts
 a new game from the lobby.
-**All content unlocked** is available in solo play with the
-verified PAL disc. Snapshots are kept at the same browser address and matched
-to the disc, BIOS and core.
+
+**Export file** downloads a `.sledsave` file containing the snapshot, preview, name,
+date and gameplay settings. **Import save** verifies the file and shows its
+preview before you choose a manual destination. Nothing is replaced until you
+confirm; importing and keeping an autosave preserve the original checkpoint
+date. Files must match the selected disc, BIOS/HLE and pinned emulator build.
+Invalid formats, unsupported versions, damaged checksums and oversized data
+are rejected. Files are limited to 6 MiB and decompression is bounded to the
+pinned snapshot size.
+
+Checkpoints live in this browser at the same address; another temporary tunnel
+address has separate storage. Export files to move saves between addresses or
+keep an external backup. Atomic writes preserve existing checkpoints if storage
+fills up, and conflicting edits from another tab are rejected instead of
+silently overwriting a changed slot. In local-disc mode, choose the matching
+CUE/BIN files and optional BIOS before opening the library. Save files do not
+include the game disc or BIOS. **All content unlocked** remains available in
+solo play with the verified PAL disc.
 
 ## Presentation and progress
 
@@ -158,7 +226,7 @@ The launcher reports disc download progress when it has a download size,
 then shows when it is preparing the emulator or synchronizing the room. It
 covers the guest's game and mutes guest audio until RetroArch applies the
 current room state. The
-**Technical details** panel shows the controller, player count, synchronized
+**Performance → Technical details** panel shows the controller, player count, synchronized
 frame and completed console steps. The session toolbar shows loading,
 synchronization and errors, and switches to a green **LIVE** indicator when
 the local game is synchronized. It shows a status message again if the browser
@@ -171,6 +239,38 @@ behind or cannot catch up during ordinary play,
 camera rendering and mutes the game. The live view and audio return when the
 browser catches up. After a closed connection, reopen the invitation and select
 **Join game**.
+
+### Performance diagnostics
+
+Open **Performance** below the game. Its summary stays visible when collapsed
+and reports whether the game is running smoothly, catching up, waiting for the
+room or experiencing browser hitches. The panel provides a suggested next step.
+
+- **Game speed** measures progress along the live console timeline over a
+  recent window of about six seconds. PAL targets 50 console steps/s; 100%
+  means the timeline is advancing at that rate. Replayed core steps do not
+  inflate this value in RetroArch rooms.
+- **Browser smoothness** measures browser animation intervals separately.
+  It shows the 95th percentile, longest interval and intervals of at least
+  100 ms in the last six seconds. These are browser timing samples, not a
+  measurement of game frames actually painted on screen.
+- **Room sync** shows synchronization state, dedicated-room backlog and time
+  since the confirmed room frame advanced. The backlog's time estimate is
+  relative to the live room; neither that estimate nor confirmation age is ping
+  or end-to-end input latency. Connection delays and local load can both
+  contribute to falling behind.
+- **Graphics** shows the currently active world renderer, resolution mode,
+  preset and effective aspect ratio/draw distance. Menus and unsupported scenes
+  can use software rendering even when WebGL2 is available for the race.
+
+Measurements restart after backgrounding, reconnecting, synchronization or
+loading a snapshot, so those transitions do not count as normal game slowdown.
+Audio quality needs a separate listening check.
+
+**Download report** saves a JSON file with current settings, measurements and
+up to a minute of recent samples. It contains no room invitation, game files or
+emulator snapshot. Nothing is uploaded. Developer counters and the local
+snapshot button remain available under **Performance → Technical details**.
 
 To stop the servers and tunnel, return to the hosting terminal and press
 **Ctrl+C**. This closes dedicated rooms as well as the launcher.

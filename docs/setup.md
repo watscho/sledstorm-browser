@@ -63,8 +63,22 @@ optional WebGL2 renderer. The generated module stays under `web/generated/`.
 ## Upgrade an existing installation
 
 Stop the hosting helper with **Ctrl+C**. From a clean project directory on
-`main`, update the source, refresh the pinned assets and rebuild the emulator.
-If your checkout is on another branch, switch to `main` first.
+`main`, update the source. If your checkout is on another branch, switch to
+`main` first.
+
+For **1.0.0 → 1.1.0**, the emulator and native adapter pins are unchanged:
+
+```sh
+git pull --ff-only
+```
+
+Restart `python3 tools/play-online.py` and reload all game tabs. The library
+migrates the existing manual and automatic snapshots at the same browser
+address. Export `.sledsave` files to move checkpoints to another address or
+browser. Start a fresh room and share its new invitation.
+
+For an older installation, or after a change to the native emulator/adapter,
+refresh the pinned assets and rebuild:
 
 ```sh
 git pull --ff-only

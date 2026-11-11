@@ -9,6 +9,8 @@ import { checkNetplayInvitation, prepareNetplay, driveRetroPad } from './retroar
 import { enableSessionDisplay, loadDisplayShaders } from './display.js';
 import { openSoloSave, takeLoadRequest, trackSoloSave } from './solo-save.js';
 import { initLobby } from './lobby-ui.js';
+import { createSaveManager } from './save-manager.js';
+import { enablePerformanceDiagnostics } from './performance-ui.js';
 import {
   canChooseGameArchive, openGameArchive, chooseGameArchiveDestination, matchingGameArchive, saveGameArchive,
   rememberGameArchive, restoreGameArchive, reopenGameArchive,
@@ -38,12 +40,14 @@ let roomOptions, launchInfo;
 let viewChecks = 0;
 let invitation, invitationError;
 let roomSynchronized = false;
+let waitingForRoom = false;
 let roomMessage = status.textContent;
 let actionNotice = '';
 let noticeTimer;
 const lobby = initLobby(showActionNotice, () => {
   location.reload();
 });
+const saveManager = createSaveManager(showActionNotice);
 const loadRequestId = /^#load=([0-9a-f-]{36})$/.exec(location.hash)?.[1];
 if (loadRequestId) history.replaceState(null, '', location.pathname + location.search);
 try {
@@ -66,6 +70,7 @@ const localConsole = new URLSearchParams(location.search).has('console') && loca
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
 const hardwarePreview = localConsole && new URLSearchParams(location.search).get('renderer') === 'hardware';
 const canSaveSolo = !invitation && !invitationError && !dedicatedWorker && !lab && !localConsole;
+const canManageSaves = !invitationError && !dedicatedWorker && !lab && !localConsole;
 const retroArch = !lab && !localConsole && (invitation ? invitation.v === 7 :
   new URLSearchParams(location.search).get('transport') !== 'legacy');
 let refreshSoloSave;
@@ -201,9 +206,45 @@ const launcherInfo = fetch('/session-info').then(async response => {
     launch.disabled = Boolean(canSaveSolo && loadRequestId);
     showStatus(launch.disabled ? 'Loading saved game…' : '');
   }
+  document.querySelector('#saved-games').hidden = !canManageSaves;
   return info;
 });
 launcherInfo.catch(error => { showStatus(error.message); launch.disabled = true; });
+document.querySelector('#saved-games').addEventListener('click', async event => {
+  if (!canManageSaves || saveManager.isOpen()) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  let storage;
+  try {
+    const info = { ...await launcherInfo };
+    const files = [...discInput.files];
+    if (info.discMode === 'local') {
+      const selected = await selectedDisc(files);
+      if (!selected) throw new Error('Choose your CUE and all eleven BIN tracks in Game files first.');
+      Object.assign(info, await identifyDisc(selected, showStatus));
+    }
+    storage = await openSoloSave(info, biosInput.files[0]);
+    await saveManager.open({
+      storage, mode: 'load', playing: false, opener: button, canCapture: () => false,
+      canLoad: () => !launch.disabled,
+      onClose: () => storage.close(),
+      async load(record) {
+        const settings = {
+          progress: record.settings?.progress ?? document.querySelector('#progress').value,
+          camera: record.settings?.camera ?? document.querySelector('#camera').checked,
+          'graphics-preset': lobby.graphics().preset, image: document.querySelector('#image').value,
+          aspect: document.querySelector('#aspect').value,
+          'enhanced-render': document.querySelector('#enhanced-render').checked,
+          'draw-distance': Number(document.querySelector('#draw-distance').value),
+          volume: document.querySelector('#volume').value,
+        };
+        await navigateToSoloSave(record, storage, files, settings);
+      },
+    });
+    showStatus('');
+  } catch (error) { storage?.close(); showActionNotice(error.message || 'Could not open saved games.'); }
+  finally { button.disabled = false; }
+});
 if (dedicatedWorker) launcherInfo.then(() => launch.click()).catch(() => {});
 if (canSaveSolo && loadRequestId) {
   launcherInfo.then(async () => {
@@ -215,6 +256,7 @@ if (canSaveSolo && loadRequestId) {
         if (input.type === 'checkbox') input.checked = value;
         else input.value = value;
       }
+      lobby.restoreGraphics();
       launch.disabled = false;
       await startGame(request);
     } catch (error) {
@@ -315,6 +357,16 @@ async function sharedDiscFile({ disc: fingerprint }, keep) {
 }
 
 launch.addEventListener('click', () => startGame());
+
+async function navigateToSoloSave(record, storage, files, settings, release) {
+  const request = await storage.prepareLoad(record, { files, settings });
+  try { await release?.(); }
+  catch (error) { await request.cancel().catch(() => {}); throw error; }
+  const destination = new URL(location.href);
+  destination.hash = 'load=' + request.id;
+  history.replaceState(null, '', destination.href);
+  location.reload();
+}
 
 async function startGame(loadRequest) {
   if (launch.disabled) return;
@@ -461,6 +513,11 @@ async function startGame(loadRequest) {
       // Room state uses fresh memory cards. Progress resumes from the browser snapshot.
       window.EJS_GameManager.prototype.mountFileSystems = async function () {
         this.mkdir('/data'); this.mkdir('/data/saves');
+        // Match EmulatorJS's exit-time unmount with a real, fresh RAM mount.
+        // The pinned Emscripten build exposes FS but not FS.filesystems.
+        // Its root mount is MEMFS; reuse that type for a separate fresh mount.
+        const memoryFilesystem = this.FS.lookupPath('/').node.mount.type;
+        this.FS.mount(memoryFilesystem, {}, '/data/saves');
       };
     },
     EJS_onGameStart: () => {
@@ -503,30 +560,33 @@ async function startGame(loadRequest) {
             ? !retroRoom?.failed && retroRoom?.soleController && !module.sledCatchup && module._sled_netplay_status(1) === 1
             : session?.active && session.members === 1 && !session.syncing && !session.replaying) &&
             !isMultiplayerRace(module),
-          lobby.saveBeforeExit, showActionNotice, async (state, storage, canSave) => {
+          lobby.saveBeforeExit, showActionNotice, async (record, storage, canSave) => {
             const settings = {
-              progress: roomOptions.progress, camera: roomOptions.camera,
+              progress: record.settings?.progress ?? roomOptions.progress,
+              camera: record.settings?.camera ?? roomOptions.camera,
+              'graphics-preset': lobby.graphics().preset, image: document.querySelector('#live-filter').value,
               aspect: widescreen ? 'wide' : 'original', 'enhanced-render': renderEnhanced,
               'draw-distance': drawDistance,
               volume: document.querySelector('#volume').value,
             };
-            const request = await storage.prepareLoad(state, { files, settings });
-            try {
+            await navigateToSoloSave(record, storage, files, settings, async () => {
               if (!canSave()) throw new Error('Wait until you are playing alone to load a save.');
               if (retroArch && launchInfo.dedicated) await retroRoom.releaseForLoad();
-            } catch (error) {
-              await request.cancel().catch(() => {});
-              throw error;
-            }
-            const destination = new URL(location.href);
-            destination.hash = 'load=' + request.id;
-            history.replaceState(null, '', destination.href);
-            location.reload();
+            });
+          }, saveManager, () => ({ progress: roomOptions.progress, camera: roomOptions.camera }), () => {
+            if (!roomSynchronized || module.sledCatchup) return 'Wait for the room to finish synchronizing before saving or loading.';
+            if (retroArch ? !retroRoom?.soleController : session?.members > 1)
+              return 'Saving and loading are paused while another player is connected or reserved.';
+            if (isMultiplayerRace(module)) return 'Return to the solo menus to save or load. Multiplayer races and attract demos pause saving.';
+            return 'Start a new synchronized solo room to save or load a checkpoint.';
           });
         if (retroArch) startRetroArchRoom();
         else connectRoom(bios).catch(error => { showStatus(error.message); session?.fail(error.message); });
       }
-      startBenchmark();
+      if (!dedicatedWorker) {
+        startPerformanceDiagnostics();
+        startBenchmark();
+      }
     },
   });
   lobby.start();
@@ -803,6 +863,7 @@ function startRetroArchRoom() {
         stalledSince = null;
         waiting = false;
       }
+      waitingForRoom = waiting;
       if (refreshSoloSave) {
         if (!launchInfo.pal && module._sled_netplay_status(1) > 1) noteOtherPlayer();
         refreshSoloSave();
@@ -983,7 +1044,34 @@ copyRoomLink('#copy-invite', async () => {
     sharedRoom, roomOptions, response.headers.get('x-invite-origin'));
 });
 
-// Opt-in probe: count emulated frames, rather than browser animation callbacks.
+function startPerformanceDiagnostics() {
+  enablePerformanceDiagnostics(() => {
+    const emulator = window.EJS_emulator;
+    const module = emulator.Module;
+    const netplay = field => module._sled_netplay_status?.(field) ?? 0;
+    const networked = !lab && !localConsole;
+    return {
+      target: launchInfo.pal ? 50 : 60,
+      mode: networked ? (launchInfo.dedicated ? 'dedicated' : 'browser-hosted') : 'local',
+      frame: retroArch && networked ? netplay(2) : Number(emulator.gameManager.getFrameNum()),
+      confirmedFrame: retroArch && networked ? netplay(6) : undefined,
+      connected: !networked || (retroArch ? Boolean(retroRoom && !retroRoom.failed && retroRoom.socket.readyState === WebSocket.OPEN) : Boolean(session?.active)),
+      synchronized: !networked || roomSynchronized,
+      hidden: document.hidden,
+      catchingUp: Boolean(module.sledCatchup || module.sledReplayPending || session?.replaying),
+      waiting: Boolean(retroArch ? waitingForRoom : session?.syncing),
+      behindFrames: retroArch && module.sledDedicatedClient ? netplay(5) : 0,
+      hardware: game.classList.contains('hardware-preview-active'),
+      enhanced: Boolean(module.sledEnhancedGraphics), widescreen: Boolean(module.sledWidescreen),
+      drawDistance: module.sledDrawDistance || 0,
+      filter: document.querySelector('#live-filter').value,
+      preset: lobby.graphics().preset,
+      memoryBytes: module.HEAPU8?.byteLength,
+    };
+  }, showActionNotice);
+}
+
+// Raw console-step probe retained under the friendly performance panel.
 function startBenchmark() {
   const output = document.createElement('pre');
   output.id = 'benchmark';
@@ -991,7 +1079,8 @@ function startBenchmark() {
   const details = document.createElement('details');
   details.id = 'technical-details'; details.open = developerTools || lab || localConsole;
   const summary = document.createElement('summary'); summary.textContent = 'Technical details';
-  details.append(summary, output); document.querySelector('.game-bottom').after(details);
+  details.append(summary, output); document.querySelector('#performance-panel').append(details);
+  if (details.open) document.querySelector('#performance-panel').open = true;
   if (developerTools && location.port === '8000') {
     const save = document.createElement('button');
     save.id = 'save-diagnostic';

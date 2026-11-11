@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 1.0.0 · [Changelog](CHANGELOG.md) · [Release verification](docs/verification.md#100-verification-summary)**
+**Version 1.1.0 · [Changelog](CHANGELOG.md) · [Release verification](docs/verification.md#110-verification-summary)**
 
 [Personal camera parity](#personal-camera-parity)
  · [Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
@@ -18,19 +18,30 @@ riders, sleds and courses are selected in the original game menus.
 *Cover scan: [PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html).
 Original game artwork is not covered by the wrapper's MIT license.*
 
-## Version 1.0.0
+## Version 1.1.0
 
-The first 1.0 release includes dedicated four-player rooms, personal PAL cameras
-and HUDs, remembered ZIP selection for returning guests, and room links that
-survive returning to the lobby. A verified ZIP turns **Join game · Ready** green.
-The launcher defaults to **16:9**, **Clean · Sharp Bilinear**, **Enhanced 2×**
-and **+100%** draw distance. Personal choices remain adjustable.
+Choose **Performance / Balanced / Quality**, or keep a remembered **Custom**
+graphics setup. The new **Performance** panel explains game speed, browser
+timing and room synchronization, with a downloadable local diagnostic report.
 
-Upgrading from 0.x requires rebuilding the native emulator. Follow
-[the upgrade steps](docs/setup.md#upgrade-an-existing-installation), then start
-a new room and send a fresh invitation. Source releases contain no game disc,
-BIOS, memory cards or compiled emulator downloads. Platform and multiplayer
-coverage is described in [known limits](#current-limits).
+The disk icon beside **Start / Join game** opens **Saved games**: six manual
+slots and three rotating autosaves, with previews, names and dates. Choose a
+checkpoint, keep an autosave, or export/import a verified `.sledsave` backup.
+Existing saves migrate automatically. The library includes confirmed
+overwrites, rename, delete/undo, backdrop dismissal and page scrolling.
+Loading and returning to the lobby no longer trigger the former `ErrnoError`.
+
+The dedicated four-player rooms, personal PAL cameras and HUDs, remembered
+guest ZIP selection and persistent room links from 1.0 remain available.
+**Quality** keeps the existing **16:9**, **Clean**, **Enhanced 2×** and **+100%**
+draw-distance defaults.
+
+Updating from 1.0.0 needs no native emulator rebuild: restart the hosting helper
+and reload the browser tabs. Updating from 0.x still requires a rebuild. Follow
+[the upgrade steps](docs/setup.md#upgrade-an-existing-installation), start a new
+room and send a fresh invitation. Source releases contain no game disc, BIOS,
+memory cards or compiled emulator downloads. Platform and multiplayer coverage
+is described in [known limits](#current-limits).
 
 ## ▶ Start, invite, stop
 
@@ -84,8 +95,8 @@ python3 tools/play-online.py
 Wait until the terminal prints **Host launcher**, then:
 
 1. Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** on the host computer.
-2. Choose your settings and click **Start game**. While playing alone, use
-   **Load last save** in the game toolbar to restore a saved game.
+2. Choose your settings and click **Start game**, or open **Saved games** to
+   choose a checkpoint and start a new solo room from it.
 3. Click **Copy invite link** in the session toolbar and send the complete link
    to your friends. It automatically uses the public HTTPS address.
 4. Each friend opens the link and clicks **Join game**. In the game data dialog,
@@ -226,15 +237,29 @@ Choose race aspect ratio, draw distance, image filtering, volume and
 **Enhanced 2×** in **Display and audio**. Solo PAL races and personal cameras in
 RetroArch rooms default to **16:9** with **Clean · Sharp Bilinear** filtering
 and **Enhanced 2×** enabled. **Draw distance** is experimental and defaults to **+100%**.
+Choose **Performance**, **Balanced** or **Quality** to set the graphics together.
+Quality keeps these defaults. Editing any graphics control selects **Custom**;
+the browser remembers your manual combination when switching presets. Volume
+is independent. See [graphics presets](docs/browser-lobby.md#graphics-presets).
 **4:3 · Original** is available for races, and menus and shared split-screen
 stay in 4:3.
 The in-game toolbar also offers filter switching, PNG screenshots and
 fullscreen (**Alt+Enter**).
 
-The game autosaves in the browser while the room creator plays alone. Use
-**Save game** for a manual snapshot or **Load last save** to open a fresh room
-from it. Saves pause while a guest is connected or has a reserved race seat.
-See [solo sessions and shortcuts](docs/browser-lobby.md#solo-sessions).
+Open **Performance** below the game for game speed, browser timing, room sync
+and suggestions when the game slows down. **Download report** saves a local
+JSON report with settings and recent measurements.
+See [performance diagnostics](docs/browser-lobby.md#performance-diagnostics).
+
+**Saved games** offers six manual slots and the three latest autosaves, with
+scene previews, names and checkpoint dates. Open it from the launcher or game
+toolbar; **Save game / F9** chooses a manual slot, and **F10** opens the library
+for loading. Rename checkpoints, keep an autosave in a manual slot, or export
+and import `.sledsave` backups. Existing saves migrate automatically.
+Autosaves run about every 15 seconds while the creator plays alone. Saving and
+loading pause during multiplayer races and while another player is connected
+or has a reserved seat. See [solo sessions](docs/browser-lobby.md#solo-sessions)
+for recovery, compatibility and storage details.
 
 **All content unlocked** is enabled by default and applies to temporary game
 memory. Disc files and persistent memory cards are unchanged. Optional BIOS

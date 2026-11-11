@@ -8,8 +8,8 @@ joining. All peers execute the same hooks and retain normal physics and timers.
 The same preset applies when starting a solo room. A compatible solo snapshot
 restores its progression setting along with the session state.
 
-Version 1.0.0 retains this progression behavior. The new personal graphics
-defaults and remembered guest ZIP do not change the shared unlock setting.
+Version 1.1.0 retains this progression behavior. Graphics presets are personal;
+loading a checkpoint restores its original progression and camera settings.
 
 This is an in-memory session preset, applied after frontend initialization
 and reapplied if the game resets its unlock state. It does not edit the disc or

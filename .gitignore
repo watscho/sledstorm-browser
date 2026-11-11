@@ -24,6 +24,7 @@ game/
 *.[rR][oO][mM]
 *.[mM][cC][dD]
 *.[mM][cC][rR]
+*.sledsave
 *.zip
 *.7z
 *.tar

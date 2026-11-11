@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div id="app-shell">
 <a class="skip-link" href="#setup">Skip to game settings</a>
 <header class="site-header">
   <a class="brand" href="/" aria-label="Sled Storm — back to lobby">
@@ -45,6 +46,7 @@
       </div>
       <div class="settings-panel" id="panel-display" role="tabpanel" aria-labelledby="tab-display" tabindex="0" hidden>
         <div class="section-title"><h2>Display and audio</h2><span>02 / 04</span></div>
+        <div class="field graphics-preset"><label for="graphics-preset">Graphics preset</label><select id="graphics-preset" aria-describedby="graphics-preset-help graphics-custom-help"><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="quality" selected>Quality</option><option value="custom">Custom</option></select><p class="field-help" id="graphics-preset-help">16:9 · Clean · 2× · +100% distance.</p><p class="field-help" id="graphics-custom-help">Adjust any graphics setting below to switch to Custom. Volume is independent.</p></div>
         <div class="field"><label for="aspect">Race aspect ratio</label><select id="aspect" aria-describedby="aspect-help"><option value="original">4:3 · Original</option><option value="wide">16:9 · Widescreen</option></select><p class="field-help" id="aspect-help">16:9 works in solo PAL races and RetroArch rooms with personal cameras. Menus and shared split-screen use 4:3.</p></div>
         <div class="field"><label for="image">Image filter</label><select id="image"><option value="clean" selected>Clean · Sharp Bilinear</option><option value="crisp">Crisp pixels</option><option value="smooth">Smooth</option><option value="crt">CRT · Lottes</option></select><p class="field-help">Switch filters during play from the toolbar or with F7.</p></div>
         <label class="setting-row switch-row"><span><strong>Enhanced 2×</strong><small>Render supported cameras at twice the resolution and upscale other scenes.</small></span><input type="checkbox" id="enhanced-render" checked><span class="switch" aria-hidden="true"></span></label>
@@ -81,8 +83,8 @@
           <ul>
             <li><kbd>F7</kbd> Cycle image filters</li>
             <li><kbd>F8</kbd> Download a PNG screenshot</li>
-            <li><kbd>F9</kbd> Save game (⌘S / Ctrl+S)</li>
-            <li><kbd>F10</kbd> Load save (⌘L / Ctrl+L)</li>
+            <li><kbd>F9</kbd> Choose a save slot (⌘S / Ctrl+S)</li>
+            <li><kbd>F10</kbd> Open saved games (⌘L / Ctrl+L)</li>
             <li><kbd>Alt+Enter</kbd> Toggle fullscreen</li>
           </ul>
         </section>
@@ -98,9 +100,12 @@
       <div class="preview-image"><img src="/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover: a rider racing a snowmobile" width="1475" height="1478"></div>
       <div class="launch-summary">
         <div class="preview-title"><h2>Launch summary</h2><span aria-hidden="true">↗</span></div>
-        <dl><div><dt>Session</dt><dd id="summary-session">New · up to 4 players</dd></div><div><dt>Camera</dt><dd id="summary-camera">Personal view</dd></div><div><dt>Progress</dt><dd id="summary-progress">All content unlocked</dd></div><div><dt>Aspect ratio</dt><dd id="summary-aspect">4:3 · Original</dd></div><div><dt>Image</dt><dd id="summary-image">Clean · Sharp Bilinear</dd></div></dl>
+        <dl><div><dt>Session</dt><dd id="summary-session">New · up to 4 players</dd></div><div><dt>Camera</dt><dd id="summary-camera">Personal view</dd></div><div><dt>Progress</dt><dd id="summary-progress">All content unlocked</dd></div><div><dt>Graphics</dt><dd id="summary-graphics">Quality</dd></div><div><dt>Aspect ratio</dt><dd id="summary-aspect">4:3 · Original</dd></div><div><dt>Image</dt><dd id="summary-image">Clean · Sharp Bilinear</dd></div></dl>
         <div class="launch-actions">
+          <div class="launch-button-row">
           <button class="primary-button" id="launch" type="button" disabled><span id="launch-label">Start game</span><span aria-hidden="true">↗</span></button>
+          <button class="icon-button saves-library-link" id="saved-games" type="button" aria-label="Saved games" data-tooltip="Saved games" aria-haspopup="dialog" aria-controls="save-manager" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l4 4v14H3V3h1zm3 0v6h9V3M7 21v-8h10v8"/></svg></button>
+          </div>
           <div id="game-data-settings" hidden>
             <div class="game-data-choice">
               <label class="keep-game-data"><input id="keep-game-data" type="checkbox" checked aria-describedby="game-data-help"><span id="keep-game-data-label">Keep or choose game data</span></label>
@@ -111,7 +116,7 @@
           </div>
         </div>
         <p class="launch-hint" id="launch-hint">First launch loads the full disc, including music.</p>
-        <p class="saved-note">PAL SLES-02194 / v1.0.0</p>
+        <p class="saved-note">PAL SLES-02194 / v1.1.0</p>
       </div>
     </aside>
     <section class="lobby-requirements" aria-labelledby="requirements-title">
@@ -145,7 +150,7 @@
         <button type="button" class="icon-button" id="solo-save" aria-label="Save game" aria-keyshortcuts="Meta+S Control+S F9" data-tooltip="Save game (⌘S / Ctrl+S / F9)" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l4 4v14H3V3h1zm3 0v6h9V3M7 21v-8h10v8"/></svg>
         </button>
-        <button type="button" class="icon-button" id="solo-load" aria-label="Load last save" aria-keyshortcuts="Meta+L Control+L F10" data-tooltip="Load last save (⌘L / Ctrl+L / F10)" hidden>
+        <button type="button" class="icon-button" id="solo-load" aria-label="Saved games" aria-keyshortcuts="Meta+L Control+L F10" data-tooltip="Saved games (⌘L / Ctrl+L / F10)" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v13H3zM12 11v6m-3-3 3 3 3-3"/></svg>
         </button>
         <button type="button" class="icon-button" id="copy-invite" aria-label="Copy invite link" data-tooltip="Copy invite link" hidden>
@@ -171,9 +176,51 @@
         <li><span class="sr-only">Controller 4 disconnected</span></li>
       </ol>
       <p id="play-controls">Arrows to steer · S to accelerate · Enter for Start · W to go back</p><span>If a browser suspends the game, bring it back to the foreground.</span></div>
+    <details id="performance-panel" class="performance-panel" hidden>
+      <summary><span>Performance</span><span id="performance-state" role="status">Measuring…</span></summary>
+      <p id="performance-advice">Collecting a few seconds of gameplay.</p>
+      <dl class="performance-metrics">
+        <div><dt>Game speed</dt><dd id="performance-speed">Measuring…</dd><dd class="performance-detail" id="performance-speed-detail">Target: 50 console steps/s</dd></div>
+        <div><dt>Browser smoothness</dt><dd id="performance-pacing">Measuring…</dd><dd class="performance-detail" id="performance-pacing-detail">Recent browser frame intervals</dd></div>
+        <div><dt>Room sync</dt><dd id="performance-sync">Connecting…</dd><dd class="performance-detail" id="performance-sync-detail">Waiting for room updates</dd></div>
+        <div><dt>Graphics</dt><dd id="performance-renderer">Preparing…</dd><dd class="performance-detail" id="performance-graphics-detail">Your personal settings</dd></div>
+      </dl>
+      <div class="performance-footer"><p>Browser timing is separate from game speed. These checks do not measure ping, input latency or audio quality.</p><button type="button" class="secondary-button" id="download-performance" disabled>Download report</button></div>
+    </details>
   </section>
 </main>
-<footer><span>SLED STORM / BROWSER EDITION</span><span>PS1 · 1999 / v1.0.0</span></footer>
+<footer><span>SLED STORM / BROWSER EDITION</span><span>PS1 · 1999 / v1.1.0</span></footer>
+</div>
+<dialog id="save-manager" class="saves-dialog" aria-labelledby="saves-title" aria-describedby="saves-intro">
+  <header class="saves-header">
+    <div><p class="saves-eyebrow">SOLO / SAVE LIBRARY</p><h2 id="saves-title">Saved games</h2><p id="saves-intro">Your checkpoints, ready when you are.</p></div>
+    <button class="icon-button" id="saves-close" type="button" aria-label="Close saved games" data-tooltip="Close (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+  </header>
+  <div class="saves-toolbar">
+    <div class="saves-tabs" role="tablist" aria-label="Save types">
+      <button type="button" role="tab" id="saves-manual-tab" aria-selected="true" aria-controls="saves-slots" tabindex="0">Manual slots <span id="saves-manual-count">0 / 6</span></button>
+      <button type="button" role="tab" id="saves-auto-tab" aria-selected="false" aria-controls="saves-slots" tabindex="-1">Autosaves <span id="saves-auto-count">0 / 3</span></button>
+    </div>
+    <button type="button" class="secondary-button" id="saves-import">Import save</button>
+    <input id="saves-file" type="file" accept=".sledsave,application/octet-stream" hidden aria-label="Import a Sled Storm save file">
+  </div>
+  <p id="saves-session-note" class="saves-session-note"></p>
+  <section id="saves-pending" class="saves-pending" hidden aria-labelledby="saves-pending-title"><div><strong id="saves-pending-title">Save file verified</strong><p id="saves-pending-help">Choose a manual slot. Nothing is replaced until you confirm.</p></div><button type="button" class="text-button" id="saves-cancel-import">Cancel import</button></section>
+  <div class="saves-layout">
+    <section id="saves-slots" class="saves-slots" role="tabpanel" aria-labelledby="saves-manual-tab" tabindex="0"><div id="saves-grid" class="saves-grid"></div><p id="saves-empty" class="saves-empty" hidden>Your first autosave will appear here while you play alone.</p></section>
+    <aside class="saves-inspector" aria-label="Selected save">
+      <div class="saves-preview"><img id="saves-preview-image" alt="" hidden><div id="saves-preview-empty"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 8h24l9 9v39H15V8zm7 0v17h18V8M23 56V36h18v20M29 14v6"/></svg><span>No preview yet</span></div><span id="saves-kind" class="saves-kind">MANUAL SLOT 01</span></div>
+      <div class="saves-selected-heading"><h3 id="saves-selected-name">Empty slot</h3><time id="saves-date"></time></div>
+      <div id="saves-name-editor" class="saves-name-editor" hidden><label class="saves-name-label" for="saves-name">Save name</label><input id="saves-name" type="text" maxlength="60" placeholder="Name this checkpoint" autocomplete="off" spellcheck="false"><div id="saves-rename-actions" class="saves-rename-actions" hidden><button type="button" class="secondary-button" id="saves-name-cancel">Cancel</button><button type="button" class="primary-button" id="saves-name-save">Save name</button></div></div>
+      <p id="saves-selected-info" class="saves-selected-info">Save a checkpoint here while playing alone.</p>
+      <div class="saves-primary-actions" id="saves-primary-actions"><button type="button" class="primary-button" id="saves-load">Load game</button><button type="button" class="secondary-button" id="saves-write">Save to Slot 1</button><button type="button" class="secondary-button" id="saves-copy" hidden>Keep in manual slot</button></div>
+      <p id="saves-action-help" class="saves-action-help"></p>
+      <section id="saves-confirm" class="saves-confirm" hidden aria-labelledby="saves-confirm-title"><div><strong id="saves-confirm-title">Replace this save?</strong><p id="saves-confirm-help"></p></div><div><button type="button" class="secondary-button" id="saves-confirm-cancel">Cancel</button><button type="button" class="primary-button" id="saves-confirm-accept">Replace save</button></div></section>
+      <div class="saves-file-actions" id="saves-file-actions"><div class="saves-manage-actions"><button type="button" class="secondary-button" id="saves-export">Export file</button><button type="button" class="secondary-button" id="saves-rename">Rename</button></div><button type="button" class="text-button saves-delete" id="saves-delete">Delete save</button></div>
+    </aside>
+  </div>
+  <footer class="saves-footer"><p id="saves-feedback" role="status" aria-live="polite">Stored in this browser. Export a copy to keep a backup or move it to another computer.</p><button type="button" class="text-button" id="saves-undo" hidden>Undo deletion</button></footer>
+</dialog>
 <dialog id="exit-dialog" aria-labelledby="exit-title" aria-describedby="exit-help"><h2 id="exit-title">Leave this session?</h2><p id="exit-help">Your controller will disconnect. Others can continue; if you are the last player, the room ends.</p><div><button type="button" class="secondary-button" id="stay-game">Keep playing</button><button type="button" class="primary-button" id="confirm-exit">Return to lobby</button></div></dialog>
 <dialog id="game-data-dialog" aria-labelledby="game-data-title" aria-describedby="game-data-dialog-help">
   <h2 id="game-data-title">Game data</h2>
@@ -188,6 +235,6 @@
     <button class="text-button" value="cancel">Cancel</button>
   </form>
 </dialog>
-<script type="module" src="/app.js?v=1.0.0"></script>
+<script type="module" src="/app.js?v=1.1.0"></script>
 </body>
 </html>

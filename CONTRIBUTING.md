@@ -35,6 +35,14 @@ Native presentation tests cover viewport bounds, canonical GPU/VRAM preservation
 interpreter register/RAM restoration and partial UI-call failure. They do not
 replace actual game or internet verification.
 
+For the save library's real IndexedDB and dialog checks, run
+`node tools/serve-save-checks.mjs`, open its printed loopback URL in a desktop
+browser and choose **Run storage checks**. This isolated origin uses synthetic
+snapshots and needs no disc. It checks legacy migration, slot rotation,
+cross-tab conflicts, transaction rollback, persistent delete recovery, portable
+files and one-use restoration handoff. **Open sample library** exercises the
+dialog, previews and import/export controls without starting an emulator.
+
 Gameplay changes require matching clients through the affected race modes and
 player counts, independent controller input, original menu proportions and state
 agreement. Dedicated-room changes also require checking creator departure,

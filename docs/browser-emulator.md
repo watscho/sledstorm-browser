@@ -245,7 +245,7 @@ the normal launcher for multiplayer play.
 
 1. Open [the local diagnostic launcher](http://127.0.0.1:8000/?dev=1) and start
    a room. Wait until it is synchronized and reach the desired game state.
-2. Expand **Technical details** and click **Save local diagnostic snapshot**.
+2. Expand **Performance → Technical details** and click **Save local diagnostic snapshot**.
    The server writes `.cache/emulator-state-3-1000.bin`.
 3. Copy that file to `.cache/emulator-lab.state` while keeping the server running:
 
@@ -269,6 +269,30 @@ single-player HUD atlas. Use the fixture console above for general diagnostics.
 
 Snapshot upload and `/lab-state` are loopback-only routes excluded from the
 public gateway. Diagnostic restoration is separate from RetroArch's live room synchronization.
+
+## Browser save library
+
+`save-storage.js` keeps slot metadata separately from snapshot payloads in the
+existing version-1 `sledstorm-solo` IndexedDB store. Listing the library does
+not read every console state. Per-identity keys include the disc, core, BIOS and
+adapter; legacy single manual/automatic entries migrate once, with their original
+entries retained. Atomic transactions update metadata and payload together, and
+revision checks reject stale slot writes across tabs. Three autosaves rotate
+independently of the six manual slots. The latest deleted manual checkpoint has
+a persistent undo copy.
+
+`save-file.js` defines the version-1 `.sledsave` container: bounded JSON metadata,
+a raw or gzip snapshot and an optional bounded JPEG thumbnail. Import validates
+the pinned state format, identity, lengths and SHA-256 digests before the dialog
+offers a destination. `save-manager.js` handles confirmations, preview selection
+and import staging. Loading uses a short-lived, one-use IndexedDB handoff before
+starting a fresh room; live restoration first backs up the current solo state.
+
+The EmulatorJS integration mounts a fresh MEMFS at `/data/saves`, using the
+pinned runtime's root filesystem type. This pairs with EmulatorJS's existing
+exit-time unmount and avoids its former `ErrnoError`. Memory cards remain fresh
+for each room; browser snapshots provide continuation. No upstream asset or
+native serialization pin changes are needed for the library.
 
 ## Source provenance
 

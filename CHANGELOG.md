@@ -3,6 +3,54 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 1.1.0 - 2026-11-12
+
+Save library, graphics presets and performance diagnostics. Native emulator
+and adapter pins are unchanged; upgrading from 1.0.0 needs no native rebuild.
+
+### Added - 2026-11-12
+
+- Place a labeled save-library icon beside Start/Join game. Use a consistent
+  Load game primary action for existing manual and automatic checkpoints, with
+  saving/copying below it. Add explicit name editing, grouped export/rename
+  controls and a separate confirmed delete action. Close on backdrop clicks,
+  retain native modal focus handling and use document scrolling for tall dialogs.
+- Add a Saved games library in the launcher and game toolbar: six manual slots,
+  three rotating autosaves, scene previews, checkpoint dates and custom names.
+  Choose the exact manual save or autosave to load, or keep an autosave in a
+  manual slot. Preserve personal graphics and controls when restoring.
+- Export and import portable `.sledsave` files with compressed snapshots,
+  previews and original checkpoint dates. Verify disc, BIOS, core, format,
+  bounded sizes and SHA-256 checksums before offering an import destination.
+- Migrate existing manual and automatic snapshots without changing the database
+  version or deleting their original data. Use atomic writes and slot revisions
+  to preserve saves on storage failures and conflicting edits from another tab.
+  Confirm replacements and deletions, and retain the latest deletion for undo
+  after reopening the library.
+- Add a disc-free browser check page for real IndexedDB migration, autosave
+  rotation, simultaneous writers, failed-write rollback and restoration.
+
+### Fixed - 2026-11-12
+
+- Fix EmulatorJS's exit-time `ErrnoError` when loading a save or returning to the
+  lobby. Mount a fresh in-memory save filesystem to match its existing unmount
+  callback; retain the pinned emulator and fresh room memory-card behavior.
+- Keep physical gamepad input out of modal dialogs and scope launcher tabs to
+  their own settings panels.
+
+### Added - 2026-11-11
+
+- Add Performance, Balanced and Quality graphics presets while keeping all
+  manual controls. Quality retains the existing defaults. Editing any graphics
+  control, including the live image filter, selects Custom; volume is independent.
+  Remember the selected preset and keep Custom settings when switching presets.
+- Add a Performance panel with live timeline speed, browser animation timing,
+  room synchronization, active rendering settings and practical status messages.
+  Reset measurements after backgrounding or synchronization and retain the raw
+  Technical details inside the panel.
+- Download a local JSON performance report with recent measurements and graphics
+  settings. Keep room invitations, game files and emulator state out of reports.
+
 ## 1.0.0 - 2026-11-11
 
 First 1.0 source release of the browser wrapper.

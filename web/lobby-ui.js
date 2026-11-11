@@ -1,4 +1,5 @@
 import { initControls } from './controls-ui.js';
+import { GRAPHICS_LABELS, restoreGraphics, selectGraphicsPreset, customizeGraphics } from './graphics-presets.js';
 
 // Presentation controls only. Console state and room settings remain in app.js.
 export function initLobby(notify, returnToLobby) {
@@ -16,7 +17,7 @@ export function initLobby(notify, returnToLobby) {
   };
   const controls = initControls();
   $('.skip-link').addEventListener('click', event => { event.preventDefault(); $('#setup').focus(); });
-  const tabs = [...document.querySelectorAll('[role=tab]')];
+  const tabs = [...$('#setup').querySelectorAll('[role=tab]')];
   const activate = (tab, persist = true) => {
     for (const item of tabs) {
       const active = item === tab;
@@ -48,23 +49,35 @@ export function initLobby(notify, returnToLobby) {
   const volume = $('#volume');
   const drawDistance = $('#draw-distance');
   const keepGameData = $('#keep-game-data');
-  // Apply the new defaults once, including browsers with the old defaults saved.
-  // Subsequent explicit choices still persist normally.
-  if (preferences.graphicsDefaults !== 1)
-    remember({ graphicsDefaults: 1, enhanced: true, drawDistance: 100 });
-  let preferredAspect = preferences.aspect === 'original' ? 'original' : 'wide';
-  if ([...image.options].some(option => option.value === preferences.filter)) image.value = preferences.filter;
+  const graphicsPreset = $('#graphics-preset');
+  let graphics = restoreGraphics(preferences);
+  const paintGraphics = () => {
+    graphicsPreset.value = graphics.preset;
+    image.value = graphics.settings.filter;
+    enhanced.checked = graphics.settings.enhanced;
+    drawDistance.value = graphics.settings.drawDistance;
+  };
+  paintGraphics();
   if ([...progress.options].some(option => option.value === preferences.progress)) progress.value = preferences.progress;
   if (typeof preferences.camera === 'boolean') camera.checked = preferences.camera;
   if (typeof preferences.keepGameData === 'boolean') keepGameData.checked = preferences.keepGameData;
   if (Number.isInteger(preferences.volume) && preferences.volume >= 0 && preferences.volume <= 100) volume.value = preferences.volume;
-  if (Number.isInteger(preferences.drawDistance)) drawDistance.value = preferences.drawDistance;
-  enhanced.checked = preferences.enhanced !== false;
   let widescreenAvailable = false;
+  let locked = false;
   const refresh = () => {
     wideOption.disabled = !widescreenAvailable;
-    drawDistance.disabled = !widescreenAvailable;
-    aspect.value = wideOption.disabled ? 'original' : preferredAspect;
+    drawDistance.disabled = locked || !widescreenAvailable;
+    aspect.value = wideOption.disabled ? 'original' : graphics.settings.aspect;
+    const descriptions = {
+      performance: '4:3 · Crisp pixels · 1× · Original distance. A lighter starting point.',
+      balanced: '16:9 · Clean · 1× · +50% distance. A middle ground for personal cameras.',
+      quality: '16:9 · Clean · 2× · +100% distance. The current graphics defaults.',
+      custom: 'Your manual graphics settings. Choose a preset to apply its settings together.',
+    };
+    $('#graphics-preset-help').textContent = descriptions[graphics.preset] +
+      (!widescreenAvailable && (graphics.settings.aspect === 'wide' || graphics.settings.drawDistance > 0)
+        ? ' This room uses 4:3 and Original distance; your preference is kept.' : '');
+    $('#summary-graphics').textContent = GRAPHICS_LABELS[graphics.preset];
     $('#summary-progress').textContent = $('#progress').selectedOptions[0].textContent;
     $('#summary-camera').textContent = $('#camera').checked ? 'Personal view' : 'Original shared view';
     $('#summary-image').textContent = image.selectedOptions[0].textContent +
@@ -77,20 +90,25 @@ export function initLobby(notify, returnToLobby) {
     const files = $('#disc-files').files;
     $('#disc-selection').textContent = files.length ? `${files.length} files selected` : '';
   };
-  const rememberFilter = filter => remember({ filter });
+  const commitGraphics = next => {
+    graphics = next;
+    remember({ ...graphics.settings, graphicsPreset: graphics.preset, customGraphics: graphics.custom, graphicsDefaults: 1 });
+    paintGraphics();
+    refresh();
+  };
+  const rememberFilter = filter => commitGraphics(customizeGraphics(graphics, { filter }));
+  graphicsPreset.addEventListener('change', () => commitGraphics(selectGraphicsPreset(graphics, graphicsPreset.value)));
   volume.addEventListener('input', refresh);
-  drawDistance.addEventListener('input', refresh);
+  drawDistance.addEventListener('input', () => commitGraphics(customizeGraphics(graphics, { drawDistance: Number(drawDistance.value) })));
   $('#setup').addEventListener('change', event => {
     const input = event.target;
     if (input === aspect) {
-      preferredAspect = aspect.value;
-      remember({ aspect: preferredAspect });
+      commitGraphics(customizeGraphics(graphics, { aspect: aspect.value }));
     } else if (input === image) rememberFilter(image.value);
     else if (input === progress) remember({ progress: progress.value });
     else if (input === camera) remember({ camera: camera.checked });
-    else if (input === enhanced) remember({ enhanced: enhanced.checked });
+    else if (input === enhanced) commitGraphics(customizeGraphics(graphics, { enhanced: enhanced.checked }));
     else if (input === volume) remember({ volume: Number(volume.value) });
-    else if (input === drawDistance) remember({ drawDistance: Number(drawDistance.value) });
     else if (input === keepGameData) remember({ keepGameData: keepGameData.checked });
     refresh();
   });
@@ -98,13 +116,11 @@ export function initLobby(notify, returnToLobby) {
     for (const [id, value] of [['progress', 'all'], ['image', 'clean'], ['volume', '50']]) {
       if (!$(`#${id}`).disabled) $(`#${id}`).value = value;
     }
-    preferredAspect = 'wide';
-    enhanced.checked = true;
-    drawDistance.value = '100';
+    commitGraphics(restoreGraphics());
     if (!$('#camera').disabled) $('#camera').checked = true;
     keepGameData.checked = true;
     keepGameData.dispatchEvent(new Event('change'));
-    remember({ aspect: 'wide', filter: 'clean', enhanced: true, volume: 50, drawDistance: 100, keepGameData: true,
+    remember({ volume: 50, keepGameData: true,
       ...(!progress.disabled && { progress: progress.value, camera: camera.checked }) });
     $('#bios').value = ''; $('#disc-files').value = '';
     controls.reset();
@@ -149,7 +165,7 @@ export function initLobby(notify, returnToLobby) {
     } catch { notify('Fullscreen is unavailable in this browser. You can continue in the window.'); }
   });
   window.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && document.fullscreenElement) {
+    if (event.key === 'Escape' && document.fullscreenElement && !$('dialog[open]')) {
       event.preventDefault();
       document.exitFullscreen().catch(() => {});
       return;
@@ -178,6 +194,13 @@ export function initLobby(notify, returnToLobby) {
   refresh();
   return {
     rememberFilter,
+    graphics: () => ({ preset: graphics.preset, ...graphics.settings }),
+    restoreGraphics() {
+      commitGraphics(restoreGraphics({
+        aspect: aspect.value, filter: image.value, enhanced: enhanced.checked,
+        drawDistance: Number(drawDistance.value), graphicsPreset: graphicsPreset.value, customGraphics: graphics.custom,
+      }));
+    },
     saveBeforeExit(save) { saveBeforeExit = save; },
     widescreenAvailable(available) {
       widescreenAvailable = available;
@@ -200,6 +223,7 @@ export function initLobby(notify, returnToLobby) {
         : 'The complete game and music load automatically. No file selection needed.';
     },
     start() {
+      locked = true;
       controls.lock();
       document.body.classList.add('is-playing');
       $('#game-stage').hidden = false;
