@@ -47,9 +47,9 @@
         <div class="section-title"><h2>Display and audio</h2><span>02 / 04</span></div>
         <div class="field"><label for="aspect">Race aspect ratio</label><select id="aspect" aria-describedby="aspect-help"><option value="original">4:3 · Original</option><option value="wide">16:9 · Widescreen</option></select><p class="field-help" id="aspect-help">16:9 works in solo PAL races and RetroArch rooms with personal cameras. Menus and shared split-screen use 4:3.</p></div>
         <div class="field"><label for="image">Image filter</label><select id="image"><option value="clean" selected>Clean · Sharp Bilinear</option><option value="crisp">Crisp pixels</option><option value="smooth">Smooth</option><option value="crt">CRT · Lottes</option></select><p class="field-help">Switch filters during play from the toolbar or with F7.</p></div>
-        <label class="setting-row switch-row"><span><strong>Enhanced 2×</strong><small>Render supported cameras at twice the resolution and upscale other scenes.</small></span><input type="checkbox" id="enhanced-render"><span class="switch" aria-hidden="true"></span></label>
-        <div class="volume-heading"><label for="draw-distance">Draw distance (experimental)</label><output id="draw-distance-value" for="draw-distance">Original</output></div>
-        <input id="draw-distance" type="range" min="0" max="100" step="10" value="0" aria-valuetext="Original" aria-describedby="draw-distance-help" disabled>
+        <label class="setting-row switch-row"><span><strong>Enhanced 2×</strong><small>Render supported cameras at twice the resolution and upscale other scenes.</small></span><input type="checkbox" id="enhanced-render" checked><span class="switch" aria-hidden="true"></span></label>
+        <div class="volume-heading"><label for="draw-distance">Draw distance (experimental)</label><output id="draw-distance-value" for="draw-distance">+100%</output></div>
+        <input id="draw-distance" type="range" min="0" max="100" step="10" value="100" aria-valuetext="+100%" aria-describedby="draw-distance-help" disabled>
         <p class="field-help" id="draw-distance-help">Set the maximum extra terrain distance. Dense scenes can shorten the range, and higher values can cause brief stutters. Choose Original for the game's default range.</p>
         <div class="volume-heading"><label for="volume">Volume</label><output id="volume-value" for="volume">50%</output></div><div class="volume-control"><span class="sound-symbol" aria-hidden="true">♪</span><input id="volume" type="range" min="0" max="100" value="50"></div>
         <p class="quiet-note">These settings apply to your browser. Choose them before launching.</p>
@@ -111,7 +111,7 @@
           </div>
         </div>
         <p class="launch-hint" id="launch-hint">First launch loads the full disc, including music.</p>
-        <p class="saved-note">PAL SLES-02194 / v0.9.4</p>
+        <p class="saved-note">PAL SLES-02194 / v1.0.0</p>
       </div>
     </aside>
     <section class="lobby-requirements" aria-labelledby="requirements-title">
@@ -173,7 +173,7 @@
       <p id="play-controls">Arrows to steer · S to accelerate · Enter for Start · W to go back</p><span>If a browser suspends the game, bring it back to the foreground.</span></div>
   </section>
 </main>
-<footer><span>SLED STORM / BROWSER EDITION</span><span>PS1 · 1999 / experimental build</span></footer>
+<footer><span>SLED STORM / BROWSER EDITION</span><span>PS1 · 1999 / v1.0.0</span></footer>
 <dialog id="exit-dialog" aria-labelledby="exit-title" aria-describedby="exit-help"><h2 id="exit-title">Leave this session?</h2><p id="exit-help">Your controller will disconnect. Others can continue; if you are the last player, the room ends.</p><div><button type="button" class="secondary-button" id="stay-game">Keep playing</button><button type="button" class="primary-button" id="confirm-exit">Return to lobby</button></div></dialog>
 <dialog id="game-data-dialog" aria-labelledby="game-data-title" aria-describedby="game-data-dialog-help">
   <h2 id="game-data-title">Game data</h2>
@@ -188,6 +188,6 @@
     <button class="text-button" value="cancel">Cancel</button>
   </form>
 </dialog>
-<script type="module" src="/app.js?v=0.9.4"></script>
+<script type="module" src="/app.js?v=1.0.0"></script>
 </body>
 </html>

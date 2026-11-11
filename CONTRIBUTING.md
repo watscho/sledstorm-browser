@@ -65,3 +65,11 @@ changes in `CHANGELOG.md` with an ISO date and use Unreleased while working.
 Never record private tunnel domains,
 access tokens, disc paths or invitation fragments. Distinguish an internet-path
 check on one computer from a test with players on separate remote computers.
+
+For a release, run the documented checks, update the current verification
+summary with the actual scope, and review the staged file list. Tag the exact
+release commit as `vMAJOR.MINOR.PATCH` and publish matching GitHub release notes.
+The 1.0.0 source release is a regular release, without a prerelease marker.
+Release archives must exclude game data, private links, generated emulator
+binaries and local browser automation output. Preserve historical changelog
+and verification entries when updating current guides.

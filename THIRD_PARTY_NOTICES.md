@@ -29,6 +29,10 @@ Downloaded assets, source checkouts, SDK and binaries remain in ignored
 `vendor/` and `.cache/` directories. Preserve applicable upstream notices and
 source-distribution obligations when distributing compiled components.
 
+The 1.0.0 GitHub release distributes this repository's source. Emulator assets
+and native binaries are prepared locally from the pinned dependencies above;
+no game disc, BIOS or memory-card data is included in the release archive.
+
 ## Image rendering
 
 The browser emulator's 16:9 race view uses four PAL track-renderer addresses

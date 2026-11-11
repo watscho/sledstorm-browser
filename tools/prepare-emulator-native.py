@@ -30,6 +30,11 @@ def main():
         actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=directory, text=True).strip()
         if actual != commit:
             raise RuntimeError(f'{directory}: expected pinned source {commit}')
+    # Retire the old generated projection hooks when reusing a cached checkout.
+    path = CORE / 'libpcsxcore/gte.c'
+    text = original(path)
+    if path.read_text() != text:
+        path.write_text(text)
     path = CORE / 'frontend/libretro.c'
     text = original(path)
     text = text.replace('unsigned sled_frame_count(void) { return frame_counter; }',

@@ -1,6 +1,6 @@
 # Sled Storm Browser
 
-**Version 0.9.4 · experimental · [Changelog](CHANGELOG.md)**
+**Version 1.0.0 · [Changelog](CHANGELOG.md) · [Release verification](docs/verification.md#100-verification-summary)**
 
 [Personal camera parity](#personal-camera-parity)
  · [Pine Valley multiplayer fixes](#pine-valley-multiplayer-fixes)
@@ -17,6 +17,20 @@ riders, sleds and courses are selected in the original game menus.
 
 *Cover scan: [PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html).
 Original game artwork is not covered by the wrapper's MIT license.*
+
+## Version 1.0.0
+
+The first 1.0 release includes dedicated four-player rooms, personal PAL cameras
+and HUDs, remembered ZIP selection for returning guests, and room links that
+survive returning to the lobby. A verified ZIP turns **Join game · Ready** green.
+The launcher defaults to **16:9**, **Clean · Sharp Bilinear**, **Enhanced 2×**
+and **+100%** draw distance. Personal choices remain adjustable.
+
+Upgrading from 0.x requires rebuilding the native emulator. Follow
+[the upgrade steps](docs/setup.md#upgrade-an-existing-installation), then start
+a new room and send a fresh invitation. Source releases contain no game disc,
+BIOS, memory cards or compiled emulator downloads. Platform and multiplayer
+coverage is described in [known limits](#current-limits).
 
 ## ▶ Start, invite, stop
 
@@ -88,6 +102,9 @@ when **Keep or choose game data** is checked. Select the same ZIP on a new tunne
 address to reuse the full disc, including music. You can also join without
 saving. A permanent HTTPS address reuses its browser copy
 automatically. Each new game started from the launcher gets its own room.
+At the same tunnel address, returning to the lobby keeps your selected ZIP.
+If Chrome resets file access, **Join game** renews access to that same file;
+the source picker is not reopened. A new tunnel address has separate storage.
 See [disc downloads and browser storage](docs/multiplayer.md#disc-downloads-and-browser-storage).
 
 ### 3. Enter a race together
@@ -140,14 +157,14 @@ and four Chrome clients in both room types on one Mac, with 4:3, widescreen,
 software Enhanced 2× and WebGL2. See the
 [verification record](docs/verification.md#093-verification-summary).
 
-Version 0.9.4 also keeps the Pine Valley scenery and sleds visible at the
+Personal cameras also keep the Pine Valley scenery and sleds visible at the
 lap and finish line. Both Chrome clients in a three-lap dedicated race
 reached matching standings. See the
 [lap and finish checks](docs/verification.md#094-verification-summary).
 
 ## Pine Valley multiplayer fixes
 
-Version 0.9.1 restores the sign and ice-wall debris in personal cameras.
+Personal cameras preserve the sign and ice-wall debris.
 The PAL game awards 50 points for the sign and 500 for the ice wall. Both
 browser-hosted and dedicated rooms use the full-size PAL camera for these
 effects, snowfall, widescreen scenery and the local finish banner.
@@ -162,8 +179,8 @@ lists the render modes, test results and follow-up coverage.
 
 ## Draw distance and race stability
 
-Version 0.9.0 added an opt-in way to see farther down the course and
-made it easier to keep a dedicated race going when a player reconnects or
+The draw distance setting extends the view down the course, while dedicated
+room synchronization keeps the race going when a player reconnects or
 packets arrive in bursts.
 
 | Area | What changed and why |
@@ -173,7 +190,7 @@ packets arrive in bursts.
 | **Keep your controller** | The dedicated room keeps running when the creator closes their tab. Another player can take ownership while keeping their controller number, and returning players recover their original seats. |
 
 > [!NOTE]
-> **Draw distance is experimental.** **Original** is the default. In
+> **Draw distance is experimental.** **+100%** is the launcher default. In
 > **Display and audio**, set a personal maximum up to **+100%** for solo PAL
 > races or RetroArch rooms with personal cameras. The visible range can vary by
 > scene, and higher settings can cause brief stutters, especially with 16:9
@@ -207,8 +224,8 @@ its HTTPS invitation.
 
 Choose race aspect ratio, draw distance, image filtering, volume and
 **Enhanced 2×** in **Display and audio**. Solo PAL races and personal cameras in
-RetroArch rooms default to **16:9** with **Clean · Sharp Bilinear** filtering.
-**Draw distance** is experimental and defaults to **Original**.
+RetroArch rooms default to **16:9** with **Clean · Sharp Bilinear** filtering
+and **Enhanced 2×** enabled. **Draw distance** is experimental and defaults to **+100%**.
 **4:3 · Original** is available for races, and menus and shared split-screen
 stay in 4:3.
 The in-game toolbar also offers filter switching, PNG screenshots and

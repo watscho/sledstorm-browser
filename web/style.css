@@ -471,6 +471,8 @@ dd {
 }
 .keep-game-data input { margin:0; accent-color:var(--accent); }
 #game-data-state.is-ready { color:#a9e7bf; font-weight:600; }
+#launch.is-ready { background:#a9e7bf; border-color:#a9e7bf; color:#102c1b; }
+#launch.is-ready:hover:not(:disabled) { background:#c8f4d8; border-color:#c8f4d8; }
 #game-data-help { margin:2px 0 0; line-height:1.45; overflow-wrap:anywhere; }
 #change-game-data { padding:5px 0; text-decoration:underline; }
 #game-data-dialog .game-data-dialog-actions { flex-wrap:wrap; justify-content:flex-start; }

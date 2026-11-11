@@ -1,7 +1,7 @@
 # Documentation
 
-[Draw distance and race stability update](../README.md#draw-distance-and-race-stability)
- · [Current verification summary](verification.md#092-verification-summary)
+[Version 1.0.0](../README.md#version-100)
+ · [Current verification summary](verification.md#100-verification-summary)
 
 ## Start here
 
@@ -22,7 +22,7 @@
 | [Contributing](../CONTRIBUTING.md) | Source conventions, checks and versioning. |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Component attribution and license boundaries. |
 | [Preserved license texts](licenses/README.md) | Scope and origin of the upstream files in `licenses/`. |
-| [Changelog](../CHANGELOG.md) | Development builds and release history. |
+| [Changelog](../CHANGELOG.md) | Release changes and development history. |
 
 Play instructions describe the browser emulator on port **8000**. The normal
 internet command is `python3 tools/play-online.py`. Press **Ctrl+C** in that

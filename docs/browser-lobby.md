@@ -12,6 +12,11 @@ locked to the invitation. The selected tab and personal settings are remembered
 in the same browser at the same address. Select local disc or BIOS files again
 after a refresh.
 
+Version 1.0.0 applies **Enhanced 2×** and **+100%** draw distance once when
+upgrading saved preferences from 0.x. Later personal changes are remembered;
+**Reset settings** restores the new defaults. Host disc ZIP selection is
+remembered separately from local CUE/BIN and BIOS inputs.
+
 The lobby lists the browser requirements and hardware starting points for
 players and dedicated hosts. See [hardware and connection](setup.md#hardware-and-connection)
 for details.
@@ -22,14 +27,14 @@ for details.
 | --- | --- | --- |
 | Progress | **All content unlocked** or **Original progression**. The preset changes temporary menu memory. | Yes; guests inherit it. |
 | Race aspect ratio | **16:9 · Widescreen** is the default in solo PAL races and PAL races with personal cameras in RetroArch rooms. Choose **4:3 · Original** for the original proportions. Menus and shared split-screen use 4:3. | No; personal. |
-| Draw distance (experimental) | **Original** targets the solo range on personal PAL cameras. Select up to **+100%** for extra terrain. Dense scenes can shorten the range, and higher values can cause brief stutters. | Personal. |
+| Draw distance (experimental) | Defaults to **+100%** for extra terrain. **Original** targets the solo range on personal PAL cameras. Dense scenes can shorten the range, and higher values can cause brief stutters. | Personal. |
 | Image filter | **Clean** (Sharp Bilinear) is the default. **Crisp pixels**, **Smooth**, and **CRT · Lottes** are also available. The toolbar and **F7** can change the filter during play. | No; personal. |
-| Enhanced 2× | Select before starting or joining. Solo PAL races and personal cameras in RetroArch rooms render at twice the width and height. Other scenes upscale the original frame. Off by default. | No; personal. |
+| Enhanced 2× | Enabled by default. Solo PAL races and personal cameras in RetroArch rooms render at twice the width and height. Other scenes upscale the original frame. Change before starting or joining. | No; personal. |
 | Volume | Browser audio volume. | No; personal. |
 | Separate cameras | Full personal camera and original single-player HUD for two to four racers. Enabled by default. | Yes; guests inherit it. |
 | Optional PlayStation BIOS | Dedicated rooms use the built-in BIOS. In a browser-hosted room, select your own BIOS or leave it empty for HLE. | Every player in a browser-hosted room must use the same choice/file. |
 | Game files (local-file mode) | Select the CUE and all eleven BIN tracks. | Every player supplies matching contents. |
-| Keep or choose game data (shared-disc invitations) | With a Quick Tunnel, **Join game** offers to open or save a ZIP. Turning the option off skips the picker. On a permanent address, turning off **Keep game data** clears the browser's cached copy after startup. | No; personal. |
+| Keep or choose game data (shared-disc invitations) | With a Quick Tunnel, select or save a ZIP once. A verified source makes **Join game · Ready** green. Returning guests reuse it at the same address; Join can renew its read permission. Turning the option off skips the initial picker. On a permanent address, turning off **Keep game data** clears the cached copy after startup. | No; personal. |
 
 Set volume, aspect ratio, draw distance and Enhanced 2× before starting. The image filter
 can also change during play. The launcher remembers these settings, along
@@ -143,6 +148,9 @@ toolbars and emulator controls. Press **Escape** to return to the normal view.
 **Return to lobby**
 asks before disconnecting your controller. A dedicated room continues while
 others are connected. Leaving a browser-hosted room as its host ends the room.
+Returning to the lobby preserves the room invitation in the URL. The header
+logo also keeps that invitation; during play it opens the same exit confirmation.
+Choose the root launcher address explicitly when you want to create a new room.
 
 ## Loading and status
 

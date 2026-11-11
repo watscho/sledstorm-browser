@@ -48,6 +48,10 @@ export function initLobby(notify, returnToLobby) {
   const volume = $('#volume');
   const drawDistance = $('#draw-distance');
   const keepGameData = $('#keep-game-data');
+  // Apply the new defaults once, including browsers with the old defaults saved.
+  // Subsequent explicit choices still persist normally.
+  if (preferences.graphicsDefaults !== 1)
+    remember({ graphicsDefaults: 1, enhanced: true, drawDistance: 100 });
   let preferredAspect = preferences.aspect === 'original' ? 'original' : 'wide';
   if ([...image.options].some(option => option.value === preferences.filter)) image.value = preferences.filter;
   if ([...progress.options].some(option => option.value === preferences.progress)) progress.value = preferences.progress;
@@ -55,7 +59,7 @@ export function initLobby(notify, returnToLobby) {
   if (typeof preferences.keepGameData === 'boolean') keepGameData.checked = preferences.keepGameData;
   if (Number.isInteger(preferences.volume) && preferences.volume >= 0 && preferences.volume <= 100) volume.value = preferences.volume;
   if (Number.isInteger(preferences.drawDistance)) drawDistance.value = preferences.drawDistance;
-  enhanced.checked = preferences.enhanced === true;
+  enhanced.checked = preferences.enhanced !== false;
   let widescreenAvailable = false;
   const refresh = () => {
     wideOption.disabled = !widescreenAvailable;
@@ -95,12 +99,12 @@ export function initLobby(notify, returnToLobby) {
       if (!$(`#${id}`).disabled) $(`#${id}`).value = value;
     }
     preferredAspect = 'wide';
-    enhanced.checked = false;
-    drawDistance.value = '0';
+    enhanced.checked = true;
+    drawDistance.value = '100';
     if (!$('#camera').disabled) $('#camera').checked = true;
     keepGameData.checked = true;
     keepGameData.dispatchEvent(new Event('change'));
-    remember({ aspect: 'wide', filter: 'clean', enhanced: false, volume: 50, drawDistance: 0, keepGameData: true,
+    remember({ aspect: 'wide', filter: 'clean', enhanced: true, volume: 50, drawDistance: 100, keepGameData: true,
       ...(!progress.disabled && { progress: progress.value, camera: camera.checked }) });
     $('#bios').value = ''; $('#disc-files').value = '';
     controls.reset();
@@ -108,6 +112,18 @@ export function initLobby(notify, returnToLobby) {
   });
   const dialog = $('#exit-dialog');
   let saveBeforeExit;
+  const brand = $('.brand');
+  // Keep the room capability and diagnostic options in every lobby link,
+  // including modified clicks that open a new tab.
+  const updateBrand = () => brand.href = location.href;
+  updateBrand();
+  window.addEventListener('hashchange', updateBrand);
+  brand.addEventListener('click', event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (!$('#game-stage').hidden) dialog.showModal();
+    else $('#setup').focus();
+  });
   $('#back-lobby').addEventListener('click', () => dialog.showModal());
   $('#stay-game').addEventListener('click', () => dialog.close());
   $('#confirm-exit').addEventListener('click', async event => {
@@ -189,5 +205,6 @@ export function initLobby(notify, returnToLobby) {
       $('#game-stage').hidden = false;
       $('.stage-status').append($('#status'));
     },
+    invitationChanged: updateBrand,
   };
 }

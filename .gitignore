@@ -1,5 +1,6 @@
 .DS_Store
 .cache/
+.playwright-cli/
 __pycache__/
 *.py[cod]
 node_modules/

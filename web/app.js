@@ -11,6 +11,7 @@ import { openSoloSave, takeLoadRequest, trackSoloSave } from './solo-save.js';
 import { initLobby } from './lobby-ui.js';
 import {
   canChooseGameArchive, openGameArchive, chooseGameArchiveDestination, matchingGameArchive, saveGameArchive,
+  rememberGameArchive, restoreGameArchive, reopenGameArchive,
 } from './game-data-folder.js';
 
 const launch = document.querySelector('#launch');
@@ -41,8 +42,7 @@ let roomMessage = status.textContent;
 let actionNotice = '';
 let noticeTimer;
 const lobby = initLobby(showActionNotice, () => {
-  if (invitation) location.reload();
-  else location.assign('/');
+  location.reload();
 });
 const loadRequestId = /^#load=([0-9a-f-]{36})$/.exec(location.hash)?.[1];
 if (loadRequestId) history.replaceState(null, '', location.pathname + location.search);
@@ -105,10 +105,12 @@ function describeGameData() {
       ? 'The first download is kept in this browser for future rooms at this address.'
       : 'Play without saving. An existing browser copy is used once, then cleared.';
   } else if (archiveSelection) {
-    state = archiveSelection.file ? 'Game data found' : 'Save location selected';
+    state = archiveSelection.file ? 'Game data ready' : archiveSelection.handle ? 'ZIP selected' : 'Save location selected';
     help = archiveSelection.file
       ? `“${archiveSelection.file.name}” is ready to use.`
-      : `Game data will be saved as “${archiveSelection.destination.name}”.`;
+      : archiveSelection.handle
+        ? `“${archiveSelection.handle.name}” is selected. Press Join game to allow file access again.`
+        : `Game data will be saved as “${archiveSelection.destination.name}”.`;
   } else {
     help = keepGameData.checked
       ? 'Use a saved ZIP or save a new copy when you join.'
@@ -117,6 +119,10 @@ function describeGameData() {
   gameDataState.textContent = state;
   gameDataState.hidden = !state;
   gameDataState.classList.toggle('is-ready', Boolean(archiveSelection?.file));
+  const selected = Boolean(archiveSelection?.file || archiveSelection?.handle);
+  launch.classList.toggle('is-ready', selected);
+  if (invitation) document.querySelector('#launch-label').textContent = archiveSelection?.file
+    ? 'Join game · Ready' : selected ? 'Join game · ZIP selected' : 'Join game';
   gameDataHelp.textContent = help;
   changeGameData.hidden = !archiveSelection;
 }
@@ -143,11 +149,12 @@ for (const button of gameDataDialogActions) {
     try {
       // Start the native picker in the click handler to preserve user activation.
       if (source === 'open') {
-        const file = await openGameArchive();
+        const selection = await openGameArchive();
         gameDataDialogStatus.textContent = 'Verifying the selected ZIP…';
-        if (!await matchingGameArchive(file, availableArchive))
+        if (!await matchingGameArchive(selection.file, availableArchive))
           throw new Error('This ZIP does not match the room. Choose a different ZIP or save a new copy.');
-        archiveSelection = { file };
+        archiveSelection = selection;
+        await rememberGameArchive(availableArchive, selection.handle);
       } else {
         archiveSelection = { destination: await chooseGameArchiveDestination(availableArchive) };
         keepGameData.checked = true;
@@ -181,7 +188,10 @@ const launcherInfo = fetch('/session-info').then(async response => {
   lobby.widescreenAvailable(lab || (invitation ? Boolean(nativeCamera) : info.pal || info.discMode === 'local'));
   if (invitation && info.discMode === 'shared' &&
       (quickTunnel ? canChooseGameArchive && info.archive : Boolean(window.caches))) {
-    if (quickTunnel) availableArchive = info.archive;
+    if (quickTunnel) {
+      availableArchive = info.archive;
+      archiveSelection = await restoreGameArchive(availableArchive);
+    }
     describeGameData();
     gameDataSettings.hidden = false;
     if (!quickTunnel) document.querySelector('#keep-game-data-label').textContent = 'Keep game data';
@@ -286,6 +296,9 @@ async function sharedDiscFile({ disc: fingerprint }, keep) {
     showStatus('Saving game data…');
     try {
       await saveGameArchive(archiveSelection.destination, blob);
+      const handle = archiveSelection.destination;
+      archiveSelection = { file: await handle.getFile(), handle };
+      await rememberGameArchive(availableArchive, handle);
     } catch (error) {
       console.warn('Could not save Sled Storm game data.', error);
     }
@@ -306,6 +319,16 @@ launch.addEventListener('click', () => startGame());
 async function startGame(loadRequest) {
   if (launch.disabled) return;
   const keep = gameDataSettings.hidden || keepGameData.checked;
+  if (archiveSelection?.handle && !archiveSelection.file) {
+    launch.disabled = true;
+    try {
+      archiveSelection = await reopenGameArchive(archiveSelection.handle, availableArchive);
+      describeGameData();
+    } catch (error) {
+      showStatus(error.message);
+      return;
+    } finally { launch.disabled = false; }
+  }
   if (quickTunnel && !gameDataSettings.hidden && keep && !archiveSelection) {
     showGameDataDialog();
     return;
@@ -596,6 +619,7 @@ async function invitationSettings(bios) {
   const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, retroArch ? 'retroarch-netplay-v7' : 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
   const shareInvitation = room => {
     history.replaceState(null, '', invitationUrl(location.href, '/', room, roomOptions));
+    lobby.invitationChanged();
     sharedRoom = room;
     document.querySelector('#copy-invite').hidden = false;
   };

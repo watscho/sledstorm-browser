@@ -1,5 +1,27 @@
 # Verification and known limits
 
+## 1.0.0 verification summary
+
+Release checks on 2026-11-11 used one Mac. The release removes the experimental
+build label; the platform and gameplay coverage limits below still apply.
+
+| Check | Result |
+| --- | --- |
+| Browser logic | All 32 tests passed, including remembered ZIP handles, permission renewal, changed-file rejection, invitations, controls and Netplay helpers. |
+| Relay and gateway | All 19 network tests passed. |
+| HTTP launcher | All four synthetic HTTP tests passed. |
+| Native presentation | The pinned-header isolation and four-controller viewport checks passed. Python sources compiled successfully. |
+| Guest return to lobby | An isolated loopback browser fixture exercised the Quick Tunnel branch with a small test file and a stored file handle. After forcing read access back to `prompt`, two launches separated by Return to lobby used the source picker once. The fixture replaced emulator loading; this check did not run a live multiplayer race. |
+| Readiness and defaults | The browser showed a green **Join game · Ready** button after file verification, **Enhanced 2×** enabled and draw distance **+100%**. A reload retained the selected ZIP and room invitation. |
+| Native upgrade | A stale cached checkout reproduced unresolved legacy GTE projection symbols. Restoring the retired generated file from the pinned source allowed the emulator rebuild and source/binary hash checks to pass. Local launcher and Cloudflare launcher/core HTTP checks passed during the startup repair. |
+
+The earlier Pine Valley race, camera, controller and reconnect results remain
+recorded in the versioned sections below. This release does not claim new
+multi-device, Linux/WSL, physical-gamepad or other-course qualification.
+
+Source archives exclude game data, BIOS files, private invitations, generated
+emulator binaries and local verification artifacts.
+
 ## 0.9.4 verification summary
 
 A dedicated two-client Pine Valley race on one Mac reproduced black gaps
@@ -2462,7 +2484,7 @@ requires a C compiler and the pinned source checkout from the build.
   M5 Pro. Full races on separate computers and networks, longer mixed-render
   sessions and remote input latency still need coverage. A pause on both
   delivery routes can still produce a visible hitch or an audio gap.
-- Extended draw distance is experimental and defaults to **Original**. The
+- Extended draw distance is experimental and defaults to **+100%**. The
   current graphics matrix covers Pine Valley. Higher settings can cause brief
   stutters and the renderer can shorten the range in dense scenes. The native
   camera also has earlier checks on Hard Pack and Kodiak Canyon. More course

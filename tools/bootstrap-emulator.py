@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the pinned EmulatorJS experiment without downloading any game data."""
+"""Install the pinned EmulatorJS runtime without downloading any game data."""
 import argparse
 import hashlib
 import json

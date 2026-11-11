@@ -3,6 +3,30 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 1.0.0 - 2026-11-11
+
+First 1.0 source release of the browser wrapper.
+
+- Remove the experimental build label from the release version and launcher.
+- Remember a guest's selected ZIP at the same Quick Tunnel address. Retain
+  its handle when read permission resets and renew access from Join without
+  reopening the source picker. Revalidate the file before reuse.
+- Turn the launch button green and show **Join game · Ready** after verifying
+  the selected ZIP; show **ZIP selected** when read access needs renewal.
+- Preserve the room invitation when returning to the lobby or clicking the
+  header logo, and confirm exits from an active game.
+- Enable Enhanced 2× and +100% draw distance by default, including Reset
+  settings. Migrate existing graphics defaults once, then remember personal
+  changes normally.
+- Remove obsolete generated GTE projection hooks before rebuilding cached
+  native sources, fixing upgrades that failed to link.
+- Refresh setup, hosting, controls, storage, architecture and verification
+  documentation for 1.0.0. Keep experimental draw distance labeled separately
+  and retain the documented platform and multiplayer coverage limits.
+
+See [release verification](docs/verification.md#100-verification-summary) for
+the checks performed and their scope.
+
 ## 0.9.4 - 2026-11-10
 
 - Restore the slopes, backdrop and sleds in dense frames at the Pine

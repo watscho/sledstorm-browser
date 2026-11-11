@@ -46,10 +46,17 @@ With a temporary Quick Tunnel in Chrome, **Keep or choose game data** is checked
 by default. Press **Join game** to see the available sources:
 
 - **Use existing ZIP** opens an individual archive, including one in Downloads.
-  The launcher verifies it and shows **Game data found**. Press **Join game**
+  The launcher verifies it and turns **Join game · Ready** green. Press it
   again to play. Select that ZIP again on a new tunnel address.
 - **Save a ZIP and join** opens the system save dialog. The launcher downloads
   the archive, writes it to the selected file and joins the room.
+
+Returning to the lobby or reloading at the same address reuses the selected ZIP
+while the browser still grants access and its contents match the room. The
+launcher remembers the file handle, without copying the ZIP into tunnel storage.
+If browser access resets after a reload, the ZIP stays selected: pressing
+**Join game** asks to allow access to that same file, without reopening the
+source picker. Choose again if the file is moved or its contents change.
 
 Choose **Join without saving** or uncheck **Keep or choose game data** to use a
 download for the current session. ZIPs selected with **Use existing ZIP** remain
@@ -81,7 +88,8 @@ enabled. The native pause/options menu is shared and keeps its 4:3 proportions
 over each player's personal view.
 PAL personal cameras support 16:9 and Enhanced 2× independently for
 each player. A room can mix 4:3 and 16:9 displays. Experimental draw distance
-is also personal, with **Original** as the default. See
+is also personal, with **+100%** as the launcher default. **Enhanced 2×** is
+enabled by default. See
 [display settings](browser-lobby.md#before-launch).
 RetroArch restores the current race state after the disc loads. The host
 must stay connected in a browser-hosted room. Guests who reopen the same

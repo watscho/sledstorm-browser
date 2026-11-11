@@ -23,7 +23,8 @@ In local-file mode, every player supplies a matching CUE/BIN set.
 For a player, try a modern 4-core CPU and 8 GB of RAM as a starting point.
 Use a desktop browser with WebAssembly SIMD and WebGL 2, turn on graphics
 acceleration, and start with the default **Clean · Sharp Bilinear** filter.
-Try **Enhanced 2×** once the original resolution runs smoothly. On the host,
+**Enhanced 2×** and **+100%** draw distance are enabled by default. If playback
+stutters, lower draw distance or turn off Enhanced 2×. On the host,
 `python3 tools/prepare-hardware-preview.py` enables optional WebGL2 acceleration
 for dedicated 16:9 races with **Clean** or **Crisp pixels**.
 
@@ -74,7 +75,9 @@ python3 tools/build-emulator.py
 If you use the WebGL2 renderer, rerun `python3 tools/prepare-hardware-preview.py`.
 Start the launcher again and create a new room. If playing online, send a
 fresh invitation so everyone loads the same build. The camera, Netplay and
-audio changes in this update require the rebuilt emulator. Solo saves are
+audio changes since earlier releases require the rebuilt emulator. Version
+1.0.0 also removes obsolete generated projection hooks from cached source
+checkouts during preparation. Solo saves are
 matched to the disc, BIOS and emulator build at the same browser address.
 
 ## Add the game files
@@ -161,6 +164,7 @@ browser-hosted rooms. The creator's tab must stay open.
 | Launcher finds an older Node.js version | Run `node --version` in the hosting terminal. Activate Node.js 22 or newer. With nvm, run `nvm use` from the project folder. |
 | Cannot extract the release archive | Install bsdtar/libarchive. macOS system `tar` supports the archive format. |
 | Missing assets or native build manifest | Complete both setup commands successfully before hosting. |
+| Native adapter sources changed, or the runtime exits immediately after an update | Read `.cache/online/runtime.log`, stop hosting and rerun `python3 tools/build-emulator.py` with Python 3.10 or newer. Start a fresh room after the rebuild. |
 | Missing or ambiguous CUE | Keep one CUE-containing game folder directly under the project root. |
 | Missing BIN or disc mismatch | Keep every referenced track, preserve names, and use matching PAL files. |
 | Port already in use | Press Ctrl+C in the terminal running the existing server before starting another. |
@@ -180,7 +184,7 @@ browser-hosted rooms. The creator's tab must stay open.
 | Enhanced 2× looks like the original resolution | Enter a solo PAL race or a RetroArch room with personal cameras to use native 2×. Other scenes upscale the finished frame. |
 | Draw distance is unavailable, varies by scene or stutters | **Display and audio → Draw distance (experimental)** applies to solo PAL races and personal cameras in RetroArch rooms. Higher values set a ceiling, and the renderer can shorten the range in dense scenes. If you see brief stutters, try a lower value or **Original**. |
 | Save or load icon is hidden | Use the room creator's browser, with only its controller connected and no reserved seats or active multiplayer race. |
-| Guests download the disc on every launch | In Chrome with a Quick Tunnel, keep **Keep or choose game data** checked and use **Use existing ZIP** to select the same archive. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
+| Guest returns to the lobby and game data needs attention | At the same Quick Tunnel address, the selected ZIP remains available. **Join game · Ready** is green after verification. If the browser asks for file access, allow the same file; select another ZIP only if the file moved, changed or the tunnel address is new. Browser storage must be available. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
 | State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |
 
 Private helper logs are in `.cache/online/`. Do not publish access links, room

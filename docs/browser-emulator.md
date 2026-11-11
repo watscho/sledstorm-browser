@@ -25,6 +25,11 @@ using Cache Storage and checks the disc fingerprint before reusing it. In Chrome
 on a Quick Tunnel, the launcher can reuse an archive selected by the player
 instead of storing separate copies per temporary hostname. It verifies the ZIP
 against the host's chunk hashes before loading it.
+The selected file handle is stored in IndexedDB under that origin, bound to
+the archive hash. A reload with a permission state of `prompt` retains the
+handle; the next Join click requests read access before network work and
+revalidates the chunks. It does not copy the full ZIP into each temporary
+origin's storage. Denied storage or unavailable files fall back to selection.
 
 Local-file mode reads browser-selected CUE/BIN files and blocks `/disc.zip` at
 both server and gateway. Disc identity hashes every track, including audio, in
@@ -113,7 +118,7 @@ and discard quads that cross the GTE near plane or stretch more than 128 native
 pixels along either screen axis. The original shared renderer keeps its own
 draw rules.
 
-**Enhanced 2×** is a personal launch setting. Supported PAL races produce
+**Enhanced 2×** is enabled by default as a personal launch setting. Supported PAL races produce
 1024×512 in 4:3 or 1368×512 in 16:9. Run
 `python3 tools/prepare-hardware-preview.py` on the host to enable WebGL2
 acceleration for dedicated 16:9 races with **Clean** or **Crisp pixels**.
@@ -123,7 +128,7 @@ and game textures. Menus and shared split-screen use the finished software
 frame. This setting only affects the local display.
 
 **Draw distance (experimental)** is a personal launch setting for the same
-PAL race modes. **Original** targets the solo span of 10 terrain cells in
+PAL race modes, defaulting to **+100%**. **Original** targets the solo span of 10 terrain cells in
 personal views. Dense scenes can fall back to the stock multiplayer range.
 The opening sweep and countdown reserve geometry for sleds and shadows, and
 the widescreen view extends the fog backdrop across the extra width. Values
