@@ -77,6 +77,22 @@ license and component notices.
 under Apache License 2.0. It provides temporary HTTPS access and is not vendored
 or compiled into the emulator. Its distribution carries its own notices.
 
+## Server packaging tools
+
+The `server/` package builds a single executable for local development. No
+built executable is committed or published.
+
+| Component | Pinned version / source | Use | Terms |
+| --- | --- | --- | --- |
+| [Node.js](https://nodejs.org/) | 26.13.1; archive SHA-256 in `server/toolchain.lock.json` | Runtime embedded in the single executable | MIT, plus the terms of its bundled components listed in the Node.js `LICENSE` file. |
+| [websockets/ws](https://github.com/websockets/ws) | `ws@8.22.1`; npm integrity in `server/package-lock.json` | WebSocket transport bundled into the server | [MIT notice](docs/licenses/ws-LICENSE.txt). |
+| [evanw/esbuild](https://github.com/evanw/esbuild) | `esbuild@0.28.2` | Build-time bundler, not shipped | MIT. |
+| [microsoft/TypeScript](https://github.com/microsoft/TypeScript) | `typescript@7.0.2` | Build-time type checking, not shipped | Apache-2.0. |
+| [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | `@types/node@26.6.6`, `@types/ws@8.18.2` | Build-time type declarations, not shipped | MIT. |
+
+A distributed build embeds the Node.js runtime and must carry the Node.js
+`LICENSE` file with it. That packaging step has not been done yet.
+
 ## Interface inspiration
 
 OpenEmu served as a design reference for the in-game toolbar and shortcuts,

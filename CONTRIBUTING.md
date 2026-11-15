@@ -24,6 +24,24 @@ python3 tools/test-emulator-server.py
 python3 -m py_compile server.py tools/build-emulator.py tools/play-online.py
 ```
 
+For the packaged server, also without a game disc:
+
+```sh
+npm ci --prefix server
+npm run typecheck --prefix server
+npm test --prefix server
+```
+
+On macOS with Apple Silicon, build the single executable and run the packaged
+checks. The first build fetches the pinned Node.js runtime into `.cache/` and
+verifies it against `server/toolchain.lock.json`. The smoke tests run the built
+executable, not the sources:
+
+```sh
+npm run build:sea --prefix server
+npm run smoke --prefix server
+```
+
 After building the pinned native emulator, with a local C compiler:
 
 ```sh
@@ -66,7 +84,7 @@ original contribution licensing separate from derived output.
 Use semantic versions for this wrapper, independently of the game and upstream
 components. Bump the wrapper version before publishing a development build or
 pushing to `main`, including documentation changes. Keep `VERSION`,
-`research/network/package.json` and its lockfile
+`research/network/package.json`, `server/package.json` and their lockfile
 root/package versions in sync with the release labels in `README.md` and
 `web/index.html`, including the launcher script's version parameter. Record
 changes in `CHANGELOG.md` with an ISO date and use Unreleased while working.

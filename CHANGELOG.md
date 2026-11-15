@@ -3,6 +3,20 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## Unreleased
+
+### Added - 2026-11-15
+
+- Start the packaged host server in `server/`: TypeScript bundled into one
+  CommonJS file and built as a Node.js 26.13.1 single executable for macOS on
+  Apple Silicon, with a draft application bundle. The existing gateway and
+  Netplay relay modules are bundled unchanged. This is a packaging proof: it
+  does not start the emulator, a room or a tunnel yet, and the Python launchers
+  remain the way to play.
+- Add packaged smoke tests that run the built executable from a read-only
+  bundle with an empty search path, and `docs/sea-server-plan.md` with the
+  staged plan, decisions and verification log.
+
 ## 1.1.0 - 2026-11-12
 
 Save library, graphics presets and performance diagnostics. Native emulator

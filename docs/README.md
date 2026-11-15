@@ -19,6 +19,7 @@
 | --- | --- |
 | [Emulator architecture](browser-emulator.md) | RetroArch Netplay, camera/HUD isolation, local diagnostics and source pins. |
 | [Verification](verification.md) | Current results, known limits and the development test record. |
+| [Packaged server plan](sea-server-plan.md) | Staged plan, decisions and verification log for the single-executable host server. |
 | [Contributing](../CONTRIBUTING.md) | Source conventions, checks and versioning. |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Component attribution and license boundaries. |
 | [Preserved license texts](licenses/README.md) | Scope and origin of the upstream files in `licenses/`. |

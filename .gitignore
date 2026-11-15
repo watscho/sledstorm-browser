@@ -33,3 +33,6 @@ game/
 generated/
 build/
 research/wasm/assets/race-preview.png
+
+# Server bundle, single executable and application bundle.
+dist/
