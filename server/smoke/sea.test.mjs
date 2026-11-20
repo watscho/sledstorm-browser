@@ -4,8 +4,11 @@
 // name has spaces and non-ASCII characters.
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { createHash, randomBytes } from 'node:crypto';
+import { once } from 'node:events';
 import { constants } from 'node:fs';
-import { cp, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { connect, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import test from 'node:test';
@@ -34,7 +37,47 @@ async function listing(root) {
   return files.sort();
 }
 
-async function stage(layout) {
+/** Stub emulator files: enough for the server to host, never a real emulator. */
+async function syntheticEmulator(resources) {
+  const emulator = join(resources, 'emulator');
+  await mkdir(join(emulator, 'emulatorjs', 'cores'), { recursive: true });
+  await writeFile(join(emulator, 'emulator.lock.json'),
+    JSON.stringify({ files: { 'loader.js': 'a'.repeat(64), 'cores/pcsx_rearmed-wasm.data': 'b'.repeat(64) } }));
+  await writeFile(join(emulator, 'native-build.json'), JSON.stringify({ files: { 'core.wasm': 'c'.repeat(64) } }));
+  await writeFile(join(emulator, 'network-core.data'), 'synthetic core');
+  await writeFile(join(emulator, 'emulatorjs', 'loader.js'), '// synthetic loader\n');
+  await writeFile(join(emulator, 'emulatorjs', 'cores', 'pcsx_rearmed-wasm.data'), 'synthetic archive');
+}
+
+/** A CUE and two tracks of random bytes. */
+async function syntheticDisc(folder) {
+  await mkdir(folder, { recursive: true });
+  await writeFile(join(folder, 'Track 01.bin'), randomBytes(70_000));
+  await writeFile(join(folder, 'Трек 02.bin'), randomBytes(30_000));
+  await writeFile(join(folder, 'Game.cue'), 'FILE "Track 01.bin" BINARY\n  TRACK 01 MODE2/2352\nFILE "Трек 02.bin" BINARY\n  TRACK 02 AUDIO\n');
+  return folder;
+}
+
+async function freePort() {
+  const server = createServer();
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const { port } = server.address();
+  server.close();
+  await once(server, 'close');
+  return port;
+}
+
+const refused = port => new Promise(resolve => {
+  const socket = connect(port, '127.0.0.1');
+  socket.once('connect', () => {
+    socket.destroy();
+    resolve(false);
+  });
+  socket.once('error', () => resolve(true));
+});
+
+async function stage(layout, { emulator = false } = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'sled smoke тест 雪 ')));
   const home = join(root, 'home folder');
   const cwd = join(root, 'elsewhere');
@@ -54,13 +97,23 @@ async function stage(layout) {
     resources = join(bundle, 'resources');
     await cp(built, bundle, copy);
   }
+  if (emulator) await syntheticEmulator(resources);
   await run('chmod', ['-R', 'a-w', bundle]);
   const before = await listing(bundle);
   // No Node.js, npm, Python or Git can be found through this search path.
   const env = { HOME: home, TMPDIR: temp, PATH: join(root, 'no such directory'), SLED_SERVER_NO_BROWSER: '1' };
   const command = async (...args) => JSON.parse((await run(executable, args, { cwd, env })).stdout);
+  /** Polls until the host reaches one of the given states. */
+  const hostState = async (...states) => {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const status = await command('status');
+      if (states.includes(status.host?.state)) return status;
+      await delay(100);
+    }
+    throw new Error(`The host never reached ${states.join(' or ')}`);
+  };
   return {
-    root, home, cwd, temp, executable, resources, env, command,
+    root, home, cwd, temp, executable, resources, env, command, hostState,
     async unchanged() {
       assert.deepEqual(await listing(bundle), before, 'the bundle must stay untouched');
       assert.deepEqual(await readdir(cwd), [], 'nothing may be written to the working directory');
@@ -196,6 +249,97 @@ test('a crashed server is not trusted from its record, and SIGTERM stops a serve
     await untilGone(pid);
     await assert.rejects(stat(record), 'SIGTERM removes the record like a quit request');
     await staged.unchanged();
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('the bundle carries the web client and no test files', async () => {
+  const files = await readdir(join(built, 'resources', 'web'), { recursive: true });
+  for (const name of ['index.html', 'app.js', 'style.css', join('shaders', 'crt-lottes.glsl')])
+    assert.ok(files.includes(name), name);
+  assert.deepEqual(files.filter(name => name.endsWith('.test.mjs')), []);
+});
+
+test('an unconfigured server reports that it needs setup', async () => {
+  const staged = await stage('application');
+  let pid;
+  try {
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('needs_setup', 'failed', 'online');
+    assert.equal(host.state, 'needs_setup');
+    assert.equal(host.problem.component, 'config');
+    assert.equal(host.localUrl, null);
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a configured server serves the game origin from the user\'s folder', async () => {
+  const staged = await stage('application', { emulator: true });
+  let pid;
+  try {
+    const folder = await syntheticDisc(join(staged.root, 'My Games', 'Sled Storm диск'));
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    assert.deepEqual(await staged.command('configure', '--game-folder', folder, '--disc-policy', 'shared-allowed'),
+      { event: 'configured', gameFolder: folder, discPolicy: 'shared-allowed', tracks: 2, restartRequired: false });
+
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.equal(host.state, 'online', JSON.stringify(host.problem));
+    const origin = `http://127.0.0.1:${gamePort}`;
+    assert.equal(host.localUrl, `${origin}/`);
+    assert.deepEqual(host.game, { pal: false, archiveBytes: host.game.archiveBytes, tracks: 2 });
+
+    const page = await fetch(host.localUrl);
+    assert.equal(page.status, 200);
+    assert.equal(page.headers.get('cross-origin-opener-policy'), 'same-origin');
+    assert.equal(page.headers.get('cross-origin-embedder-policy'), 'require-corp');
+    assert.match(await page.text(), /<script type="module" src="\/app\.js/);
+    assert.equal((await fetch(`${origin}/app.js?v=1`)).headers.get('content-type'), 'text/javascript; charset=utf-8');
+
+    const info = await (await fetch(`${origin}/session-info`)).json();
+    assert.equal(info.discMode, 'shared');
+    assert.equal(info.archive.size, host.game.archiveBytes);
+    const archive = Buffer.from(await (await fetch(`${origin}/disc.zip`)).arrayBuffer());
+    assert.equal(createHash('sha256').update(archive).digest('hex'), info.archive.sha256);
+    assert.equal((await fetch(`http://127.0.0.1:${host.gatewayPort}/session-info`)).status, 401, 'the gateway wants its access link');
+
+    const cache = join(staged.home, 'Library', 'Caches', 'Sled Storm Server', 'game-data');
+    assert.deepEqual(await readdir(cache), ['archive.json'], 'the cache holds a stamp, not a copy of the disc');
+    assert.ok((await stat(join(cache, 'archive.json'))).size < 4096);
+
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    assert.ok(await refused(gamePort) && await refused(netplayPort), 'both ports are free again');
+    await staged.unchanged();
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a build without the emulator says so instead of hosting', async () => {
+  const staged = await stage('bare');
+  let pid;
+  try {
+    const folder = await syntheticDisc(join(staged.root, 'game'));
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(await freePort()), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    await staged.command('configure', '--game-folder', folder, '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    if (JSON.parse(await readFile(join(built, 'resources', 'runtime-manifest.json'), 'utf8')).emulator) {
+      assert.equal(host.state, 'online');
+    } else {
+      assert.equal(host.state, 'failed');
+      assert.equal(host.problem.component, 'emulator');
+    }
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
   } finally {
     if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     await staged.remove();

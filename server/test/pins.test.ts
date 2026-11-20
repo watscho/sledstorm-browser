@@ -1,6 +1,7 @@
 // Values that must agree across files that cannot import each other.
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import test from 'node:test';
 import { applicationName as packagedName } from '../scripts/lib.mjs';
 import { applicationName } from '../src/paths.ts';
@@ -31,4 +32,20 @@ test('the pinned Node.js archive is identified by version and SHA-256', async ()
     assert.ok(archive.file.includes(`v${node.version}`), archive.file);
     assert.match(archive.sha256, /^[a-f0-9]{64}$/);
   }
+});
+
+test('the sources hold no invisible characters', async () => {
+  // A zero-width or control character in source survives review unseen and dies in a formatter.
+  const invisible = (code: number) => code === 0xfeff || code === 0x2060 || code === 0x7f
+    || (code >= 0x200b && code <= 0x200f) || (code >= 0x2028 && code <= 0x202f) || (code < 0x20 && code !== 0x09 && code !== 0x0a);
+  const offenders: string[] = [];
+  for (const directory of ['src', 'test', 'scripts', 'smoke']) {
+    const root = new URL(`../${directory}/`, import.meta.url);
+    for (const entry of await readdir(root, { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const text = await readFile(join(entry.parentPath, entry.name), 'utf8');
+      if (Array.from(text).some(character => invisible(character.codePointAt(0)!))) offenders.push(`${directory}/${entry.name}`);
+    }
+  }
+  assert.deepEqual(offenders, []);
 });

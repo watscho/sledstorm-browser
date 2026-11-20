@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBundle } from './build.mjs';
 import { pinnedNode } from './fetch-node.mjs';
 import { applicationName, distRoot, executableName, readJson, repoRoot, run, serverRoot } from './lib.mjs';
+import { stageResources } from './stage-resources.mjs';
 
 export const bundleIdentifier = 'io.github.watscho.sledstorm-server';
 
@@ -50,6 +51,7 @@ export async function buildSea() {
     await run('codesign', ['--verify', '--strict', executable]);
   }
 
+  const staged = await stageResources(resources);
   const ws = await readJson(join(serverRoot, 'node_modules', 'ws', 'package.json'));
   const manifest = {
     schema: 1,
@@ -58,10 +60,11 @@ export async function buildSea() {
     node: { version: node.version, archive: node.archive, archiveSha256: node.archiveSha256, binarySha256: node.binarySha256 },
     server: { sha256: bundle.sha256 },
     dependencies: { ws: ws.version },
+    // Null when this checkout has no built emulator: the server then reports that it cannot host.
+    emulator: staged.emulator,
     // Not bundled yet. Each gets its version, origin and hashes when it ships.
     chromium: null,
     cloudflared: null,
-    emulator: null,
   };
   await writeFile(join(resources, 'runtime-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 

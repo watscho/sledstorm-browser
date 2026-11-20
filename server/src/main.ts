@@ -1,5 +1,5 @@
 // Command dispatch. Importing this module starts nothing; `entry.ts` runs it.
-import { launch, quit, status } from './control.ts';
+import { configure, launch, quit, status } from './control.ts';
 import { internal } from './internal.ts';
 import { currentPaths } from './paths.ts';
 import { selfTest } from './self-test.ts';
@@ -9,6 +9,7 @@ import { appVersion } from './version.ts';
 const usage = `Usage: SledStormServer [command]
 
   (no command)  Open the server page, starting the server first when needed
+  configure     Save the game folder and the disc policy
   serve         Run the server in the foreground
   status        Report whether a server is running
   quit          Stop the running server
@@ -29,6 +30,7 @@ export async function main(argv: string[]): Promise<number> {
   const paths = currentPaths();
   switch (command) {
     case undefined: return launch(paths, { openPanel: process.env.SLED_SERVER_NO_BROWSER !== '1' });
+    case 'configure': return configure(paths, rest);
     case 'serve': return serve(paths, { echo: process.stderr.isTTY === true });
     case 'status': return status(paths);
     case 'quit': return quit(paths);

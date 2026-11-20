@@ -67,7 +67,7 @@ test('the instance record is private, validated and removed only by its owner', 
 test('only a server that proves the recorded identity counts as running', async () => {
   const paths = await temporaryPaths();
   let quits = 0;
-  const host = await startHostServer({ version: '1.1.0', onQuit: () => { quits += 1; } });
+  const host = await startHostServer({ version: '1.1.0', onQuit: () => { quits += 1; }, status: () => ({ state: 'idle' }) });
   try {
     const live = record({ instance: host.instance, port: host.port, token: host.token });
     await writeInstanceRecord(paths, live);

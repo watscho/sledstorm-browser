@@ -51,12 +51,17 @@ async function call(record: InstanceRecord, method: string, path: string, timeou
   } catch { return null; }
 }
 
+/** The status report of the recorded server, or null when nothing answers with its credential. */
+export async function fetchStatus(record: InstanceRecord): Promise<{ instance?: unknown; host?: unknown } | null> {
+  const response = await call(record, 'GET', '/api/status', 1000);
+  if (response?.status !== 200) return null;
+  try { return await response.json() as { instance?: unknown; host?: unknown }; }
+  catch { return null; }
+}
+
 /** True when the recorded server answers with its own identity. */
 export async function isLive(record: InstanceRecord): Promise<boolean> {
-  const response = await call(record, 'GET', '/api/status', 1000);
-  if (response?.status !== 200) return false;
-  try { return (await response.json() as { instance?: unknown }).instance === record.instance; }
-  catch { return false; }
+  return (await fetchStatus(record))?.instance === record.instance;
 }
 
 export async function findLiveInstance(paths: Paths): Promise<InstanceRecord | null> {

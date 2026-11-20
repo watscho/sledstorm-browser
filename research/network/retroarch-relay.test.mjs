@@ -384,3 +384,26 @@ test('dedicated controller indicators light after sync and a lobby join replaces
     await new Promise(resolve => relay.close(resolve));
   }
 });
+
+test('the relay accepts only its configured origins', { timeout: 6000 }, async () => {
+  const custom = createRetroArchRelay({ port: 0, origins: ['http://127.0.0.1:8123'] });
+  const standard = createRetroArchRelay({ port: 0 });
+  await Promise.all([once(custom, 'listening'), once(standard, 'listening')]);
+  const sockets = [];
+  const connect = (relay, origin) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${relay.address().port}`, { origin });
+    sockets.push(ws);
+    return ws;
+  };
+  try {
+    await once(connect(custom, 'http://127.0.0.1:8123'), 'open');
+    assert.match(String((await once(connect(custom, 'http://127.0.0.1:8000'), 'error'))[0]), /401/);
+    await once(connect(standard, 'http://127.0.0.1:8000'), 'open');
+    await once(connect(standard, 'http://localhost:8000'), 'open');
+    assert.match(String((await once(connect(standard, 'http://127.0.0.1:8123'), 'error'))[0]), /401/);
+  } finally {
+    for (const ws of sockets) ws.terminate();
+    custom.close();
+    standard.close();
+  }
+});

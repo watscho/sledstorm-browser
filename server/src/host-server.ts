@@ -38,7 +38,8 @@ function page(response: ServerResponse, version: string): void {
   }).end(data);
 }
 
-export async function startHostServer({ version, onQuit }: { version: string; onQuit: () => void }): Promise<HostServer> {
+export async function startHostServer({ version, onQuit, status }:
+  { version: string; onQuit: () => void; status: () => object }): Promise<HostServer> {
   const instance = randomBytes(8).toString('hex');
   const token = randomBytes(32).toString('hex');
   const startedAt = new Date().toISOString();
@@ -66,7 +67,7 @@ export async function startHostServer({ version, onQuit }: { version: string; on
     if (!path.startsWith('/api/')) return send(response, 404, { error: 'Not found' });
     if (!authorized(request)) return send(response, 401, { error: 'Authorization required' });
     if (path === '/api/status' && request.method === 'GET')
-      return send(response, 200, { application: applicationName, version, instance, pid: process.pid, startedAt });
+      return send(response, 200, { application: applicationName, version, instance, pid: process.pid, startedAt, host: status() });
     if (path === '/api/host/quit' && request.method === 'POST') {
       send(response, 202, { quitting: true });
       setImmediate(onQuit);

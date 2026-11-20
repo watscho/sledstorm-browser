@@ -5,6 +5,19 @@ semantic versioning for the browser wrapper.
 
 ## Unreleased
 
+### Added - 2026-11-20
+
+- Let the packaged server host the game origin without Python. `configure`
+  stores a game folder and an explicit disc policy. The server then prepares
+  the disc, serves the web client, the emulator files, the session info and
+  the disc archive on `127.0.0.1:8000`, and runs the Netplay relay and the
+  gateway in its own process. The disc identity is unchanged. The archive is
+  streamed from the user's own files with fixed ZIP metadata instead of being
+  copied into a cache, so it no longer depends on file times. No tunnel and no
+  dedicated emulator start yet; the Python launchers remain the way to play.
+- Add an `origins` option to the RetroArch Netplay relay. Its default is the
+  existing launcher origin.
+
 ### Added - 2026-11-15
 
 - Start the packaged host server in `server/`: TypeScript bundled into one

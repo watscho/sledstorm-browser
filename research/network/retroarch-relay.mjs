@@ -13,11 +13,12 @@ const send = (ws, data, binary = false) => {
   return true;
 };
 
-export function createRetroArchRelay({ port = 8006, startDedicated } = {}) {
+export function createRetroArchRelay({ port = 8006, startDedicated,
+  origins = ['http://127.0.0.1:8000', 'http://localhost:8000'] } = {}) {
   const rooms = new Map();
   const server = new WebSocketServer({
     host: '127.0.0.1', port, maxPayload: limit, perMessageDeflate: false,
-    verifyClient: ({ origin }) => ['http://127.0.0.1:8000', 'http://localhost:8000'].includes(origin),
+    verifyClient: ({ origin }) => origins.includes(origin),
   });
   const heartbeat = setInterval(() => {
     for (const ws of server.clients) {

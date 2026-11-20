@@ -1,8 +1,11 @@
 // Short-lived commands that talk to the running server: open it (starting it
 // first when needed), ask it to quit, or report it.
 import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { findLiveInstance, requestQuit, waitForInstance, isLive } from './instance.ts';
+import { writeConfig } from './config-store.ts';
+import { findDisc, GameFolderError } from './disc-folder.ts';
+import { fetchStatus, findLiveInstance, isLive, readInstanceRecord, requestQuit, waitForInstance } from './instance.ts';
 import { ensureWritableRoots, type Paths } from './paths.ts';
 import { openBrowser } from './platform/open-browser.ts';
 import { selfCommand } from './self.ts';
@@ -60,9 +63,11 @@ export async function quit(paths: Paths): Promise<number> {
 }
 
 export async function status(paths: Paths): Promise<number> {
-  const record = await findLiveInstance(paths);
-  console.log(JSON.stringify(record
-    ? { running: true, pid: record.pid, version: record.version, startedAt: record.startedAt, url: panelUrl(record.port) }
+  const record = await readInstanceRecord(paths);
+  const report = record && await fetchStatus(record);
+  console.log(JSON.stringify(record && report?.instance === record.instance
+    ? { running: true, pid: record.pid, version: record.version, startedAt: record.startedAt, url: panelUrl(record.port),
+      host: report.host }
     : { running: false }));
   return 0;
 }
@@ -70,4 +75,37 @@ export async function status(paths: Paths): Promise<number> {
 function alive(pid: number): boolean {
   try { process.kill(pid, 0); return true; }
   catch (error) { return (error as NodeJS.ErrnoException).code === 'EPERM'; }
+}
+
+/** Saves the game folder and the disc policy after checking that the folder holds a disc. */
+export async function configure(paths: Paths, argv: string[]): Promise<number> {
+  const usage = () => {
+    console.error('Usage: SledStormServer configure --game-folder <folder> --disc-policy <local-only|shared-allowed>');
+    return 2;
+  };
+  const options = new Map<string, string>();
+  for (let index = 0; index < argv.length; index += 2) {
+    const name = argv[index]!;
+    const value = argv[index + 1];
+    if ((name !== '--game-folder' && name !== '--disc-policy') || value === undefined || options.has(name)) return usage();
+    options.set(name, value);
+  }
+  const folder = options.get('--game-folder');
+  const discPolicy = options.get('--disc-policy');
+  if (!folder || (discPolicy !== 'local-only' && discPolicy !== 'shared-allowed')) return usage();
+
+  let disc;
+  try {
+    disc = await findDisc(resolve(folder));
+  } catch (error) {
+    if (!(error instanceof GameFolderError)) throw error;
+    console.error(error.message);
+    return 2;
+  }
+  await ensureWritableRoots(paths);
+  await writeConfig(paths, { version: 1, gameFolder: disc.folder, discPolicy });
+  // A running server keeps the disc it prepared at start.
+  const restartRequired = await findLiveInstance(paths) !== null;
+  console.log(JSON.stringify({ event: 'configured', gameFolder: disc.folder, discPolicy, tracks: disc.files.length - 1, restartRequired }));
+  return 0;
 }

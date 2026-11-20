@@ -17,7 +17,7 @@ was actually done and verified. Anything not run stays listed as open.
 | Stage | State |
 |---|---|
 | P0 Audit and SEA proof | Done 2026-11-15. Open items are listed under the P0 results. |
-| P1 Node host runtime | Not started |
+| P1 Node host runtime | In progress. Slice 1 of 3 (local host stack) done 2026-11-20. |
 | P2 Server-owned rooms | Not started |
 | P3 Browser admin and macOS launch | Not started |
 | P4 Independent data sources | Not started |
@@ -96,6 +96,14 @@ Hard-coded addresses to parameterize in P1:
 | D11 | Provisional bundle identifier: `io.github.watscho.sledstorm-server`. | Signing needs one. The owner can change it before the first distributed build. |
 | D12 | Control routes match the raw request path, after Host and Origin checks and a bearer credential. | An encoded or dotted spelling of a route is not a route. |
 | D13 | `allowScripts` in `server/package.json` approves the install script of the pinned esbuild only. | npm reports unreviewed install scripts; the approval is explicit and tied to one version. |
+| D14 | The disc archive is virtual. The server streams ZIP headers around the user's own files and keeps only a small stamp with the checksums in the cache. The format, `stored-v2`, has fixed dates and attributes, so its bytes depend only on names, contents and order. | No second copy of a 700 MB disc, and the archive hash survives restarts, file times and time zones. Its bytes differ from an archive made by `server.py`, so a ZIP that a guest saved from a Python host is downloaded once more. |
+| D15 | The packaged server listens on the fixed ports 8000 (game origin) and 8006 (Netplay relay). The gateway, its mirror and the control listener take free ports. A fixed port that is busy is an error with an action, never a silent move. | The web client derives both addresses from port 8000, and the saved games belong to that origin. Giving the relay an explicit address needs client changes and moves to P2. |
+| D16 | The disc policy is an explicit choice in the configuration; nothing is shared by default. Until P4 only `shared-allowed` can host, because a dedicated room still needs the host disc. `local-only` is stored and reported as waiting for a later stage. | The brief forbids switching sharing on without a choice. |
+| D17 | The packaged server does not carry the developer routes of `server.py` (`/diagnostic-state`, `/lab-state`, the RetroArch lab) or the legacy relay on port 8004 behind `?transport=legacy`. | They are diagnostics of the developer launcher, which keeps them. |
+| D18 | The emulator runtime is a prebuilt resource: `build-sea.mjs` stages `web/` always and the emulator files when the checkout has them. A build without them reports a failed emulator component instead of hosting. | The packaged server never patches or builds the core on the user's machine. |
+| D19 | The status and the log carry no credential, no folder path and no disc hash. Unexpected errors are logged by code or class name only. | File system messages contain the user's paths. |
+| D20 | `config.json` in the data root holds `version`, `gameFolder` and `discPolicy`. It is validated on every read and replaced atomically; a file this version cannot use is kept as `config.json.bad`. | Brief section 9. |
+| D21 | Detailed task plans for a slice live in `docs/superpowers/plans/`. This file stays the summary and the record. | The slice plans carry test lists and interfaces that would bury the overview. |
 
 ## Stage plan
 
@@ -207,17 +215,75 @@ Depends on: P0. The end-to-end check needs a bootstrapped and built emulator,
 a game disc, Chrome or the chosen Chromium, and `cloudflared`. The emulator was
 not bootstrapped on the machine used for P0.
 
-First steps, in order:
+Slices:
 
-1. `runtime-http.ts`: serve `web/` and the emulator assets on the fixed game
-   port with the existing headers and Host checks, and port `/session-info`.
-   Reuse the cases of `tools/test-emulator-server.py` as its tests.
-2. Parameterize the ports and origins listed under "Current launch path",
-   keeping the developer launchers working.
-3. Supervise Chromium and `cloudflared` with `owned-process.ts`; replace the
-   file hand-offs with in-process state. Test tunnel readiness parsing against
-   recorded log lines.
-4. Choose and pin the Chromium build, then run the worker on it.
+1. Local host stack: done 2026-11-20. Task plan:
+   `docs/superpowers/plans/2026-11-20-p1-local-host-stack.md`.
+2. Tunnels: supervise `cloudflared` with `owned-process.ts`, parse and then
+   really probe readiness, restart with bounded retries, keep the mirror, and
+   feed the invitation address into `/session-info` from memory.
+3. Dedicated emulator: choose and pin the Chromium build, start the worker
+   through the existing `dedicated-runtime.mjs`, stage a really built emulator
+   and run the game end to end.
+
+Slice 1 results:
+
+- `configure` validates a game folder and stores it with the disc policy.
+- `serve` prepares the disc and then runs the game origin, the Netplay relay
+  and the gateway in its own process. Start is a transaction. Start and stop
+  requests may interleave: the latest wins, a stop interrupts a start that is
+  under way, and stop ends open connections.
+- A disc that changes under a running server is never sent: a download in
+  progress is cut short, later ones get 503, and the host state becomes
+  `degraded` with a `game-data` problem until the next start.
+- The disc identity is unchanged: it equals the browser's `identifyDisc` and
+  `shared_identity()` of `server.py`, in tests on synthetic data and by hand
+  on a real disc.
+- The runtime HTTP routes pass the four cases of
+  `tools/test-emulator-server.py`, ported, and new cases for path escapes,
+  conditional requests, dropped downloads and a changed disc.
+- `createRetroArchRelay` takes an `origins` option. Its default is unchanged,
+  and it is the only edit to an existing module.
+- HOST-05 holds for both fixed ports: a busy port fails that component with
+  an action, the other program is untouched and nothing else stays listening.
+  The server asks the port before binding, because on macOS a loopback bind
+  succeeds while another program listens on all interfaces.
+
+Measured on a real 11-track disc (archive of 720,729,166 bytes), Apple
+Silicon, internal disk: first preparation 1.2 s, later starts reuse a 10 kB
+stamp without reading the disc, the full archive streams in 0.5 s in process
+and downloads in 0.2 s over loopback HTTP. `server.py` needed 2.8 s to prepare
+the same disc and writes a second copy of it.
+
+Not verified in slice 1:
+
+- The emulator itself. This machine has no built emulator, so the packaged
+  server was run with stub emulator files: the lobby page loads, the game
+  cannot start. `RUNTIME-01` and every gameplay check stay open.
+- Whether EmulatorJS reads the `stored-v2` archive. `unzip` and Python's
+  `zipfile` verify it; the emulator's own extractor has not seen it.
+- A dedicated room. Without a worker the relay offers browser-hosted rooms
+  only, and no room was created.
+- Anything public: no tunnel runs yet, and the gateway was only shown to
+  listen and to ask for its access link.
+- Browsers other than the Chromium-based pane used for the page check.
+- Game files on a slow, removable or permission-protected volume.
+
+Review of slice 1: one independent reviewer read the whole change and probed
+it. No critical finding; six important ones, all fixed with a test that failed
+first: a fixed port held on all interfaces, a disc changed during a download,
+a start that could not be interrupted, interleaved start and stop, a changed
+disc that the host could not see, and missing tests for the real archive
+stream and the authorized gateway path. Left open as minor:
+
+- An unreadable CUE gives only the generic "could not be read", and a CUE of
+  any size is read into memory.
+- An unwritable cache folder gives the same generic message and leaves a
+  temporary stamp file.
+- Messages say "start the server again", but only quitting and opening the
+  application retries a failed start. The control API gets a start action in
+  P3.
+- If stopping the rooms throws, the relay listener stays open.
 
 Exit checks: the SEA starts the prepared emulator and the current tunnels
 without Python; the worker reaches readiness on the shipped Chromium; HOST-02,
@@ -344,5 +410,31 @@ stop it from a terminal:
 ```
 
 The server keeps its record and log under `~/Library/Application Support` and
-`~/Library/Logs` in `Sled Storm Server`. It does not start the emulator, a
-room or a tunnel yet.
+`~/Library/Logs` in `Sled Storm Server`.
+
+To host the game origin, save a game folder and start the server again:
+
+```sh
+"dist/macos/Sled Storm Server.app/Contents/MacOS/SledStormServer" configure --game-folder <folder> --disc-policy shared-allowed
+"dist/macos/Sled Storm Server.app/Contents/MacOS/SledStormServer" quit
+open "dist/macos/Sled Storm Server.app"
+"dist/macos/Sled Storm Server.app/Contents/MacOS/SledStormServer" status
+```
+
+`status` then reports the host state. With a built emulator in the checkout at
+build time, the game page is on `http://127.0.0.1:8000/`. Without one, the
+state is `failed` with the emulator component named. No tunnel and no
+dedicated emulator start yet, so the Python launchers remain the way to play.
+
+### P1 slice 1, 2026-11-20, working tree on top of `3e037ab`
+
+| Command | Result |
+|---|---|
+| `npm run typecheck --prefix server` | Passed. |
+| `npm test --prefix server` | 89 passed, 0 failed, 0 skipped on Node.js 24.18.0, and the same on the pinned 26.13.1, after the review fixes (77 before them). The Python parity test ran against Python 3.9.6. |
+| `npm test --prefix research/network` | 20 passed, 0 failed (one new test for the `origins` option). |
+| `npm run package:macos --prefix server` | Built the bundle (42 modules, built-in imports only), the executable and the draft application bundle. The manifest records `emulator: null`. |
+| `npm run smoke --prefix server` | 9 passed, 0 failed, rerun after the review fixes. These run the built executable, including a configured server that serves the game origin from a folder with spaces and non-ASCII characters. |
+| Real disc, by hand, repeated after the review fixes | A development run of the new modules prepared the disc in `game/`: identity and PAL flag equal `shared_identity()` of `server.py`, the stream's SHA-256 equals the manifest, and Python's `zipfile` verifies every entry. The built executable then came online with the same disc (11 tracks, PAL, the same archive size) and served the whole archive over loopback HTTP. |
+| Browser, by hand | The built executable served the real `web/` on port 8000 with stub emulator files. In a Chromium-based browser pane the lobby rendered, `crossOriginIsolated` was true, 31 static requests loaded and none failed, and the console showed no error. |
+| Baseline commands, repeated | Same results as the baseline: 48 web tests, 4 Python tests, `py_compile`. |

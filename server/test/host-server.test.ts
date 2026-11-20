@@ -19,7 +19,8 @@ function call(port: number, method: string, path: string, headers: Record<string
 
 test('the control listener answers only its own host, origin and credential', async () => {
   let quits = 0;
-  const host = await startHostServer({ version: '9.9.9', onQuit: () => { quits += 1; } });
+  const hostStatus = { state: 'needs_setup', tunnel: 'off' };
+  const host = await startHostServer({ version: '9.9.9', onQuit: () => { quits += 1; }, status: () => hostStatus });
   const quitCount = () => quits;
   try {
     const bearer = { authorization: `Bearer ${host.token}` };
@@ -28,7 +29,10 @@ test('the control listener answers only its own host, origin and credential', as
     assert.equal(status.headers['cache-control'], 'no-store');
     const report = JSON.parse(status.body) as Record<string, unknown>;
     assert.deepEqual(report, { application: 'Sled Storm Server', version: '9.9.9', instance: host.instance,
-      pid: process.pid, startedAt: host.startedAt });
+      pid: process.pid, startedAt: host.startedAt, host: hostStatus });
+    hostStatus.state = 'online';
+    assert.equal((JSON.parse((await call(host.port, 'GET', '/api/status', bearer)).body) as { host: { state: string } }).host.state,
+      'online', 'the status is read on every request');
     assert.ok(!status.body.includes(host.token), 'the credential is never echoed');
 
     assert.equal((await call(host.port, 'GET', '/api/status')).status, 401);
