@@ -5,6 +5,38 @@ semantic versioning for the browser wrapper.
 
 ## Unreleased
 
+### Added - 2026-11-21
+
+- Let a player save and load in the room of the packaged server. The player
+  the room belongs to, while alone in it, saves to the same library as before
+  and loads a save into the same room: the server starts a second emulator
+  with the save, moves the room to it once it is ready, and the player's page
+  comes back by itself on its controller. The room's name, its invitation and
+  its options stay. A refusal, a damaged save or an emulator that cannot start
+  leaves the running game as it was, and the player reads why. While another
+  player is connected, or a controller is kept for one, saving and loading are
+  paused and the list says so. Slots, autosaves, export, import and the stored
+  format are unchanged, and a save made by wrapper 1.1.0 at the same address
+  loads in the room. Checked by hand on a real disc.
+- Give the RetroArch Netplay relay a `restore` role for a room that a server
+  owns, with the options `saves`, `onRestoring`, `transferMs`, `reservedMs`
+  and `retryMs`, and report `restoring` in its status. A save has a minute to
+  arrive. A room starts one emulator for a load beside its own and no more:
+  it takes no new load until the emulator of the last one is gone, nor for
+  five seconds after a load that did not complete. A room made by a browser
+  keeps `release-for-load` and starts a new room for a load, as before.
+- Show `Saved games` to every player of a server's room before joining. The
+  list can be managed there; loading is done in the game.
+
+### Fixed - 2026-11-21
+
+- Confirm a browser's kept copy of the game page by an `ETag`, never by its
+  date, in the packaged server. The Python launcher and every build serve
+  `127.0.0.1:8000`, and a browser that had used one of them could be told that
+  its copy was current and run that client against the packaged server, which
+  refused the invitation. The emulator's files are asked about on every load
+  as well.
+
 ### Added - 2026-11-20
 
 - Let the packaged server host the game origin without Python. `configure`
@@ -17,6 +49,41 @@ semantic versioning for the browser wrapper.
   dedicated emulator start yet; the Python launchers remain the way to play.
 - Add an `origins` option to the RetroArch Netplay relay. Its default is the
   existing launcher origin.
+- Let the packaged server open the Cloudflare Quick Tunnel and its mirror by
+  itself. A pinned `cloudflared` ships as a resource. The server reads
+  readiness from the program's metrics listener, then checks the public
+  address with a real HTTPS and WebSocket round trip that does not ask the
+  system resolver before the new name exists. A lost tunnel is restarted
+  within bounds, an address that is down is no longer handed out, and a
+  missing mirror never blocks hosting. `invitation` prints the private link.
+  A guard process ends the tunnel programs if the server is killed.
+- Run a room's emulator in a Chromium that ships inside the packaged server.
+  The browser is a pinned, unmodified open-source build, so the packaged
+  server needs no installed Chrome. It gets a profile in the server's cache,
+  no name to resolve but `127.0.0.1`, and its crash reports stay in the
+  server's own folder. Stopping the host waits until its browsers are gone,
+  and a browser that ignores the stop is killed. A real room was played from
+  the packaged server by hand, with one player.
+- Give the dedicated runtime options for the page address, further browser
+  switches, the profile location, extra environment variables and a grace
+  period. Each default is the launcher's existing behavior, except that a
+  browser which ignores its stop is now killed after five seconds, and that a
+  start which fails is reported once its browser and profile are gone.
+- Let the packaged server own its room. It opens one room at the start of
+  hosting, before any player and with four free controllers. Every player
+  joins with the same invitation, the room has no idle timeout, and a lost
+  emulator is followed by a new game in the same room. `invitation` prints the
+  link for guests and a link for the server's own computer. Saving and loading
+  in such a room come with the next step.
+- Compute the room identity from a fixed list of fields that the server and
+  the players' pages share: disc, core, adapter, native build, BIOS and room
+  options. The way the disc is delivered no longer changes it. Invitations to
+  a Netplay room now carry version 8, and a version 7 link is refused with a
+  sentence of its own. Rooms made by earlier versions cannot be joined.
+- Tell a player "Dedicated emulator disconnected" whenever a dedicated room
+  loses its emulator. Before, the reason depended on which of the emulator's
+  connections the relay saw end first. A player whose stream alone ends is now
+  let go 100 ms later.
 
 ### Added - 2026-11-15
 

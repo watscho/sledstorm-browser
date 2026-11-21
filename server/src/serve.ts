@@ -1,11 +1,14 @@
 // The long-running server. Start is a transaction: a failed step releases
 // everything this start acquired. Stop is safe to request more than once.
+import { isSea } from 'node:sea';
+import { chosenBrowser } from './dedicated.ts';
 import { startHostServer, type HostServer } from './host-server.ts';
-import { createHostService, type HostService } from './host-service.ts';
+import { createHostService, shippedTunnelProgram, type HostService } from './host-service.ts';
 import { instanceLockFile, removeInstanceRecord, writeInstanceRecord } from './instance.ts';
 import { createLog } from './log.ts';
 import { ensureWritableRoots, type Paths } from './paths.ts';
 import { acquireInstanceLock } from './platform/instance-lock.ts';
+import { selfCommand } from './self.ts';
 import { appVersion } from './version.ts';
 
 export const EXIT_ALREADY_RUNNING = 3;
@@ -47,10 +50,17 @@ export async function serve(paths: Paths, { echo }: { echo: boolean }): Promise<
   })();
 
   try {
-    const hosting = service = createHostService({ paths, log,
+    // For tests only: a stand-in tunnel program reports an address that does not exist, so the check of
+    // the public address is skipped with it. The program is still guarded against outliving the server.
+    const unprobed = process.env.SLED_SERVER_TUNNEL_PROBE === 'off'
+      ? { command: { command: shippedTunnelProgram(paths), args: [] }, guard: selfCommand(['internal', 'guard']) }
+      : undefined;
+    const hosting = service = createHostService({ paths, log, tunnels: unprobed,
+      worker: { browser: chosenBrowser({ sea: isSea(), env: process.env, paths }) },
       gamePort: testPort('SLED_SERVER_GAME_PORT'), netplayPort: testPort('SLED_SERVER_NETPLAY_PORT') });
     host = await startHostServer({ version: appVersion, onQuit: () => { void stop('quit request'); },
-      status: () => hosting.status() });
+      status: () => hosting.status(),
+      invitation: () => ({ url: hosting.invitation(), localUrl: hosting.localInvitation() }) });
     await writeInstanceRecord(paths, { instance: host.instance, pid: process.pid, port: host.port,
       token: host.token, startedAt: host.startedAt, version: appVersion });
   } catch (error) {

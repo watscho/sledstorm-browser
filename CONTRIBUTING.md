@@ -42,6 +42,24 @@ npm run build:sea --prefix server
 npm run smoke --prefix server
 ```
 
+One command runs every check above, in order, and prints one line per check.
+It needs `npm ci` in `server` and in `research/network`, and macOS with Apple
+Silicon for the packaged part; `--quick` leaves that part out:
+
+```sh
+npm run verify --prefix server
+npm run verify --prefix server -- --quick
+```
+
+With a built emulator and a disc of your own, a room of the running server
+can be checked by hand with a real browser. The player presses the start
+button and reports the page's messages, the controller and the frame count.
+Give it the `localUrl` that the server's `invitation` command prints:
+
+```sh
+node server/scripts/room-player.mjs <link> 60
+```
+
 After building the pinned native emulator, with a local C compiler:
 
 ```sh

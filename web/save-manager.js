@@ -32,6 +32,8 @@ export function createSaveManager(notify) {
   const locked = () => busy || Boolean(confirmation);
   const canCapture = () => Boolean(context?.canCapture?.());
   const canLoad = () => Boolean(context?.canLoad?.());
+  // A room that a server owns loads a save into itself; any other load starts a room of its own.
+  const keepsRoom = () => Boolean(context?.keepsRoom?.());
   const undoSlot = () => !deleted ? null : !records.some(item => item.id === deleted.id) ? deleted.slot
     : Array.from({ length: MANUAL_SLOTS }, (_, index) => index + 1).find(slot => !records.some(item => item.id === 'manual:' + slot));
   const imageUrl = preview => {
@@ -84,7 +86,8 @@ export function createSaveManager(notify) {
     $('saves-file-actions').hidden = !record || Boolean(imported) || Boolean(confirmation) || editing;
     $('saves-action-help').hidden = Boolean(confirmation) || editing || (!manual && !record);
     $('saves-action-help').textContent = imported ? 'The checkpoint date will be preserved.'
-      : record ? 'Loading starts a new solo room.' : 'A new checkpoint of your current solo game.';
+      : record ? keepsRoom() ? 'Loading keeps the room and its invitation.' : 'Loading starts a new solo room.'
+        : 'A new checkpoint of your current solo game.';
     $('saves-import').disabled = locked() || Boolean(imported);
     $('saves-cancel-import').disabled = busy;
     $('saves-confirm-accept').disabled = busy;
@@ -247,7 +250,8 @@ export function createSaveManager(notify) {
       feedback('Loading “' + saved.name + '”…');
       await context.load(saved);
     });
-    if (context.playing) confirm('Load “' + record.name + '”?', 'Your current game will be backed up to an autosave. Loading starts a new room.', 'Load game', action);
+    if (context.playing) confirm('Load “' + record.name + '”?', 'Your current game will be backed up to an autosave. '
+      + (keepsRoom() ? 'The room and its invitation stay the same.' : 'Loading starts a new room.'), 'Load game', action);
     else action();
   });
   $('saves-copy').addEventListener('click', () => {
@@ -381,7 +385,7 @@ export function createSaveManager(notify) {
     updateAvailability() { if (dialog.open) { controls(); $('saves-session-note').textContent = context?.playing
       ? canCapture() ? 'Game continues while this window is open. Autosave resumes when you close it.'
         : context.unavailableReason?.() || 'Saving and loading need a synchronized solo session. Return to the solo menus or wait for other players to leave.'
-      : 'Load a checkpoint to start a new solo room. Your current graphics and controls stay in place.'; } },
+      : context?.unavailableReason?.() || 'Load a checkpoint to start a new solo room. Your current graphics and controls stay in place.'; } },
     async open(next) {
       if (dialog.open || busy) return;
       const generation = ++opening;

@@ -18,7 +18,7 @@ async function capturePreview(emulator) {
   } finally { bitmap.close(); }
 }
 
-export function trackSoloSave(emulator, storage, canSave, beforeExit, notify, restore, manager, settings, unavailableReason) {
+export function trackSoloSave(emulator, storage, canSave, beforeExit, notify, restore, manager, settings, unavailableReason, keepsRoom) {
   const button = document.querySelector('#solo-save');
   const loadButton = document.querySelector('#solo-load');
   const exitHelp = document.querySelector('#exit-help');
@@ -67,7 +67,7 @@ export function trackSoloSave(emulator, storage, canSave, beforeExit, notify, re
   const open = mode => manager.open({
     storage, mode, playing: true, opener: mode === 'save' ? button : loadButton,
     canCapture: () => !loading && canSave(), canLoad: () => !loading && canSave(),
-    unavailableReason,
+    unavailableReason, keepsRoom,
     capture: async () => { if (pending) await pending; return capture(); },
     async load(record) {
       if (loading || !canSave()) throw new Error('Wait until you are playing alone to load a save.');

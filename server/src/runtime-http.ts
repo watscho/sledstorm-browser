@@ -60,10 +60,14 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
   async function file(request: IncomingMessage, response: ServerResponse, path: string): Promise<void> {
     const status = await stat(path).catch(() => null);
     if (!status?.isFile()) return plain(response, 404, 'Not found');
-    const modified = Math.floor(status.mtimeMs / 1000) * 1000;
-    response.setHeader('Last-Modified', new Date(modified).toUTCString());
-    const since = Date.parse(request.headers['if-modified-since'] ?? '');
-    if (!Number.isNaN(since) && modified <= since && request.headers['if-none-match'] === undefined) {
+    response.setHeader('Last-Modified', new Date(Math.floor(status.mtimeMs / 1000) * 1000).toUTCString());
+    // A copy the browser kept is confirmed by this tag and never by its date. The Python launcher and every
+    // other build serve this same address, and a copy from one of them may be newer by date and still be
+    // another file: confirming it would run that client against this server.
+    const tag = `"${status.size.toString(16)}-${Math.floor(status.mtimeMs).toString(16)}"`;
+    response.setHeader('ETag', tag);
+    const kept = (request.headers['if-none-match'] ?? '').split(',').map(value => value.trim().replace(/^W\//, ''));
+    if (kept.includes(tag)) {
       response.writeHead(304).end();
       return;
     }
@@ -82,7 +86,8 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
     response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     if (raw === '/session-info') response.setHeader('Cache-Control', 'no-store');
-    else if (!raw.startsWith('/emulator/') && !raw.startsWith('/disc.zip')) response.setHeader('Cache-Control', 'no-cache');
+    // Without this a browser may use a kept copy for a while without asking, and the tag gets no say.
+    else if (!raw.startsWith('/disc.zip')) response.setHeader('Cache-Control', 'no-cache');
 
     // A loopback address is not authorization: a page on another site could
     // reach this port through a rebound host name.

@@ -5,14 +5,19 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { once } from 'node:events';
 import { constants } from 'node:fs';
-import { cp, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, mkdtemp, readdir, readFile, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { WebSocket } from 'ws';
+import { parseInvitation } from '../../web/invitation.js';
+import { roomIdentity } from '../../web/room-identity.js';
+import { identityKey } from '../../web/save-file.js';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -20,6 +25,8 @@ const run = promisify(execFile);
 const built = fileURLToPath(new URL('../../dist/sea/', import.meta.url));
 const lock = JSON.parse(await readFile(new URL('../toolchain.lock.json', import.meta.url), 'utf8'));
 const copy = { recursive: true, mode: constants.COPYFILE_FICLONE };
+const fakeCloudflared = fileURLToPath(new URL('../test/fake-cloudflared.mjs', import.meta.url));
+const fakeBrowser = fileURLToPath(new URL('../../research/network/fake-browser.mjs', import.meta.url));
 
 await stat(join(built, 'SledStormServer')).catch(() => {
   throw new Error('The single executable is missing. Run: npm run build:sea --prefix server');
@@ -77,7 +84,7 @@ const refused = port => new Promise(resolve => {
   socket.once('error', () => resolve(true));
 });
 
-async function stage(layout, { emulator = false } = {}) {
+async function stage(layout, { emulator = false, tunnel = 'none', browser = emulator ? 'fake' : 'none' } = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'sled smoke тест 雪 ')));
   const home = join(root, 'home folder');
   const cwd = join(root, 'elsewhere');
@@ -97,11 +104,40 @@ async function stage(layout, { emulator = false } = {}) {
     resources = join(bundle, 'resources');
     await cp(built, bundle, copy);
   }
+  // A staged copy keeps nothing that the build took from this checkout or from the network. The tests
+  // bring stand-ins: no smoke test may run a real emulator, open a real tunnel or run a page in a real browser.
+  await rm(join(resources, 'emulator'), { recursive: true, force: true });
   if (emulator) await syntheticEmulator(resources);
+  await rm(join(resources, 'bin'), { recursive: true, force: true });
+  await rm(join(resources, 'chromium'), { recursive: true, force: true });
+  const browserScript = join(root, 'browser-script.json');
+  const browserRecord = join(root, 'browser-launches.jsonl');
+  if (browser === 'fake') {
+    const program = join(resources, 'chromium', 'Chromium.app', 'Contents', 'MacOS');
+    await mkdir(program, { recursive: true });
+    await writeFile(join(program, 'Chromium'),
+      `#!/bin/sh\nexec '${process.execPath}' '${fakeBrowser}' --script-file '${browserScript}' "$@"\n`, { mode: 0o755 });
+    // The stand-in plays the room's worker; it takes the relay's port from the server's environment.
+    await writeFile(browserScript, JSON.stringify({ record: browserRecord }));
+  }
+  const record = join(root, 'tunnel-launches.jsonl');
+  if (tunnel === 'fake') {
+    await mkdir(join(resources, 'bin'));
+    await writeFile(join(resources, 'bin', 'cloudflared'),
+      `#!/bin/sh\nexec '${process.execPath}' '${fakeCloudflared}' --script '${JSON.stringify({ record, launches: [{}] })}' "$@"\n`, { mode: 0o755 });
+  }
   await run('chmod', ['-R', 'a-w', bundle]);
   const before = await listing(bundle);
   // No Node.js, npm, Python or Git can be found through this search path.
   const env = { HOME: home, TMPDIR: temp, PATH: join(root, 'no such directory'), SLED_SERVER_NO_BROWSER: '1' };
+  // The stand-in's address does not exist, so the public probe is switched off with it.
+  if (tunnel === 'fake') env.SLED_SERVER_TUNNEL_PROBE = 'off';
+  const tunnelPrograms = async () => (await readFile(record, 'utf8').catch(() => '')).split('\n').filter(Boolean)
+    .map(line => JSON.parse(line).pid);
+  /** What the stand-in browser does; it reads this when it is started. */
+  const browserPlan = plan => writeFile(browserScript, JSON.stringify({ record: browserRecord, ...plan }));
+  const browserLaunches = async () => (await readFile(browserRecord, 'utf8').catch(() => '')).split('\n').filter(Boolean)
+    .map(line => JSON.parse(line));
   const command = async (...args) => JSON.parse((await run(executable, args, { cwd, env })).stdout);
   /** Polls until the host reaches one of the given states. */
   const hostState = async (...states) => {
@@ -113,7 +149,7 @@ async function stage(layout, { emulator = false } = {}) {
     throw new Error(`The host never reached ${states.join(' or ')}`);
   };
   return {
-    root, home, cwd, temp, executable, resources, env, command, hostState,
+    root, home, cwd, temp, executable, resources, env, command, hostState, tunnelPrograms, browserPlan, browserLaunches,
     async unchanged() {
       assert.deepEqual(await listing(bundle), before, 'the bundle must stay untouched');
       assert.deepEqual(await readdir(cwd), [], 'nothing may be written to the working directory');
@@ -259,7 +295,8 @@ test('the bundle carries the web client and no test files', async () => {
   const files = await readdir(join(built, 'resources', 'web'), { recursive: true });
   for (const name of ['index.html', 'app.js', 'style.css', join('shaders', 'crt-lottes.glsl')])
     assert.ok(files.includes(name), name);
-  assert.deepEqual(files.filter(name => name.endsWith('.test.mjs')), []);
+  assert.deepEqual(files.filter(name => name.endsWith('.test.mjs') || name.endsWith('.fixtures.json')), []);
+  assert.ok(files.includes('room-identity.js'));
 });
 
 test('an unconfigured server reports that it needs setup', async () => {
@@ -279,7 +316,7 @@ test('an unconfigured server reports that it needs setup', async () => {
 });
 
 test('a configured server serves the game origin from the user\'s folder', async () => {
-  const staged = await stage('application', { emulator: true });
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
   let pid;
   try {
     const folder = await syntheticDisc(join(staged.root, 'My Games', 'Sled Storm диск'));
@@ -295,6 +332,16 @@ test('a configured server serves the game origin from the user\'s folder', async
     const origin = `http://127.0.0.1:${gamePort}`;
     assert.equal(host.localUrl, `${origin}/`);
     assert.deepEqual(host.game, { pal: false, archiveBytes: host.game.archiveBytes, tracks: 2 });
+    assert.equal(host.tunnel, 'online');
+
+    assert.equal(host.room, 'open', 'the room is there before any player');
+    // The private links leave the server through the authorized command only.
+    const { url, localUrl } = await staged.command('invitation');
+    const [, access, fragment] = /^https:\/\/synthetic-\d+\.trycloudflare\.com\/access\/([a-f0-9]{48})#([A-Za-z0-9+/=]+)$/.exec(url);
+    assert.equal(localUrl, `${origin}/#${fragment}`, 'the same room, on this computer');
+    const serverLog = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    for (const secret of ['trycloudflare', access, fragment])
+      assert.ok(!serverLog.includes(secret) && !JSON.stringify(host).includes(secret), 'neither the log nor the status holds a part of the link');
 
     const page = await fetch(host.localUrl);
     assert.equal(page.status, 200);
@@ -333,14 +380,352 @@ test('a build without the emulator says so instead of hosting', async () => {
     await staged.command('configure', '--game-folder', folder, '--disc-policy', 'shared-allowed');
     ({ pid } = await staged.command());
     const { host } = await staged.hostState('online', 'failed', 'needs_setup');
-    if (JSON.parse(await readFile(join(built, 'resources', 'runtime-manifest.json'), 'utf8')).emulator) {
-      assert.equal(host.state, 'online');
-    } else {
-      assert.equal(host.state, 'failed');
-      assert.equal(host.problem.component, 'emulator');
-    }
+    assert.equal(host.state, 'failed');
+    assert.equal(host.problem.component, 'emulator');
     assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
   } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a build with the emulator but without its browser says so instead of hosting', async () => {
+  const staged = await stage('application', { emulator: true, browser: 'none' });
+  let pid;
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'degraded', 'failed', 'needs_setup');
+    assert.equal(host.state, 'failed');
+    assert.deepEqual(host.problem, { component: 'emulator', message: 'This build is missing the emulator browser.' });
+    assert.ok(await refused(gamePort) && await refused(netplayPort), 'nothing listens');
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('the bundle carries the pinned cloudflared', async () => {
+  const program = join(built, 'resources', 'bin', 'cloudflared');
+  assert.ok((await stat(program)).mode & 0o111, 'the tunnel program is executable');
+  const pin = lock.cloudflared.archives['darwin-arm64'];
+  assert.equal(createHash('sha256').update(await readFile(program)).digest('hex'), pin.binarySha256);
+  assert.ok((await run(program, ['--version'])).stdout.includes(lock.cloudflared.version));
+  const manifest = JSON.parse(await readFile(join(built, 'resources', 'runtime-manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.cloudflared, { version: lock.cloudflared.version, archiveSha256: pin.sha256, binarySha256: pin.binarySha256 });
+});
+
+test('the bundle carries the pinned Chromium', async () => {
+  const pin = lock.chromium.archives['darwin-arm64'];
+  const application = join(built, 'resources', 'chromium', 'Chromium.app');
+  const executable = join(application, pin.executable);
+  // The browser is not run here, not even for its version: the fetch step did that once, before it wrote
+  // the stamp that the manifest repeats.
+  assert.ok((await stat(executable)).mode & 0o111, 'the browser is executable');
+  const manifest = JSON.parse(await readFile(join(built, 'resources', 'runtime-manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.chromium, { version: lock.chromium.version, position: pin.position, commit: pin.commit,
+    archiveSha256: pin.sha256, executableSha256: pin.executableSha256, frameworkSha256: pin.frameworkSha256 });
+  // The launcher is a small stub and the framework holds the browser; the staged copies are the pinned ones.
+  const sha256 = async path => {
+    const hash = createHash('sha256');
+    for await (const chunk of createReadStream(path)) hash.update(chunk);
+    return hash.digest('hex');
+  };
+  assert.equal(await sha256(executable), pin.executableSha256);
+  assert.equal(await sha256(join(application, pin.framework)), pin.frameworkSha256);
+  // The framework is reached through relative links. A copy that followed them, or pointed them
+  // back at the build directory, would not be the browser that was fetched.
+  const current = join(application, 'Contents', 'Frameworks', 'Chromium Framework.framework', 'Versions', 'Current');
+  assert.ok((await lstat(current)).isSymbolicLink());
+  assert.equal(await readlink(current), lock.chromium.version);
+});
+
+test('a server without a tunnel program hosts locally and says so', async () => {
+  const staged = await stage('bare', { emulator: true });
+  let pid;
+  try {
+    const gamePort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'degraded', 'failed');
+    assert.equal(host.state, 'degraded');
+    assert.deepEqual(host.problem, { component: 'tunnel', message: 'This build has no tunnel program.' });
+    assert.equal((await fetch(`http://127.0.0.1:${gamePort}/session-info`)).status, 200);
+    assert.equal((await staged.command('invitation')).url, null, 'no link for guests without a public address');
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('neither quit nor a killed server leaves a tunnel program behind', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  let programs = [];
+  try {
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(await freePort()), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+
+    ({ pid } = await staged.command());
+    await staged.hostState('online');
+    for (let attempt = 0; (await staged.tunnelPrograms()).length < 2 && attempt < 100; attempt++) await delay(50);
+    programs = await staged.tunnelPrograms();
+    assert.equal(programs.length, 2, 'the primary and the mirror');
+    assert.ok(programs.every(alive));
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    for (const program of programs) await untilGone(program);
+
+    ({ pid } = await staged.command());
+    await staged.hostState('online');
+    for (let attempt = 0; (await staged.tunnelPrograms()).length < 4 && attempt < 100; attempt++) await delay(50);
+    programs = (await staged.tunnelPrograms()).slice(2);
+    assert.equal(programs.length, 2);
+    process.kill(pid, 'SIGKILL');
+    await untilGone(pid);
+    for (const program of programs) await untilGone(program);
+  } finally {
+    for (const program of programs) if (alive(program)) process.kill(program, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+/**
+ * One connection to the relay from the game page's origin. `answer` resolves to the first answer, or to why
+ * there was none; `inbox` keeps every answer that is text, and `closed` resolves to the reason of the end.
+ */
+function connectRoom(netplayPort, gamePort, request) {
+  const socket = new WebSocket(`ws://127.0.0.1:${netplayPort}`, { origin: `http://127.0.0.1:${gamePort}` });
+  const inbox = [];
+  socket.on('message', (data, binary) => { if (!binary) inbox.push(JSON.parse(String(data))); });
+  const closed = new Promise(resolve => {
+    socket.once('close', (_code, reason) => resolve(String(reason)));
+    socket.once('error', error => resolve(String(error)));
+  });
+  const answer = new Promise(resolve => {
+    socket.once('message', data => resolve(JSON.parse(String(data))));
+    void closed.then(reason => resolve({ closed: reason }));
+  });
+  socket.once('open', () => socket.send(JSON.stringify(request)));
+  return { socket, answer, inbox, closed };
+}
+
+/** What a player's page does with the server's link: it reads the room, works out its own identity, and joins. */
+async function joinRoom(netplayPort, gamePort, link, change = {}) {
+  const { room, token, progress, camera, nativeCamera } = parseInvitation(new URL(link).hash);
+  const info = await (await fetch(`http://127.0.0.1:${gamePort}/session-info`)).json();
+  const identity = await roomIdentity({ ...info, bios: 'HLE', options: { progress, camera, nativeCamera } });
+  return { room, token, info, ...connectRoom(netplayPort, gamePort, { role: 'guest', room, token, identity, ...change }) };
+}
+
+async function until(description, done) {
+  for (let attempt = 0; !await done(); attempt++) {
+    if (attempt > 200) throw new Error(`Timed out waiting until ${description}`);
+    await delay(25);
+  }
+}
+
+/** A state of the right size that carries the marks the format check looks for. Not a game. */
+function validState() {
+  const bytes = Buffer.alloc(4_456_472);
+  bytes.write('RASTATE', 0);
+  bytes.write('STv4 PCSXra f29871d', 16);
+  bytes.writeUInt32LE(1, 0x29934d);
+  return bytes;
+}
+
+test('the packaged server opens its room before any player, seats the first one, and quit ends its worker', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  const sockets = [];
+  let workers = [];
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.deepEqual({ state: host.state, room: host.room }, { state: 'online', room: 'open' }, JSON.stringify(host.problem));
+    assert.equal((await (await fetch(`${host.localUrl}session-info`)).json()).dedicated, true);
+    const [start, navigate] = await staged.browserLaunches();
+    workers = [start.pid];
+    assert.equal(navigate.url, `http://127.0.0.1:${gamePort}/`);
+    const profiles = join(staged.home, 'Library', 'Caches', 'Sled Storm Server', 'browser-profiles');
+    assert.ok(start.args.some(argument => argument.startsWith(`--user-data-dir=${profiles}/`)), 'the profile is in the cache');
+    assert.ok(!start.args.some(argument => argument.startsWith('--remote-debugging-port')), 'no debugging port is opened');
+
+    // The room was not asked for by anyone. A player joins it with the link; nobody can ask for another.
+    const { url, localUrl } = await staged.command('invitation');
+    assert.equal(new URL(url).hash, new URL(localUrl).hash);
+    const player = await joinRoom(netplayPort, gamePort, localUrl);
+    sockets.push(player.socket);
+    const answer = await player.answer;
+    assert.deepEqual({ type: answer.type, slot: answer.slot, owner: answer.owner }, { type: 'ready', slot: 0, owner: true }, JSON.stringify(answer));
+    const refused = connectRoom(netplayPort, gamePort, { role: 'create', room: randomBytes(12).toString('hex'),
+      token: randomBytes(32).toString('hex'), identity: 'e'.repeat(64), progress: 'all' });
+    sockets.push(refused.socket);
+    assert.deepEqual(await refused.answer, { closed: 'This server has one room. Open the game with its invitation link.' });
+    assert.equal((await staged.browserLaunches()).filter(entry => entry.event === 'start').length, 1, 'no second emulator');
+
+    const serverLog = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    assert.ok(serverLog.includes('The room is open.'));
+    for (const secret of [player.room, player.token, navigate.setup.workerKey])
+      assert.ok(!serverLog.includes(secret) && !JSON.stringify(host).includes(secret), 'neither the log nor the status names the room');
+
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    assert.ok(!alive(start.pid), 'the worker ended before the server did');
+    assert.deepEqual(await readdir(profiles), []);
+    await staged.unchanged();
+  } finally {
+    for (const socket of sockets) socket.terminate();
+    for (const worker of workers) if (alive(worker)) process.kill(worker, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a killed server leaves no worker, and the next start removes the profile it left', async () => {
+  const staged = await stage('bare', { emulator: true, tunnel: 'fake' });
+  let pid;
+  let workers = [];
+  try {
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(await freePort()), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    await staged.hostState('online');
+    const [start] = await staged.browserLaunches();
+    workers = [start.pid];
+
+    process.kill(pid, 'SIGKILL');
+    await untilGone(pid);
+    // The stand-in ends when its pipes close, as the real browser was measured to do.
+    await untilGone(start.pid);
+    const profiles = join(staged.home, 'Library', 'Caches', 'Sled Storm Server', 'browser-profiles');
+    assert.equal((await readdir(profiles)).length, 1, 'a killed server cannot remove the profile');
+
+    ({ pid } = await staged.command());
+    await staged.hostState('online');
+    const launches = (await staged.browserLaunches()).filter(entry => entry.event === 'start');
+    workers = launches.map(entry => entry.pid);
+    assert.equal(launches.length, 2, 'the next server opened its own room');
+    assert.equal((await readdir(profiles)).length, 1, 'only the profile of the room that runs now');
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    assert.deepEqual(await readdir(profiles), []);
+  } finally {
+    for (const worker of workers) if (alive(worker)) process.kill(worker, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a server without a public address still gives the link for this computer', async () => {
+  const staged = await stage('bare', { emulator: true });
+  let pid;
+  try {
+    const gamePort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    assert.equal((await run(staged.executable, ['invitation'], { cwd: staged.cwd, env: staged.env }).catch(error => error)).stderr.trim(),
+      'The server is not running.');
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('degraded', 'online', 'failed');
+    assert.deepEqual({ room: host.room, component: host.problem?.component }, { room: 'open', component: 'tunnel' });
+    const { url, localUrl } = await staged.command('invitation');
+    assert.equal(url, null);
+    assert.ok(localUrl.startsWith(`http://127.0.0.1:${gamePort}/#`));
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a saved game is loaded into the room of the packaged server and the invitation stays the same', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  const sockets = [];
+  let workers = [];
+  const starts = async () => (await staged.browserLaunches()).filter(entry => entry.event === 'start');
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.deepEqual({ state: host.state, room: host.room }, { state: 'online', room: 'open' }, JSON.stringify(host.problem));
+    workers = (await starts()).map(entry => entry.pid);
+    const links = await staged.command('invitation');
+    assert.ok(links.url && links.localUrl);
+
+    // One player, synchronized and alone, as a page is once its game runs.
+    const player = await joinRoom(netplayPort, gamePort, links.localUrl, { roster: true });
+    sockets.push(player.socket);
+    const ready = await player.answer;
+    assert.deepEqual({ type: ready.type, slot: ready.slot, owner: ready.owner, restore: ready.restore },
+      { type: 'ready', slot: 0, owner: true, restore: true }, JSON.stringify(ready));
+    player.socket.send('{"type":"synchronized"}');
+    await until('the player is connected', () => player.inbox.some(message => message.type === 'roster' && message.seats[0].status === 'connected'));
+
+    // The page asks on a connection of its own, with the key of its save library, and sends the save when asked.
+    const save = identityKey({ disc: player.info.disc, core: player.info.core, adapter: player.info.adapter, bios: 'hle' });
+    const state = validState();
+    const request = connectRoom(netplayPort, gamePort, { role: 'restore', room: player.room, token: player.token, seatKey: ready.seatKey, save });
+    sockets.push(request.socket);
+    assert.deepEqual(await request.answer, { type: 'restore', state: 'send' });
+    request.socket.send(state);
+    assert.equal(await request.closed, 'Saved game loaded');
+    assert.deepEqual(request.inbox.map(message => message.state), ['send', 'starting', 'done']);
+    assert.equal(await player.closed, 'Saved game loaded');
+
+    // A second emulator was started with the save, and the first one ended.
+    const [first, second, ...more] = await starts();
+    workers = [first.pid, second.pid];
+    assert.deepEqual(more, []);
+    await untilGone(first.pid);
+    assert.ok(alive(second.pid));
+    const text = state.toString('base64');
+    const navigations = (await staged.browserLaunches()).filter(entry => entry.event === 'navigate');
+    assert.deepEqual(navigations.map(entry => entry.setup.snapshot),
+      [undefined, { length: text.length, sha256: createHash('sha256').update(text).digest('hex') }]);
+    assert.deepEqual(navigations.map(entry => entry.setup.room), [player.room, player.room], 'both under the name of the one room');
+
+    // The room is the same one. It takes nobody else until its player is back.
+    assert.deepEqual(await staged.command('invitation'), links);
+    const during = (await staged.command('status')).host;
+    assert.deepEqual({ state: during.state, room: during.room, problem: during.problem }, { state: 'online', room: 'restoring', problem: null });
+    const back = await joinRoom(netplayPort, gamePort, links.localUrl, { previousSeatKey: ready.seatKey, roster: true });
+    sockets.push(back.socket);
+    const again = await back.answer;
+    assert.deepEqual({ type: again.type, slot: again.slot, owner: again.owner, seatKey: again.seatKey },
+      { type: 'ready', slot: 0, owner: true, seatKey: ready.seatKey }, JSON.stringify(again));
+    const after = (await staged.command('status')).host;
+    assert.deepEqual({ state: after.state, room: after.room }, { state: 'online', room: 'open' });
+    assert.deepEqual(await staged.command('invitation'), links);
+
+    const serverLog = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    assert.ok(serverLog.includes('The room is loading a saved game.') && serverLog.includes('The load of the saved game is over.'), serverLog);
+    assert.equal(serverLog.split('The room is open.').length, 2, 'the room was opened once');
+    for (const secret of [player.room, player.token, ready.seatKey, save, player.info.disc, ...navigations.map(entry => entry.setup.workerKey)])
+      assert.ok(!serverLog.includes(secret) && !JSON.stringify(during).includes(secret), 'neither the log nor the status names it');
+
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    assert.ok(!alive(second.pid), 'the worker ended before the server did');
+    assert.deepEqual(await readdir(join(staged.home, 'Library', 'Caches', 'Sled Storm Server', 'browser-profiles')), []);
+    await staged.unchanged();
+  } finally {
+    for (const socket of sockets) socket.terminate();
+    for (const worker of workers) if (alive(worker)) process.kill(worker, 'SIGKILL');
     if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     await staged.remove();
   }

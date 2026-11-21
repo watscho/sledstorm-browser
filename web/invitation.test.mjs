@@ -22,7 +22,7 @@ test('malformed and outdated invitations fail before disc loading', () => {
 });
 
 test('a loopback host shares the private HTTPS room without downloading through the tunnel', () => {
-  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) }, options = { progress: 'all', camera: true };
+  const room = { v: 8, room: '1'.repeat(24), token: '2'.repeat(64) }, options = { progress: 'all', camera: true };
   const path = '/access/' + '3'.repeat(48);
   const shared = new URL(onlineInvitationUrl('http://127.0.0.1:8000/?dev=1', path, room, options, 'https://game.example'));
   assert.equal(shared.origin, 'https://game.example');
@@ -32,7 +32,7 @@ test('a loopback host shares the private HTTPS room without downloading through 
 });
 
 test('copying an online invitation cannot return localhost before the tunnel is ready', () => {
-  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) };
+  const room = { v: 8, room: '1'.repeat(24), token: '2'.repeat(64) };
   const options = { progress: 'all', camera: true };
   assert.throws(() => onlineInvitationUrl('http://127.0.0.1:8000/', null, room, options), /Tunnel is not active/);
   const publicLink = onlineInvitationUrl('https://game.example/', '/access/key', room, options);
@@ -40,17 +40,35 @@ test('copying an online invitation cannot return localhost before the tunnel is 
 });
 
 test('legacy personal links cannot be used as invitations', () => {
-  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) };
+  const room = { v: 8, room: '1'.repeat(24), token: '2'.repeat(64) };
   const link = invitationUrl('https://game.example/', '/', room,
     { progress: 'all', camera: true, recovery: '4'.repeat(32) });
   assert.throws(() => parseInvitation(new URL(link).hash), /Invalid or outdated/);
 });
 
 test('the experimental native camera setting travels with the room invitation', () => {
-  const room = { v: 7, room: '1'.repeat(24), token: '2'.repeat(64) };
+  const room = { v: 8, room: '1'.repeat(24), token: '2'.repeat(64) };
   const options = { progress: 'all', camera: true, nativeCamera: true };
   const link = invitationUrl('https://game.example/?nativeCamera=1', '/', room, options);
   assert.deepEqual(parseInvitation(new URL(link).hash), { ...room, ...options });
   const invalid = invitationUrl(link, '/', room, { ...options, camera: false });
   assert.throws(() => parseInvitation(new URL(invalid).hash), /Invalid or outdated/);
+});
+
+test('an invitation of the earlier version is refused in its own words', () => {
+  const room = { room: '1'.repeat(24), token: '2'.repeat(64) };
+  const earlier = '#' + btoa(JSON.stringify({ v: 7, ...room, progress: 'all', camera: true, nativeCamera: true }));
+  assert.throws(() => parseInvitation(earlier), /made for an earlier version of the game\. Ask the host for a new link\./);
+  // It is not read as a current one, and a current one is not written as it.
+  const current = invitationUrl('https://game.example/', '/', { v: 8, ...room }, { progress: 'all', camera: true });
+  assert.equal(parseInvitation(new URL(current).hash).v, 8);
+  assert.equal(JSON.parse(atob(new URL(current).hash.slice(1))).v, 8);
+});
+
+test('the legacy transport keeps its own invitation version', () => {
+  const room = { room: '1'.repeat(24), token: '2'.repeat(64) };
+  const link = invitationUrl('https://game.example/', '/', room, { progress: 'original', camera: false });
+  assert.equal(parseInvitation(new URL(link).hash).v, 6);
+  const withNativeCamera = invitationUrl('https://game.example/', '/', room, { progress: 'all', camera: true, nativeCamera: true });
+  assert.throws(() => parseInvitation(new URL(withNativeCamera).hash), /Invalid or outdated/);
 });

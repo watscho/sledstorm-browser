@@ -5,6 +5,7 @@ import { basename, dirname, isAbsolute, join } from 'node:path';
 import { isSea } from 'node:sea';
 
 export const applicationName = 'Sled Storm Server';
+const PROFILES = 'browser-profiles';
 
 export interface Paths {
   /** Immutable files shipped with the executable. Never written. */
@@ -16,6 +17,8 @@ export interface Paths {
   logRoot: string;
   /** Parent of per-run temporary directories. */
   tempRoot: string;
+  /** Temporary profiles of the emulator's browser, and its crash reports. Emptied when hosting starts; nothing else lives here. */
+  profileRoot: string;
 }
 
 export interface PathInputs {
@@ -46,18 +49,21 @@ export function resolvePaths({ sea, execPath, platform, env, home, temp }: PathI
   const relocated = env.SLED_SERVER_HOME;
   if (relocated !== undefined && relocated !== '') {
     if (!isAbsolute(relocated)) throw new Error('SLED_SERVER_HOME must be an absolute path.');
-    return { resourceRoot, dataRoot: join(relocated, 'data'), cacheRoot: join(relocated, 'cache'),
-      logRoot: join(relocated, 'logs'), tempRoot: temp };
+    const cacheRoot = join(relocated, 'cache');
+    return { resourceRoot, dataRoot: join(relocated, 'data'), cacheRoot, logRoot: join(relocated, 'logs'), tempRoot: temp,
+      profileRoot: join(cacheRoot, PROFILES) };
   }
   if (platform !== 'darwin')
     throw new Error(`No default data location for ${platform} yet. Set SLED_SERVER_HOME to an absolute path.`);
   const library = join(home, 'Library');
+  const cacheRoot = join(library, 'Caches', applicationName);
   return {
     resourceRoot,
     dataRoot: join(library, 'Application Support', applicationName),
-    cacheRoot: join(library, 'Caches', applicationName),
+    cacheRoot,
     logRoot: join(library, 'Logs', applicationName),
     tempRoot: temp,
+    profileRoot: join(cacheRoot, PROFILES),
   };
 }
 

@@ -93,7 +93,8 @@ async function checkHttp(): Promise<unknown> {
   let quits = 0;
   // Read through a function: the compiler must not assume the count stays unchanged across requests.
   const quitCount = () => quits;
-  const host = await startHostServer({ version: appVersion, onQuit: () => { quits += 1; }, status: () => ({}) });
+  const host = await startHostServer({ version: appVersion, onQuit: () => { quits += 1; }, status: () => ({}),
+    invitation: () => ({ url: null, localUrl: null }) });
   try {
     const bearer = { authorization: `Bearer ${host.token}` };
     const status = await call(host.port, 'GET', '/api/status', bearer);

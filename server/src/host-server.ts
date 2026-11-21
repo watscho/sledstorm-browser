@@ -38,8 +38,13 @@ function page(response: ServerResponse, version: string): void {
   }).end(data);
 }
 
-export async function startHostServer({ version, onQuit, status }:
-  { version: string; onQuit: () => void; status: () => object }): Promise<HostServer> {
+export async function startHostServer({ version, onQuit, status, invitation }: {
+  version: string;
+  onQuit: () => void;
+  status: () => object;
+  /** The links to the server's room: for guests, and for a browser on this computer. Each is null while it does not work. */
+  invitation: () => { url: string | null; localUrl: string | null };
+}): Promise<HostServer> {
   const instance = randomBytes(8).toString('hex');
   const token = randomBytes(32).toString('hex');
   const startedAt = new Date().toISOString();
@@ -68,6 +73,11 @@ export async function startHostServer({ version, onQuit, status }:
     if (!authorized(request)) return send(response, 401, { error: 'Authorization required' });
     if (path === '/api/status' && request.method === 'GET')
       return send(response, 200, { application: applicationName, version, instance, pid: process.pid, startedAt, host: status() });
+    if (path === '/api/invitation' && request.method === 'GET') {
+      // The links are credentials for the room. They leave the server here only, to a caller that holds the control credential.
+      const { url, localUrl } = invitation();
+      return url || localUrl ? send(response, 200, { url, localUrl }) : send(response, 409, { error: 'No room is open.' });
+    }
     if (path === '/api/host/quit' && request.method === 'POST') {
       send(response, 202, { quitting: true });
       setImmediate(onQuit);

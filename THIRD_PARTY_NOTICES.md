@@ -68,9 +68,10 @@ The local SVG is cropped, with a simplified Circle symbol and editor metadata re
 
 ## Hosting tools
 
-Dedicated mode launches a separately installed Chrome executable to run the
-server-owned emulator. Chrome is provided by the host and carries its own
-license and component notices.
+Dedicated mode of the Python launcher runs a separately installed Chrome
+executable as the server-owned emulator. Chrome is provided by the host and
+carries its own license and component notices. The packaged server uses the
+Chromium listed under "Server packaging tools" instead.
 
 `tools/play-online.py` runs a separately installed
 [cloudflare/cloudflared](https://github.com/cloudflare/cloudflared) executable
@@ -86,12 +87,17 @@ built executable is committed or published.
 | --- | --- | --- | --- |
 | [Node.js](https://nodejs.org/) | 26.13.1; archive SHA-256 in `server/toolchain.lock.json` | Runtime embedded in the single executable | MIT, plus the terms of its bundled components listed in the Node.js `LICENSE` file. |
 | [websockets/ws](https://github.com/websockets/ws) | `ws@8.22.1`; npm integrity in `server/package-lock.json` | WebSocket transport bundled into the server | [MIT notice](docs/licenses/ws-LICENSE.txt). |
+| [cloudflare/cloudflared](https://github.com/cloudflare/cloudflared) | 2026.10.7; archive and binary SHA-256 in `server/toolchain.lock.json` | Tunnel program, copied unmodified into the packaged server's resources | Apache-2.0. |
+| [Chromium](https://www.chromium.org/Home/) | 158.0.8127.0, continuous build 1727462 for macOS arm64 from the project's [build store](https://storage.googleapis.com/chromium-browser-snapshots/index.html?prefix=Mac_Arm/1727462/), commit `88c3ce436c686bd2114720debffedcb893ca464a`; SHA-256 of the archive, the launcher and the framework in `server/toolchain.lock.json` | Browser that runs a room's emulator, copied unmodified into the packaged server's resources | BSD-3-Clause for Chromium itself, plus the terms of its bundled components listed in the browser's `chrome://credits` page. |
 | [evanw/esbuild](https://github.com/evanw/esbuild) | `esbuild@0.28.2` | Build-time bundler, not shipped | MIT. |
 | [microsoft/TypeScript](https://github.com/microsoft/TypeScript) | `typescript@7.0.2` | Build-time type checking, not shipped | Apache-2.0. |
 | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | `@types/node@26.6.6`, `@types/ws@8.18.2` | Build-time type declarations, not shipped | MIT. |
 
-A distributed build embeds the Node.js runtime and must carry the Node.js
-`LICENSE` file with it. That packaging step has not been done yet.
+A distributed build embeds the Node.js runtime and carries `cloudflared` and
+Chromium. It must ship the Node.js `LICENSE` file, the `cloudflared` license
+and notices, and the Chromium license with its credits. The Chromium archive
+contains no license file, so the credits have to be taken from the pinned
+source. That packaging step has not been done yet.
 
 ## Interface inspiration
 

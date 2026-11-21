@@ -9,7 +9,8 @@
     "build": "node scripts/build.mjs",
     "build:sea": "node scripts/build-sea.mjs",
     "package:macos": "node scripts/package-macos.mjs",
-    "smoke": "node --test \"smoke/*.test.mjs\""
+    "smoke": "node --test \"smoke/*.test.mjs\"",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "ws": "8.22.1"

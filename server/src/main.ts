@@ -1,5 +1,5 @@
 // Command dispatch. Importing this module starts nothing; `entry.ts` runs it.
-import { configure, launch, quit, status } from './control.ts';
+import { configure, invitation, launch, quit, status } from './control.ts';
 import { internal } from './internal.ts';
 import { currentPaths } from './paths.ts';
 import { selfTest } from './self-test.ts';
@@ -12,6 +12,7 @@ const usage = `Usage: SledStormServer [command]
   configure     Save the game folder and the disc policy
   serve         Run the server in the foreground
   status        Report whether a server is running
+  invitation    Print the private links to the room: for guests, and for this computer
   quit          Stop the running server
   self-test     Check this executable and print a JSON report
   --version     Print the version`;
@@ -33,6 +34,7 @@ export async function main(argv: string[]): Promise<number> {
     case 'configure': return configure(paths, rest);
     case 'serve': return serve(paths, { echo: process.stderr.isTTY === true });
     case 'status': return status(paths);
+    case 'invitation': return invitation(paths);
     case 'quit': return quit(paths);
     case 'self-test': return selfTest(paths);
     default:

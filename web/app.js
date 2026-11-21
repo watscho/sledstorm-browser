@@ -5,6 +5,8 @@ import { unlockPal } from './pal-profile.js';
 import { selectedDisc } from '/local-disc.js';
 import { identifyDisc } from './disc-identity.js';
 import { parseInvitation, invitationUrl, onlineInvitationUrl } from './invitation.js';
+import { invitationVersion, roomIdentity } from './room-identity.js';
+import { loadInRoom, takeRejoin } from './room-restore.js';
 import { checkNetplayInvitation, prepareNetplay, driveRetroPad } from './retroarch-netplay.js';
 import { enableSessionDisplay, loadDisplayShaders } from './display.js';
 import { openSoloSave, takeLoadRequest, trackSoloSave } from './solo-save.js';
@@ -71,7 +73,9 @@ const localConsole = new URLSearchParams(location.search).has('console') && loca
 const hardwarePreview = localConsole && new URLSearchParams(location.search).get('renderer') === 'hardware';
 const canSaveSolo = !invitation && !invitationError && !dedicatedWorker && !lab && !localConsole;
 const canManageSaves = !invitationError && !dedicatedWorker && !lab && !localConsole;
-const retroArch = !lab && !localConsole && (invitation ? invitation.v === 7 :
+// A load into a server's room reloads the page, which then comes back to the room by its invitation.
+const pendingLoadId = canSaveSolo ? loadRequestId : invitation && canManageSaves ? takeRejoin() : undefined;
+const retroArch = !lab && !localConsole && (invitation ? invitation.v === invitationVersion :
   new URLSearchParams(location.search).get('transport') !== 'legacy');
 let refreshSoloSave;
 let unverifiedSharedRoom = false;
@@ -203,7 +207,7 @@ const launcherInfo = fetch('/session-info').then(async response => {
     document.querySelector('#launch-hint').hidden = true;
   }
   if (!invitationError) {
-    launch.disabled = Boolean(canSaveSolo && loadRequestId);
+    launch.disabled = Boolean(pendingLoadId);
     showStatus(launch.disabled ? 'Loading saved game…' : '');
   }
   document.querySelector('#saved-games').hidden = !canManageSaves;
@@ -226,7 +230,11 @@ document.querySelector('#saved-games').addEventListener('click', async event => 
     storage = await openSoloSave(info, biosInput.files[0]);
     await saveManager.open({
       storage, mode: 'load', playing: false, opener: button, canCapture: () => false,
-      canLoad: () => !launch.disabled,
+      // A server's room loads a save for the player who is alone in it, so not before joining.
+      canLoad: () => !launch.disabled && !info.serverRoom,
+      unavailableReason: () => info.serverRoom
+        ? 'Join the room to load a save. Saves load from the game menu while you play alone.' : '',
+      keepsRoom: () => info.serverRoom === true,
       onClose: () => storage.close(),
       async load(record) {
         const settings = {
@@ -246,11 +254,13 @@ document.querySelector('#saved-games').addEventListener('click', async event => 
   finally { button.disabled = false; }
 });
 if (dedicatedWorker) launcherInfo.then(() => launch.click()).catch(() => {});
-if (canSaveSolo && loadRequestId) {
+if (pendingLoadId) {
   launcherInfo.then(async () => {
     try {
-      const request = await takeLoadRequest(loadRequestId);
+      const request = await takeLoadRequest(pendingLoadId);
       if (!request) throw new Error('This load request has expired.');
+      // A server's room already runs the saved game. The page comes back to it and sends no state.
+      if (invitation) request.state = undefined;
       for (const [id, value] of Object.entries(request.settings)) {
         const input = document.getElementById(id);
         if (input.type === 'checkbox') input.checked = value;
@@ -410,7 +420,8 @@ async function startGame(loadRequest) {
     if (invitation?.nativeCamera && !roomOptions.nativeCamera) throw new Error('This room requires the native PAL camera.');
     if (retroArch && launchInfo.dedicated && bios)
       throw new Error('Dedicated rooms use the built-in BIOS. Remove the custom BIOS before joining.');
-    if (retroArch && invitation && launchInfo.roomCheck) {
+    // Until the player of a load is back the room answers nobody else, so that player does not ask first.
+    if (retroArch && invitation && launchInfo.roomCheck && !pendingLoadId) {
       showStatus('Checking the invitation…');
       await checkNetplayInvitation(invitation);
     }
@@ -432,7 +443,7 @@ async function startGame(loadRequest) {
       try { ({ enableHardwarePreview } = await import('./hardware-preview.js')); }
       catch { if (hardwarePreview) showActionNotice('WebGL2 preview files are unavailable. Using the software renderer.'); }
     }
-    if (canSaveSolo) {
+    if (canSaveSolo || (canManageSaves && retroArch && launchInfo.serverRoom)) {
       try {
         soloStorage = await openSoloSave(launchInfo, bios);
       } catch { showActionNotice('Browser saves are unavailable.'); }
@@ -558,17 +569,26 @@ async function startGame(loadRequest) {
         if (soloStorage) refreshSoloSave = trackSoloSave(emulator, soloStorage,
           () => roomSynchronized && !unverifiedSharedRoom && (retroArch
             ? !retroRoom?.failed && retroRoom?.soleController && !module.sledCatchup && module._sled_netplay_status(1) === 1
+              // A server's room says who may save and load: the player it belongs to, while it offers a load.
+              && (!launchInfo.serverRoom || Boolean(retroRoom.restore && retroRoom.owner))
             : session?.active && session.members === 1 && !session.syncing && !session.replaying) &&
             !isMultiplayerRace(module),
           lobby.saveBeforeExit, showActionNotice, async (record, storage, canSave) => {
+            // A server's room keeps its options, whatever the save was made with.
+            const saved = retroRoom?.restore ? undefined : record.settings;
             const settings = {
-              progress: record.settings?.progress ?? roomOptions.progress,
-              camera: record.settings?.camera ?? roomOptions.camera,
+              progress: saved?.progress ?? roomOptions.progress,
+              camera: saved?.camera ?? roomOptions.camera,
               'graphics-preset': lobby.graphics().preset, image: document.querySelector('#live-filter').value,
               aspect: widescreen ? 'wide' : 'original', 'enhanced-render': renderEnhanced,
               'draw-distance': drawDistance,
               volume: document.querySelector('#volume').value,
             };
+            if (retroRoom?.restore) {
+              if (!canSave()) throw new Error('Wait until you are playing alone to load a save.');
+              await loadInRoom(retroRoom, storage, record, { files, settings });
+              return;
+            }
             await navigateToSoloSave(record, storage, files, settings, async () => {
               if (!canSave()) throw new Error('Wait until you are playing alone to load a save.');
               if (retroArch && launchInfo.dedicated) await retroRoom.releaseForLoad();
@@ -578,8 +598,9 @@ async function startGame(loadRequest) {
             if (retroArch ? !retroRoom?.soleController : session?.members > 1)
               return 'Saving and loading are paused while another player is connected or reserved.';
             if (isMultiplayerRace(module)) return 'Return to the solo menus to save or load. Multiplayer races and attract demos pause saving.';
+            if (launchInfo.serverRoom) return 'Saving and loading are not available in this room right now.';
             return 'Start a new synchronized solo room to save or load a checkpoint.';
-          });
+          }, () => Boolean(retroRoom?.restore));
         if (retroArch) startRetroArchRoom();
         else connectRoom(bios).catch(error => { showStatus(error.message); session?.fail(error.message); });
       }
@@ -676,7 +697,10 @@ async function restoreFixture(module) {
 async function invitationSettings(bios) {
   const info = launchInfo;
   const biosHash = bios ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await bios.arrayBuffer())), x => x.toString(16).padStart(2, '0')).join('') : 'HLE';
-  const identity = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, retroArch ? 'retroarch-netplay-v7' : 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
+  // A Netplay room is identified by a fixed list of fields, the same one its server uses. The legacy
+  // transport keeps hashing the whole launcher reply.
+  const identity = retroArch ? await roomIdentity({ ...info, bios: biosHash, options: roomOptions })
+    : Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([info, biosHash, roomOptions, 'fresh-cards-multitap-port1-v4'])))), x => x.toString(16).padStart(2, '0')).join('');
   const shareInvitation = room => {
     history.replaceState(null, '', invitationUrl(location.href, '/', room, roomOptions));
     lobby.invitationChanged();

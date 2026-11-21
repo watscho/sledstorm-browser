@@ -62,9 +62,9 @@ export async function buildSea() {
     dependencies: { ws: ws.version },
     // Null when this checkout has no built emulator: the server then reports that it cannot host.
     emulator: staged.emulator,
-    // Not bundled yet. Each gets its version, origin and hashes when it ships.
-    chromium: null,
-    cloudflared: null,
+    cloudflared: staged.cloudflared,
+    // The emulator's browser: an unmodified build, named by its position in the Chromium project's build store.
+    chromium: staged.chromium,
   };
   await writeFile(join(resources, 'runtime-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 

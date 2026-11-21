@@ -4,11 +4,13 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { writeConfig } from './config-store.ts';
+import { WORKER_GRACE_MS } from './dedicated.ts';
 import { findDisc, GameFolderError } from './disc-folder.ts';
-import { fetchStatus, findLiveInstance, isLive, readInstanceRecord, requestQuit, waitForInstance } from './instance.ts';
+import { fetchInvitation, fetchStatus, findLiveInstance, isLive, readInstanceRecord, requestQuit, waitForInstance } from './instance.ts';
 import { ensureWritableRoots, type Paths } from './paths.ts';
 import { openBrowser } from './platform/open-browser.ts';
 import { selfCommand } from './self.ts';
+import { TUNNEL_GRACE_MS } from './tunnel.ts';
 
 const panelUrl = (port: number) => `http://127.0.0.1:${port}/`;
 
@@ -40,6 +42,12 @@ export async function launch(paths: Paths, { openPanel }: { openPanel: boolean }
   return 0;
 }
 
+/**
+ * How long `quit` waits for the server to be gone. The host stops its tunnels first and its workers
+ * after them, and each may need its whole grace period before it is killed.
+ */
+export const QUIT_WAIT_MS = TUNNEL_GRACE_MS + WORKER_GRACE_MS + 5000;
+
 export async function quit(paths: Paths): Promise<number> {
   const record = await findLiveInstance(paths);
   if (!record) {
@@ -50,7 +58,7 @@ export async function quit(paths: Paths): Promise<number> {
     console.error('The server did not accept the quit request.');
     return 1;
   }
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + QUIT_WAIT_MS;
   while (await isLive(record) || alive(record.pid)) {
     if (Date.now() >= deadline) {
       console.error('The server accepted the quit request but is still running.');
@@ -69,6 +77,23 @@ export async function status(paths: Paths): Promise<number> {
     ? { running: true, pid: record.pid, version: record.version, startedAt: record.startedAt, url: panelUrl(record.port),
       host: report.host }
     : { running: false }));
+  return 0;
+}
+
+/** Prints the private link that guests open. It is a credential: it goes to standard output and nowhere else. */
+export async function invitation(paths: Paths): Promise<number> {
+  const record = await findLiveInstance(paths);
+  if (!record) {
+    console.error('The server is not running.');
+    return 1;
+  }
+  const links = await fetchInvitation(record);
+  if (!links) {
+    console.error('No room is open.');
+    return 1;
+  }
+  // `url` is for guests and is null without a public address. `localUrl` opens the same room on this computer.
+  console.log(JSON.stringify(links));
   return 0;
 }
 

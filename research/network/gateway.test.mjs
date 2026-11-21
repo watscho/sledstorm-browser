@@ -97,3 +97,38 @@ test('emulator gateway protects the archive, preserves reshare access and exclud
     }
   } finally { source.close(); }
 });
+
+test('every module the game page imports is served to guests', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const web = new URL('../../web/', import.meta.url);
+  const allowed = emulatorAssetPaths({ files: {} }, 'shared');
+  const seen = new Set();
+  const queue = ['/app.js'];
+  while (queue.length) {
+    const path = queue.pop();
+    if (seen.has(path)) continue;
+    seen.add(path);
+    // Built on the host by an optional tool; it is listed, and absent from a plain checkout.
+    if (path.startsWith('/generated/')) continue;
+    const source = await readFile(new URL('.' + path, web), 'utf8');
+    for (const [, specifier] of source.matchAll(/(?:^|[;\n])\s*(?:import|export)\b[^'"\n]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g).map(match => [0, match[1] ?? match[2]]))
+      queue.push(new URL(specifier, new URL(path, 'http://page.example')).pathname);
+  }
+  assert.ok(seen.size > 10, 'the page imports its modules');
+  assert.deepEqual([...seen].filter(path => !allowed.has(path)), []);
+});
+
+test('the gateway serves the restore module', async () => {
+  const source = http.createServer((request, response) => response.end(request.url));
+  source.listen(0, '127.0.0.1'); await once(source, 'listening');
+  const token = 'e'.repeat(48);
+  const gateway = createPublicGateway({ port: 0, upstream: source.address().port, accessToken: token,
+    assetPaths: emulatorAssetPaths(lock, 'local') });
+  await once(gateway, 'listening');
+  try {
+    const response = await fetch(`http://127.0.0.1:${gateway.address().port}/room-restore.js`,
+      { headers: { cookie: `sled_access=${token}` } });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), '/room-restore.js');
+  } finally { gateway.close(); source.close(); }
+});

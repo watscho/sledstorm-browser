@@ -118,7 +118,9 @@ test('every reply carries the isolation headers', async t => {
 test('cache control follows the route', async t => {
   const { call } = await site(t, { archive: disc('synthetic disc') });
   assert.equal((await call('/session-info')).headers['cache-control'], 'no-store');
-  assert.equal((await call('/emulator/loader.js')).headers['cache-control'], undefined);
+  // The emulator's files have the same names in every build, so a kept copy is asked about each time.
+  assert.equal((await call('/emulator/loader.js')).headers['cache-control'], 'no-cache');
+  assert.equal((await call('/emulator/cores/core.wasm')).headers['cache-control'], 'no-cache');
   assert.equal((await call('/disc.zip')).headers['cache-control'], undefined);
   assert.equal((await call('/app.js')).headers['cache-control'], 'no-cache');
   assert.equal((await call('/network-core.data')).headers['cache-control'], 'no-cache');
@@ -148,18 +150,53 @@ test('static files have a type, a length and a date', async t => {
   }
 });
 
-test('a conditional request gets 304', async t => {
+test('a kept copy is confirmed by its tag', async t => {
   const { call, web } = await site(t);
   const modified = new Date('2026-01-02T03:04:05.678Z');
   await utimes(join(web, 'app.js'), modified, modified);
-  assert.equal((await call('/app.js')).headers['last-modified'], 'Fri, 02 Jan 2026 03:04:05 GMT');
-  const since = (value: string) => call('/app.js', { headers: { 'if-modified-since': value } });
-  const unchanged = await since('Fri, 02 Jan 2026 03:04:05 GMT');
+  const first = await call('/app.js');
+  assert.equal(first.headers['last-modified'], 'Fri, 02 Jan 2026 03:04:05 GMT');
+  const tag = String(first.headers.etag);
+  assert.match(tag, /^"[0-9a-f]+-[0-9a-f]+"$/);
+  const unchanged = await call('/app.js', { headers: { 'if-none-match': tag } });
   assert.equal(unchanged.status, 304);
   assert.equal(unchanged.body.length, 0);
-  assert.equal((await since('Sat, 03 Jan 2026 00:00:00 GMT')).status, 304);
-  assert.equal((await since('Thu, 01 Jan 2026 00:00:00 GMT')).status, 200);
-  assert.equal((await since('not a date')).status, 200);
+  assert.equal(unchanged.headers.etag, tag);
+  // A browser sends the date along with the tag, and may send several tags.
+  const both = { 'if-none-match': tag, 'if-modified-since': 'Thu, 01 Jan 2026 00:00:00 GMT' };
+  assert.equal((await call('/app.js', { headers: both })).status, 304);
+  assert.equal((await call('/app.js', { headers: { 'if-none-match': `"1-1", W/${tag}` } })).status, 304);
+  assert.equal((await call('/app.js', { headers: { 'if-none-match': '"1-1"' } })).status, 200);
+});
+
+test('a date alone confirms nothing', async t => {
+  // The Python launcher serves this address too, and so does every other build. A copy kept from one of
+  // them carries only a date, and a later date does not make it the file of this build.
+  const { call, web } = await site(t);
+  const modified = new Date('2026-01-02T03:04:05.678Z');
+  await utimes(join(web, 'app.js'), modified, modified);
+  for (const date of ['Fri, 02 Jan 2026 03:04:05 GMT', 'Sat, 03 Jan 2026 00:00:00 GMT', 'Thu, 01 Jan 2026 00:00:00 GMT', 'not a date']) {
+    const reply = await call('/app.js', { headers: { 'if-modified-since': date } });
+    assert.equal(reply.status, 200, date);
+    assert.equal(reply.body.toString(), 'export {};\n', date);
+  }
+});
+
+test('a file that changed has another tag', async t => {
+  const { call, web } = await site(t);
+  const tagOf = async () => String((await call('/app.js')).headers.etag);
+  const early = new Date('2026-01-02T03:04:05.000Z');
+  await utimes(join(web, 'app.js'), early, early);
+  const first = await tagOf();
+  // The same length at another time, as two builds of one file have.
+  const later = new Date('2026-01-02T03:04:06.000Z');
+  await utimes(join(web, 'app.js'), later, later);
+  const second = await tagOf();
+  assert.notEqual(second, first);
+  await writeFile(join(web, 'app.js'), 'export {}; // longer\n');
+  await utimes(join(web, 'app.js'), later, later);
+  assert.notEqual(await tagOf(), second);
+  assert.equal((await call('/app.js', { headers: { 'if-none-match': first } })).status, 200);
 });
 
 test('HEAD sends no body', async t => {

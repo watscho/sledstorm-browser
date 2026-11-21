@@ -8,5 +8,33 @@
         "sha256": "aec2514ea1ceb2ba52455e9ec65986f6749a06dd759e5db2a72e6889668c9735"
       }
     }
+  },
+  "cloudflared": {
+    "version": "2026.10.7",
+    "archives": {
+      "darwin-arm64": {
+        "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-arm64.tgz",
+        "file": "cloudflared-darwin-arm64.tgz",
+        "sha256": "3586ccf397e98e5f437e60e7c307ca6ac463e110580503af8bb8e6f9ebf831bd",
+        "binarySha256": "2136431d5eb467bf447d2ee514b713e192719b143aec1d9e09bf7dc290d5bb12"
+      }
+    }
+  },
+  "chromium": {
+    "version": "158.0.8127.0",
+    "archives": {
+      "darwin-arm64": {
+        "position": 1727462,
+        "commit": "88c3ce436c686bd2114720debffedcb893ca464a",
+        "url": "https://storage.googleapis.com/chromium-browser-snapshots/Mac_Arm/1727462/chrome-mac.zip",
+        "file": "chrome-mac.zip",
+        "sha256": "eef8e2efe4944252329c3b273e78629a93cf5b30a26dcce68259d0910202012d",
+        "application": "chrome-mac/Chromium.app",
+        "executable": "Contents/MacOS/Chromium",
+        "framework": "Contents/Frameworks/Chromium Framework.framework/Versions/158.0.8127.0/Chromium Framework",
+        "executableSha256": "62b7a60b7f000a14210ba552e5397ba9e91047589c3f4ae2d91e2d0a26d3bc2f",
+        "frameworkSha256": "b3280d0249be230c6215b5bcf0b71b4b825c846a4b1f4058e3bd5e0d71d2b192"
+      }
+    }
   }
 }

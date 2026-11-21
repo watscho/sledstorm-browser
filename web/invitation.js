@@ -1,13 +1,20 @@
+import { invitationVersion } from './room-identity.js';
+
+// Version 6 belongs to the legacy transport. A Netplay room has the version of its room identity;
+// its previous version, 7, hashed the whole launcher reply and cannot be matched any more.
+const versions = [6, invitationVersion];
+
 export function parseInvitation(hash) {
   if (!hash) return null;
-  try {
-    const value = JSON.parse(atob(hash.slice(1)));
-    if (![6, 7].includes(value.v) || !/^[a-f0-9]{24}$/.test(value.room) || !/^[a-f0-9]{64}$/.test(value.token)
-      || !['all', 'original'].includes(value.progress) || typeof value.camera !== 'boolean'
-      || (value.nativeCamera !== undefined && (value.v !== 7 || value.nativeCamera !== true || !value.camera))
-      || value.recovery !== undefined) throw new Error();
-    return value;
-  } catch { throw new Error('Invalid or outdated invitation. Ask the host for a new complete link.'); }
+  let value;
+  try { value = JSON.parse(atob(hash.slice(1))); } catch { /* Refused below. */ }
+  if (value?.v === invitationVersion - 1)
+    throw new Error('This invitation was made for an earlier version of the game. Ask the host for a new link.');
+  if (!versions.includes(value?.v) || !/^[a-f0-9]{24}$/.test(value.room) || !/^[a-f0-9]{64}$/.test(value.token)
+    || !['all', 'original'].includes(value.progress) || typeof value.camera !== 'boolean'
+    || (value.nativeCamera !== undefined && (value.v !== invitationVersion || value.nativeCamera !== true || !value.camera))
+    || value.recovery !== undefined) throw new Error('Invalid or outdated invitation. Ask the host for a new complete link.');
+  return value;
 }
 
 export function invitationUrl(href, accessPath, room, options, publicOrigin) {
@@ -19,7 +26,7 @@ export function invitationUrl(href, accessPath, room, options, publicOrigin) {
   }
   url.pathname = accessPath;
   url.search = '';
-  url.hash = btoa(JSON.stringify({ v: room.v === 7 ? 7 : 6, room: room.room, token: room.token, ...options }));
+  url.hash = btoa(JSON.stringify({ v: room.v === invitationVersion ? invitationVersion : 6, room: room.room, token: room.token, ...options }));
   return url.href;
 }
 

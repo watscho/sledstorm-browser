@@ -59,6 +59,16 @@ export async function fetchStatus(record: InstanceRecord): Promise<{ instance?: 
   catch { return null; }
 }
 
+/** The links to the server's room, or null when it has no room or does not answer. `url` is null without a public address. */
+export async function fetchInvitation(record: InstanceRecord): Promise<{ url: string | null; localUrl: string | null } | null> {
+  const response = await call(record, 'GET', '/api/invitation', 1000);
+  if (response?.status !== 200) return null;
+  try {
+    const { url, localUrl } = await response.json() as { url?: unknown; localUrl?: unknown };
+    return { url: typeof url === 'string' ? url : null, localUrl: typeof localUrl === 'string' ? localUrl : null };
+  } catch { return null; }
+}
+
 /** True when the recorded server answers with its own identity. */
 export async function isLive(record: InstanceRecord): Promise<boolean> {
   return (await fetchStatus(record))?.instance === record.instance;

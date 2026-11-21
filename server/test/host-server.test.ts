@@ -20,7 +20,9 @@ function call(port: number, method: string, path: string, headers: Record<string
 test('the control listener answers only its own host, origin and credential', async () => {
   let quits = 0;
   const hostStatus = { state: 'needs_setup', tunnel: 'off' };
-  const host = await startHostServer({ version: '9.9.9', onQuit: () => { quits += 1; }, status: () => hostStatus });
+  let links: { url: string | null; localUrl: string | null } = { url: null, localUrl: null };
+  const host = await startHostServer({ version: '9.9.9', onQuit: () => { quits += 1; }, status: () => hostStatus,
+    invitation: () => links });
   const quitCount = () => quits;
   try {
     const bearer = { authorization: `Bearer ${host.token}` };
@@ -43,6 +45,20 @@ test('the control listener answers only its own host, origin and credential', as
     assert.equal((await call(host.port, 'GET', '/api/status', { ...bearer, host: `localhost:${host.port}` })).status, 200);
     assert.equal((await call(host.port, 'GET', '/api/status', { ...bearer, origin: 'https://attacker.example' })).status, 403);
     assert.equal((await call(host.port, 'GET', '/api/status', { ...bearer, origin: `http://127.0.0.1:${host.port}` })).status, 200);
+
+    assert.equal((await call(host.port, 'GET', '/api/invitation')).status, 401, 'the link needs the credential');
+    const none = await call(host.port, 'GET', '/api/invitation', bearer);
+    assert.equal(none.status, 409);
+    assert.deepEqual(JSON.parse(none.body), { error: 'No room is open.' });
+    // A room without a public address can still be played on this computer.
+    links = { url: null, localUrl: 'http://127.0.0.1:8000/#room' };
+    const local = await call(host.port, 'GET', '/api/invitation', bearer);
+    assert.equal(local.status, 200);
+    assert.deepEqual(JSON.parse(local.body), links);
+    links = { url: 'https://synthetic-test.trycloudflare.com/access/' + 'a'.repeat(48) + '#room', localUrl: 'http://127.0.0.1:8000/#room' };
+    const some = await call(host.port, 'GET', '/api/invitation', bearer);
+    assert.equal(some.status, 200);
+    assert.deepEqual(JSON.parse(some.body), links);
 
     assert.equal((await call(host.port, 'POST', '/api/host/quit')).status, 401);
     assert.equal((await call(host.port, 'POST', '/api/host/quit', { ...bearer, origin: 'null' })).status, 403);

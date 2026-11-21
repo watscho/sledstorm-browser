@@ -12,7 +12,7 @@ import { acquireInstanceLock } from '../src/platform/instance-lock.ts';
 async function temporaryPaths(): Promise<Paths & { remove(): Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), 'sled instance тест '));
   const paths = { resourceRoot: join(root, 'resources'), dataRoot: join(root, 'data'), cacheRoot: join(root, 'cache'),
-    logRoot: join(root, 'logs'), tempRoot: root };
+    logRoot: join(root, 'logs'), tempRoot: root, profileRoot: join(root, 'cache', 'browser-profiles') };
   await ensureWritableRoots(paths);
   return { ...paths, remove: () => rm(root, { recursive: true, force: true }) };
 }
@@ -67,7 +67,8 @@ test('the instance record is private, validated and removed only by its owner', 
 test('only a server that proves the recorded identity counts as running', async () => {
   const paths = await temporaryPaths();
   let quits = 0;
-  const host = await startHostServer({ version: '1.1.0', onQuit: () => { quits += 1; }, status: () => ({ state: 'idle' }) });
+  const host = await startHostServer({ version: '1.1.0', onQuit: () => { quits += 1; }, status: () => ({ state: 'idle' }),
+    invitation: () => ({ url: null, localUrl: null }) });
   try {
     const live = record({ instance: host.instance, port: host.port, token: host.token });
     await writeInstanceRecord(paths, live);

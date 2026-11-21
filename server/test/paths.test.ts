@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { join } from 'node:path';
 import test from 'node:test';
 import { resolvePaths, type PathInputs } from '../src/paths.ts';
 
@@ -56,4 +57,12 @@ test('no writable root is inside the read-only resources', () => {
   const paths = resolvePaths(packaged);
   for (const root of [paths.dataRoot, paths.cacheRoot, paths.logRoot, paths.tempRoot])
     assert.ok(!root.startsWith(paths.resourceRoot), root);
+});
+
+test('browser profiles live inside the cache root, wherever that is', () => {
+  for (const env of [{}, { SLED_SERVER_HOME: '/Volumes/Data/sled home' }]) {
+    const paths = resolvePaths({ sea: true, execPath: '/Applications/Sled Storm Server.app/Contents/MacOS/SledStormServer',
+      platform: 'darwin', env, home: '/Users/Example', temp: '/private/var/tmp' });
+    assert.equal(paths.profileRoot, join(paths.cacheRoot, 'browser-profiles'));
+  }
 });

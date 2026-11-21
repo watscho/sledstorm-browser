@@ -1,0 +1,79 @@
+[
+  {
+    "name": "the verified disc with separate native cameras",
+    "input": {
+      "disc": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "core": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "adapter": "pcsx-frame-gate-v3",
+      "native": {
+        "pcsx_rearmed_libretro.wasm": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "pcsx_rearmed_libretro.js": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "bios": "HLE",
+      "options": {
+        "progress": "all",
+        "camera": true,
+        "nativeCamera": true
+      }
+    },
+    "text": "[\"sled-room-identity\",1,\"retroarch-netplay-v8\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"pcsx-frame-gate-v3\",[[\"pcsx_rearmed_libretro.js\",\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"],[\"pcsx_rearmed_libretro.wasm\",\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"]],\"HLE\",\"all\",true,true]",
+    "identity": "561e55400753c66bcf5eead1ca4ac776e648398f1f05cfedcbe24ad28a781e31"
+  },
+  {
+    "name": "the original progression without separate cameras",
+    "input": {
+      "disc": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "core": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "adapter": "pcsx-frame-gate-v3",
+      "native": {
+        "pcsx_rearmed_libretro.wasm": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "pcsx_rearmed_libretro.js": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "bios": "HLE",
+      "options": {
+        "progress": "original",
+        "camera": false
+      }
+    },
+    "text": "[\"sled-room-identity\",1,\"retroarch-netplay-v8\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"pcsx-frame-gate-v3\",[[\"pcsx_rearmed_libretro.js\",\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"],[\"pcsx_rearmed_libretro.wasm\",\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"]],\"HLE\",\"original\",false,false]",
+    "identity": "41274a305f7700bc7304bbdbc94b24fcdfb91ff41900db210482993b7818ac79"
+  },
+  {
+    "name": "separate cameras without the native camera",
+    "input": {
+      "disc": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "core": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "adapter": "pcsx-frame-gate-v3",
+      "native": {
+        "pcsx_rearmed_libretro.wasm": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "pcsx_rearmed_libretro.js": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "bios": "HLE",
+      "options": {
+        "progress": "all",
+        "camera": true
+      }
+    },
+    "text": "[\"sled-room-identity\",1,\"retroarch-netplay-v8\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"pcsx-frame-gate-v3\",[[\"pcsx_rearmed_libretro.js\",\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"],[\"pcsx_rearmed_libretro.wasm\",\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"]],\"HLE\",\"all\",true,false]",
+    "identity": "a12943dc48561c387410bc334d17b8b23cf7cadc56496ebe661334fa3f48f97d"
+  },
+  {
+    "name": "a BIOS file instead of the built-in one",
+    "input": {
+      "disc": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "core": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "adapter": "pcsx-frame-gate-v3",
+      "native": {
+        "pcsx_rearmed_libretro.wasm": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "pcsx_rearmed_libretro.js": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "bios": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "options": {
+        "progress": "original",
+        "camera": false
+      }
+    },
+    "text": "[\"sled-room-identity\",1,\"retroarch-netplay-v8\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"pcsx-frame-gate-v3\",[[\"pcsx_rearmed_libretro.js\",\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"],[\"pcsx_rearmed_libretro.wasm\",\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"]],\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"original\",false,false]",
+    "identity": "385504c4706d0c1bb6323a1b33f25ceb59203888d6b5f767e51616f28da7881c"
+  }
+]

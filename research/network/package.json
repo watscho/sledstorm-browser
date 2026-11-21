@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test relay.test.mjs gateway.test.mjs client.test.mjs emulator-session.test.mjs frame-history.test.mjs retroarch-relay.test.mjs",
+    "test": "node --test relay.test.mjs gateway.test.mjs client.test.mjs emulator-session.test.mjs frame-history.test.mjs retroarch-relay.test.mjs dedicated-runtime.test.mjs",
     "start": "node emulator-relay.mjs"
   },
   "dependencies": {

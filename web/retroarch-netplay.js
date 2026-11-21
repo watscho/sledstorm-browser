@@ -1,5 +1,7 @@
 import { sampleGamepad } from './session-client.js';
 import { mirrorNetplayDownlink } from './netplay-downlink.js';
+import { invitationVersion } from './room-identity.js';
+import { restoreInRoom } from './room-restore.js';
 
 const port = 55435;
 const toRetroPad = [2, null, null, 3, 4, 7, 5, 6, 12, 13, 10, 11, 9, 8, 0, 1];
@@ -13,12 +15,23 @@ function netplayEndpoint() {
   return endpoint;
 }
 
+/** The controller key that this browser keeps for a dedicated room, if it keeps one. */
+function keptController(room) {
+  const name = `sled-controller-key:${room}`;
+  try {
+    const saved = sessionStorage.getItem(name) ?? localStorage.getItem(name);
+    if (/^[a-f0-9]{32}$/.test(saved ?? '')) return saved;
+  } catch { /* A browser without storage can still use a free controller. */ }
+  return undefined;
+}
+
 export function checkNetplayInvitation({ room, token }) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(netplayEndpoint());
     const deadline = setTimeout(() => socket.close(), 8000);
     socket.addEventListener('open', () => {
-      socket.send(JSON.stringify({ role: 'check', room, token }));
+      // A server's room that waits for the player of a load answers that player by this key.
+      socket.send(JSON.stringify({ role: 'check', room, token, seatKey: keptController(room) }));
     }, { once: true });
     socket.addEventListener('close', event => {
       clearTimeout(deadline);
@@ -31,22 +44,16 @@ export function checkNetplayInvitation({ room, token }) {
 export async function prepareNetplay(emulator, {
   invitation, identity, onInvite, onClose, onRoster, dedicated, worker, widescreen, options, snapshot, netplayDelivery, mirrorOrigin,
 }) {
-  const room = worker ? { room: worker.room, token: worker.workerKey, v: 7 } : invitation ?? {
+  const room = worker ? { room: worker.room, token: worker.workerKey, v: invitationVersion } : invitation ?? {
     room: hex(crypto.getRandomValues(new Uint8Array(12))),
     token: hex(crypto.getRandomValues(new Uint8Array(32))),
-    v: 7,
+    v: invitationVersion,
   };
   const role = worker ? 'worker' : invitation ? 'guest' : dedicated ? 'create' : 'host';
   const client = role === 'guest' || role === 'create';
   const seatKey = `sled-netplay-seat:${room.room}`;
   const controllerStorage = `sled-controller-key:${room.room}`;
-  let previousSeatKey;
-  if (dedicated && invitation) {
-    try {
-      const saved = sessionStorage.getItem(controllerStorage) ?? localStorage.getItem(controllerStorage);
-      if (/^[a-f0-9]{32}$/.test(saved ?? '')) previousSeatKey = saved;
-    } catch { /* A browser without storage can still use a free controller. */ }
-  }
+  let previousSeatKey = dedicated && invitation ? keptController(room.room) : undefined;
   let rememberController = true;
   let preferredSlot;
   if (invitation && !dedicated) {
@@ -139,6 +146,23 @@ export async function prepareNetplay(emulator, {
         socket.send('{"type":"release-for-load"}');
       });
     }
+    // A server's room loads a save into itself and keeps its name. The save goes on a connection of its
+    // own; this one carries the live input and closes when the game has moved to the new emulator.
+    let loading = false;
+    let lostWhileLoading;
+    if (ready.restore === true) {
+      connection.restore = async (state, save) => {
+        if (socket.readyState !== WebSocket.OPEN || loading) throw new Error('Could not prepare the room for loading. Try again.');
+        loading = true;
+        try {
+          await restoreInRoom({ url: endpoint, room: room.room, token: room.token, seatKey: controllerKey, save, state });
+        } catch (error) {
+          loading = false;
+          if (lostWhileLoading !== undefined) onClose(lostWhileLoading);
+          throw error;
+        }
+      };
+    }
     let delivery;
     if (!worker) {
       connection.markSynchronized = () => {
@@ -190,8 +214,10 @@ export async function prepareNetplay(emulator, {
     if (!module.sledInstallNetplay || !module._sled_netplay_status) throw new Error('RetroArch Netplay core is missing. Rebuild the emulator.');
     module.sledInstallNetplay(client ? 'guest' : role, socket, endpoint.href, port, room.room, delivery?.stream);
     socket.addEventListener('close', event => {
-      if (!connection.releasedForLoad) onClose(event.reason ||
-        'Disconnected from the room. Open the invitation again to rejoin.');
+      const reason = event.reason || 'Disconnected from the room. Open the invitation again to rejoin.';
+      // Whether a connection that closes during a load is a lost room is known when the load has ended.
+      if (loading) lostWhileLoading = reason;
+      else if (!connection.releasedForLoad) onClose(reason);
     }, { once: true });
     const config = '/home/web_user/.config/retroarch/retroarch.cfg';
     const existing = module.FS.readFile(config, { encoding: 'utf8' });

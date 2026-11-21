@@ -5,6 +5,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSea, bundleIdentifier } from './build-sea.mjs';
 import { applicationName, distRoot, executableName, repoRoot, run } from './lib.mjs';
+import { bundleCopy } from './stage-resources.mjs';
 
 // The oldest macOS that the pinned Node.js binary declares in its load commands.
 const minimumSystem = '13.5';
@@ -21,7 +22,8 @@ export async function packageMacos() {
   const contents = join(application, 'Contents');
   await mkdir(join(contents, 'MacOS'), { recursive: true });
   await cp(sea.executable, join(contents, 'MacOS', executableName));
-  await cp(sea.resources, join(contents, 'Resources'), { recursive: true });
+  // The browser inside the resources is an application bundle of its own; its links must stay relative.
+  await cp(sea.resources, join(contents, 'Resources'), bundleCopy);
   const template = await readFile(join(repoRoot, 'packaging', 'macos', 'Info.plist'), 'utf8');
   const values = { NAME: applicationName, EXECUTABLE: executableName, IDENTIFIER: bundleIdentifier,
     VERSION: sea.manifest.app.version, MINIMUM_SYSTEM: minimumSystem };
