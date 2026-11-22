@@ -1,40 +1,35 @@
 # Documentation
 
-[Version 1.1.0](../README.md#version-110)
- · [Current verification summary](verification.md#110-verification-summary)
+## Play or host
 
-## Start here
-
-| Guide | What you will find |
+| Guide | Use it for |
 | --- | --- |
-| [Devices, browsers and hosting options](platforms.md) | How to join, when to use the Apple Silicon app, and what to expect on Intel Mac, Linux and Windows. |
-| [Sled Storm Server preview](sled-storm-server.md#first-run) | Open the packaged app, prepare the game folder, invite players and manage the room. |
-| [Python quick start](../README.md#-start-invite-stop) | One-time source setup, one-command launch, invitations and shutdown. |
-| [Installation and troubleshooting](setup.md) | Prerequisites, disc layout, local play, updates and common errors. |
-| [Playing with friends](multiplayer.md) | Host/guest steps, original multiplayer menus, disc modes and room lifetime. |
-| [Launcher settings](browser-lobby.md) | Graphics presets, diagnostics, controls, save slots and portable backups. |
-| [All-content preset](unlocked-profile.md) | Unlock behavior and the guarded PAL memory fields. |
+| [Devices and browsers](platforms.md) | Choose a setup on Apple Silicon, Intel Mac, Windows or Linux. |
+| [Playing with friends](multiplayer.md) | Join, pick game data, start a race and reconnect. |
+| [Controls, graphics and saves](browser-lobby.md) | Configure your player and manage checkpoints. |
+| [Sled Storm Server app](sled-storm-server.md) | Open the macOS preview, start and stop a room, diagnose problems and replace the app. |
+| [Python source setup](setup.md) | Install dependencies, build the emulator and run from the terminal. |
 
-## Development and reference
+## Maintain or release
 
-| Guide | What you will find |
+| Reference | Use it for |
 | --- | --- |
-| [Emulator architecture](browser-emulator.md) | RetroArch Netplay, camera/HUD isolation, local diagnostics and source pins. |
-| [Verification](verification.md) | Current results, known limits and the development test record. |
-| [macOS preview packaging](sled-storm-server.md#build-it) | Build the app and ZIP, then sign and notarize a release candidate. |
-| [Contributing](../CONTRIBUTING.md) | Source conventions, checks and versioning. |
-| [Third-party notices](../THIRD_PARTY_NOTICES.md) | Component attribution and license boundaries. |
-| [Preserved license texts](licenses/README.md) | Scope and origin of the upstream files in `licenses/`. |
-| [Changelog](../CHANGELOG.md) | Release changes and development history. |
+| [Release checklist and verification](verification.md) | Find the current candidate, results, open checks, package commands and signing workflow. |
+| [Emulator and networking architecture](browser-emulator.md) | Trace the runtime, Netplay, rendering, game-data delivery and saves. |
+| [PAL progression preset](unlocked-profile.md) | Look up the audited memory fields and write guards. |
+| [Contributing](../CONTRIBUTING.md) | Run checks and prepare changes. |
+| [Changelog](../CHANGELOG.md) | Review version history. |
+| [Third-party notices](../THIRD_PARTY_NOTICES.md) | Review license terms, source pins and bundled notices. |
 
-## Release work and engineering history
+## Engineering history
 
-| Document | When to use it |
-| --- | --- |
-| [P6 release qualification](superpowers/plans/2026-11-22-p6-release-package.md) | Active checklist for signing, clean-Mac installation and remaining browser, network and gameplay checks. |
-| [Node SEA implementation record](sea-server-plan.md) | Look up architecture decisions, acceptance criteria and the evidence behind changes. |
-| [P0–P5 stage plans](superpowers/plans/) | Historical plans for completed work. Consult them when investigating a regression or revisiting a design decision. |
+Completed P0–P5 work and earlier P6 notes are preserved in Git at
+`a54e3880cccd2720dc724256536590a767ae0f61`. Start with the current
+[release checklist](verification.md#release-checklist) for outstanding work.
 
-Start ongoing release work from the P6 checklist. Use the verification summary
-when checking a current platform or workflow. The implementation record and
-completed stage plans preserve the background for maintainers.
+```sh
+git show a54e388:docs/sea-server-plan.md
+git ls-tree -r --name-only a54e388 docs/superpowers/plans/
+git show a54e388:docs/superpowers/plans/2026-11-22-p6-release-package.md
+git show a54e388:docs/verification.md
+```

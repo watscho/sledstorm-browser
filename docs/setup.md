@@ -1,52 +1,25 @@
-# Installation and local play
+# Python source setup
 
-This guide covers building and running the Python launchers from source.
-For the macOS app preview or browser-only play, see the
-[device and platform guide](platforms.md).
+Use this workflow to build and host from a checkout. For the packaged
+Apple Silicon preview, use the [app guide](sled-storm-server.md).
+[Device compatibility](platforms.md) describes the tested paths.
 
 ## Requirements
 
-The host needs macOS or Linux, Python 3.10+, Git, Bash, make, Node.js 22+ with npm,
-bsdtar/libarchive, several GB of free disk space, and a desktop browser supporting
-WebAssembly SIMD and WebGL 2. The verified macOS runs used Apple Silicon.
-Intel Mac and Linux source hosting still need qualification. Windows and
-WSL are outside the verified hosting matrix. Internet hosting also needs
-[cloudflared](https://github.com/cloudflare/cloudflared#installing-cloudflared).
+Install Python 3.10+, Git, Bash, make, Node.js 22+ with npm, and
+bsdtar/libarchive (`tar` on macOS). The project uses Node.js 24 in
+`.nvmrc`. Dedicated hosting needs Chrome or Chromium on the host;
+internet hosting also needs
+[`cloudflared`](https://github.com/cloudflare/cloudflared#installing-cloudflared).
+Allow several GB of disk space for tools, the emulator and the disc.
 
-Dedicated hosting also needs Chrome on the host to run the room emulator.
-
-If you use nvm, run `nvm use` from the project folder before building or
-hosting. `.nvmrc` selects Node.js 24. Run `nvm install` if that version is
-missing.
-
-Friends joining an internet room only need a compatible desktop browser and the
-complete invitation. They can join with the host's disc in the default mode.
-In local-file mode, every player supplies a matching CUE/BIN set.
-
-## Hardware and connection
-
-For a player, try a modern 4-core CPU and 8 GB of RAM as a starting point.
-Use a desktop browser with WebAssembly SIMD and WebGL 2, turn on graphics
-acceleration, and start with the default **Clean · Sharp Bilinear** filter.
-**Enhanced 2×** and **+100%** draw distance are enabled by default. If playback
-stutters, lower draw distance or turn off Enhanced 2×. On the host,
-`python3 tools/prepare-hardware-preview.py` enables optional WebGL2 acceleration
-for dedicated 16:9 races with **Clean** or **Crisp pixels**.
-
-For one dedicated room where you also play on the host, start with a modern
-6-core CPU, 16 GB of RAM, and about 5 GB of free disk space for the toolchain,
-game files and generated archive. These figures are planning estimates; the
-project has not benchmarked minimum hardware. The dedicated room adds a
-separate [headless Chrome](https://developer.chrome.com/docs/automation-and-testing/headless)
-runtime even if you close your player tab.
-
-Use Ethernet or a stable Wi-Fi connection. In shared-disc mode the host's
-upload also carries the initial game download for guests without a saved copy.
+The verified source runs used Apple Silicon macOS. Intel Mac and Linux
+source hosting still need qualification. Windows/WSL hosting remains open.
 
 ## One-time setup
 
-Run `python3 --version` first. If macOS selects an older system Python, use
-the path to your Python 3.10 or newer executable for both setup commands.
+Run `python3 --version` before setup. Use the path to a supported Python
+if your shell selects an older system interpreter.
 
 ```sh
 git clone https://github.com/watscho/sledstorm-browser.git
@@ -56,156 +29,74 @@ python3 tools/build-emulator.py
 mkdir -p game
 ```
 
-Bootstrap verifies and extracts the pinned EmulatorJS release. The build fetches
-pinned PCSX-ReARMed and RetroArch sources, installs an isolated Emscripten SDK,
-installs the Node relay dependencies, and compiles the native adapters. Downloaded
-sources and output stay in ignored `vendor/` and `.cache/` folders. No game data
-is downloaded. Keep the terminal open until both commands finish successfully.
-
-Run `python3 tools/prepare-hardware-preview.py` after the build to enable the
-optional WebGL2 renderer. The generated module stays under `web/generated/`.
-
-## Upgrade an existing installation
-
-Stop the hosting helper with **Ctrl+C**. From a clean project directory on
-`main`, update the source. If your checkout is on another branch, switch to
-`main` first.
-
-For **1.0.0 → 1.1.0**, the emulator and native adapter pins are unchanged:
-
-```sh
-git pull --ff-only
-```
-
-Restart `python3 tools/play-online.py` and reload all game tabs. The library
-migrates the existing manual and automatic snapshots at the same browser
-address. Export `.sledsave` files to move checkpoints to another address or
-browser. Start a fresh room and share its new invitation.
-
-For an older installation, or after a change to the native emulator/adapter,
-refresh the pinned assets and rebuild:
-
-```sh
-git pull --ff-only
-python3 tools/bootstrap-emulator.py
-python3 tools/build-emulator.py
-```
-
-If you use the WebGL2 renderer, rerun `python3 tools/prepare-hardware-preview.py`.
-Start the launcher again and create a new room. If playing online, send a
-fresh invitation so everyone loads the same build. The camera, Netplay and
-audio changes since earlier releases require the rebuilt emulator. Version
-1.0.0 also removes obsolete generated projection hooks from cached source
-checkouts during preparation. Solo saves are
-matched to the disc, BIOS and emulator build at the same browser address.
+Bootstrap verifies the pinned EmulatorJS assets. The build fetches and
+prepares pinned PCSX-ReARMed, RetroArch and Emscripten sources, then compiles
+the native adapter. Downloaded inputs and built output live in `.cache/`
+and `vendor/`. For the optional WebGL 2 race renderer, run
+`python3 tools/prepare-hardware-preview.py` after the build.
 
 ## Add the game files
 
-The tested edition is **Sled Storm (Europe) (En,Fr,De,Es)** for PlayStation,
-**PAL SLES-02194**. Use a lawfully obtained disc image. The tested first data
-track (Track 01, MODE2/2352) has SHA-1
-`c5506c3eb3601d68d11f2c8754e03a6b06be5f2d`. The launcher uses that checksum
-to identify the PAL data track. The CUE and all eleven BIN tracks are required
-for a complete disc set.
+Use a lawfully obtained **Sled Storm (Europe) (En,Fr,De,Es)** PlayStation
+disc image, PAL **SLES-02194**. Put one CUE and all eleven BIN tracks in
+the same `game/` folder. Keep the filenames and CUE references aligned.
+The verified data track is Track 01, MODE2/2352, SHA-1
+`c5506c3eb3601d68d11f2c8754e03a6b06be5f2d`.
 
-Put exactly one CUE and its referenced BIN files in `game/`. Keep the original
-filenames and CUE references. Example layout:
-
-```text
-sledstorm-browser/
-└── game/
-    ├── Sled Storm.cue
-    ├── Sled Storm (Track 01).bin
-    ├── Sled Storm (Track 02).bin
-    └── … all remaining tracks through Track 11
-```
-
-These filenames are illustrative; use the names referenced by your CUE. Keep
-only one CUE-containing folder directly under the project root. The server
-rejects ambiguous disc sets. The supported camera/progression hooks require the
-verified PAL disc; other regions, standalone ISO/CHD and PS2 Sled Storm are not
-supported by this setup.
+The launcher rejects ambiguous CUE sets. The verified PAL disc enables the
+personal camera and progression hooks. Standalone ISO/CHD, other regions
+and the PS2 release are outside this setup.
 
 ## Start and stop
 
-For dedicated internet play, with Chrome and `cloudflared` installed:
+| Scenario | Command |
+| --- | --- |
+| Dedicated, with an internet invitation | `python3 tools/play-online.py` |
+| Dedicated, on the host computer | `python3 server.py` |
+| Browser-hosted, with an internet invitation | `python3 tools/play-online.py --browser-hosted` |
+| Browser-hosted, on the host computer | `python3 server.py --browser-hosted` |
 
-```sh
-python3 tools/play-online.py
-```
+For internet play, wait for **Host launcher**, open
+[the local launcher](http://127.0.0.1:8000/), choose **Start game** and
+**Copy invite link**. Share the complete HTTPS invitation. For local play,
+open the same local launcher. Keep the terminal open and the host awake.
+Stop hosting with **Ctrl+C** and wait for the owned processes to close.
 
-Open [the launcher](http://127.0.0.1:8000/) after **Host launcher** appears.
-Click **Start game**, then **Copy invite link**. Follow the
-[friends guide](multiplayer.md) for the native multiplayer menus.
+In shared-disc mode, the first start builds `.cache/disc.zip` and records
+the disc identity. Later starts can reuse the archive. Only share files
+that you are authorized to distribute. [Joining and racing](multiplayer.md)
 
-For dedicated play on this computer, with Chrome installed:
+### Each player supplies local files
 
-```sh
-python3 server.py
-```
+Run `python3 tools/play-online.py --disc-mode local` for an internet room
+or `python3 server.py --disc-mode local` for play on the host computer.
+The host can run this mode without a server game folder. Each player selects
+the matching files in their browser, and the creator's browser runs the
+room. Keep that tab open during play.
 
-Open the same localhost address. Rooms run in a separate headless Chrome
-instance. Without an internet tunnel, invitations work only on this computer.
-Use `python3 server.py --browser-hosted` to host the room in the creator's
-browser without starting a separate Chrome instance.
+## Upgrade an existing installation
 
-> [!TIP]
-> **Stop:** press **Ctrl+C** in the terminal that started hosting. The online
-> helper prints **Online stack stopped.** and stops all processes it started.
-> The local server stops its own relay too. Close the browser tabs afterwards.
-> Run only one hosting command at a time.
+Stop the launcher and update the checkout you intend to run. From 1.0.0 to
+1.1.0, the pinned emulator build can be reused. For older installations
+or changes to the emulator or adapter, rerun bootstrap and the native build.
+Regenerate the optional hardware renderer if you use it.
 
-On the first shared-disc launch, the server prepares `.cache/disc.zip` with all
-audio tracks and computes the disc identity. It reuses that cache until the
-source files change. Guest browsers load the complete disc before playing. See
-[disc downloads and browser storage](multiplayer.md#disc-downloads-and-browser-storage)
-for when a new download is needed.
-
-## Each player supplies local files
-
-Use this when every player has the same CUE/BIN set:
-
-```sh
-python3 tools/play-online.py --disc-mode local
-```
-
-For local-only hosting, use `python3 server.py --disc-mode local`. In this mode,
-the server can start without a game folder. Each browser selects the CUE and all
-eleven BIN files before launch; all track contents must match. Files are read
-inside that browser. Host disc downloads are blocked. This mode uses
-browser-hosted rooms. The creator's tab must stay open.
+Restart hosting, reload the browser pages and share the new invitation.
+Checkpoints at the same browser address migrate in place. Export a
+`.sledsave` before changing browsers or addresses.
 
 ## Troubleshooting
 
-| Problem | What to do |
-| --- | --- |
-| Missing Python, Node, npm, make or Git | Install the missing prerequisite, reopen the terminal and rerun setup. |
-| Launcher finds an older Node.js version | Run `node --version` in the hosting terminal. Activate Node.js 22 or newer. With nvm, run `nvm use` from the project folder. |
-| Cannot extract the release archive | Install bsdtar/libarchive. macOS system `tar` supports the archive format. |
-| Missing assets or native build manifest | Complete both setup commands successfully before hosting. |
-| Native adapter sources changed, or the runtime exits immediately after an update | Read `.cache/online/runtime.log`, stop hosting and rerun `python3 tools/build-emulator.py` with Python 3.10 or newer. Start a fresh room after the rebuild. |
-| Missing or ambiguous CUE | Keep one CUE-containing game folder directly under the project root. |
-| Missing BIN or disc mismatch | Keep every referenced track, preserve names, and use matching PAL files. |
-| Port already in use | Press Ctrl+C in the terminal running the existing server before starting another. |
-| cloudflared not found | Install it, or set `CLOUDFLARED_BIN` to its executable path. |
-| Chrome not found for dedicated hosting | Install Chrome, set `SLED_CHROME_BIN` to its executable path, or launch with `--browser-hosted`. |
-| Friend cannot open the invitation | Copy the complete generated HTTPS invitation, keep hosting running, and check internet access. |
-| This room is no longer available | Copy a fresh invitation from the host's running game. A previous room link stops working when that room expires or the server restarts. |
-| Invitation begins with 127.0.0.1 | Start the online helper, wait for its tunnel, then start a fresh game and copy its invitation. |
-| Copy invite link says the Cloudflare Tunnel is inactive | Stop the local server with **Ctrl+C** and run `python3 tools/play-online.py`. Wait for **Host launcher**, then start a room and copy its invitation. |
-| Slow first join | Wait for the game data download to finish. **Synchronizing with the room** appears once RetroArch starts receiving the current game state. |
-| Guest joins the room but has no rider | Register that controller in the game's multiplayer menu before starting a new race. Rejoining a live race uses an existing racer. |
-| Browser-hosted room waiting for a player | Bring the affected game window back to the foreground. If the connection closed, guests can reopen the invitation. Local-file guests select their files again. |
-| Catching up to the live race | This appears when recovery lasts more than a brief delay. The dedicated server keeps advancing even when only one controller is connected. If the connection closes, reopen the invitation in the same browser and select **Join game**. |
-| Keyboard does not respond | Click the game to focus it. Check the key hints below the game. Classic uses arrows to steer, S to confirm or accelerate, Enter to pause and W to go back. |
-| Gamepad is missing | Connect it before starting, press a button and check **Controls** for the device name. The browser must expose a standard gamepad mapping. |
-| 16:9 is unavailable | Use the verified PAL disc and start a solo race or a RetroArch room with **Separate cameras** enabled. Menus and shared split-screen use 4:3. |
-| Enhanced 2× looks like the original resolution | Enter a solo PAL race or a RetroArch room with personal cameras to use native 2×. Other scenes upscale the finished frame. |
-| Draw distance is unavailable, varies by scene or stutters | **Display and audio → Draw distance (experimental)** applies to solo PAL races and personal cameras in RetroArch rooms. Higher values set a ceiling, and the renderer can shorten the range in dense scenes. If you see brief stutters, try a lower value or **Original**. |
-| Save or load icon is hidden | Use the room creator's browser, with only its controller connected and no reserved seats or active multiplayer race. |
-| Guest returns to the lobby and game data needs attention | At the same Quick Tunnel address, the selected ZIP remains available. **Join game · Ready** is green after verification. If the browser asks for file access, allow the same file; select another ZIP only if the file moved, changed or the tunnel address is new. Browser storage must be available. See [browser storage](multiplayer.md#disc-downloads-and-browser-storage). |
-| State mismatch | Stop the session and start a fresh room with matching files, BIOS and build. |
-
-Private helper logs are in `.cache/online/`. Do not publish access links, room
-tokens or game files when reporting a problem. See [verification](verification.md)
-for tested behavior and remaining limits.
+- **Missing track or ambiguous CUE.** Check the references in the CUE and
+  keep one complete disc set in the game folder.
+- **Chrome cannot be found.** Set `SLED_CHROME_BIN` to the executable path,
+  or choose browser-hosted mode. Check `CLOUDFLARED_BIN` for tunnel lookup.
+- **Port already in use.** Stop the other launcher or preview before
+  restarting. By default the runtime uses 8000, legacy relay 8004, gateway
+  8005 and RetroArch relay 8006 in the internet helper.
+- **Tunnel cannot connect.** Check the host's internet connection and
+  `cloudflared`. The Python helper can use
+  `TUNNEL_TRANSPORT_PROTOCOL=http2` for the primary connector.
+- **Slow game or failed sync.** Open [Performance](browser-lobby.md#diagnostics),
+  try **Balanced** or **Performance**, and confirm that all players use
+  matching game data.

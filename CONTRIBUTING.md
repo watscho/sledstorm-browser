@@ -1,119 +1,55 @@
 # Contributing
 
-Keep repository-owned UI, comments and documentation in English. Keep game
-images, BIOS, cards, downloaded sources, generated output and private links out
-of Git. Follow [the emulator guide](docs/browser-emulator.md) for the
-runtime and [third-party notices](THIRD_PARTY_NOTICES.md) for license boundaries.
+Keep project-owned UI, comments and documentation in English. Keep game
+images, BIOS files, snapshots, generated binaries, toolchain downloads and
+private invitations out of Git. Preserve notices and source attribution.
+See the [architecture](docs/browser-emulator.md) and
+[third-party notices](THIRD_PARTY_NOTICES.md).
 
-The native build pins PCSX-ReARMed, RetroArch and Emscripten. Make source changes
-through the anchor-checked `tools/prepare-emulator-native.py` transformation and
-our original adapters under `research/emulator/`. Patched checkouts and binaries
-belong under `.cache/`; original vendor assets remain unchanged. Updating a pin
-requires reauditing the serialization format, native anchors, memory ownership,
-controller options and gameplay.
+Make native changes through `tools/prepare-emulator-native.py` and the
+original adapters under `research/emulator/`. Update source pins only
+with the relevant state-format, RAM, rendering and controller checks.
 
-## Checks
+## Run checks
 
-Without a game disc or compiler:
+Install dependencies before using the aggregate verifier. Tests that launch
+the HTTP or relay fixtures need loopback socket access.
 
 ```sh
 npm ci --prefix research/network
-node --test web/*.test.mjs
-npm test --prefix research/network
-python3 tools/test-emulator-server.py
-python3 -m py_compile server.py tools/build-emulator.py tools/play-online.py
-```
-
-For the packaged server, also without a game disc:
-
-```sh
 npm ci --prefix server
-npm run typecheck --prefix server
-npm test --prefix server
-```
-
-On macOS with Apple Silicon, build the single executable and run the packaged
-checks. The first build fetches the pinned Node.js runtime into `.cache/` and
-verifies it against `server/toolchain.lock.json`. The smoke tests run the built
-executable, not the sources:
-
-```sh
-npm run build:sea --prefix server
-npm run smoke --prefix server
-```
-
-One command runs every check above, in order, and prints one line per check.
-It needs `npm ci` in `server` and in `research/network`, and macOS with Apple
-Silicon for the packaged part; `--quick` leaves that part out:
-
-```sh
-npm run verify --prefix server
 npm run verify --prefix server -- --quick
 ```
 
-With a built emulator and a disc of your own, a room of the running server
-can be checked by hand with a real browser. The player presses the start
-button and reports the page's messages, the controller and the frame count.
-Give it the `localUrl` that the server's `invitation` command prints:
+On Apple Silicon macOS, run the full verifier for packaged build and smoke
+coverage:
 
 ```sh
-node server/scripts/room-player.mjs <link> 60
+npm run verify --prefix server
 ```
 
-After building the pinned native emulator, with a local C compiler:
+| Change | Additional check |
+| --- | --- |
+| Native presentation | After building the pinned emulator, run `python3 tools/test-emulator-view.py`. Exercise viewports, menu transitions and canonical-state isolation. |
+| Save library | Run `node tools/serve-save-checks.mjs` and use **Run storage checks** and **Open sample library** in its loopback page. This fixture uses synthetic saves. |
+| Real dedicated room | Give the local invitation to `node server/scripts/room-player.mjs <link> 60`. Exercise live room lifecycle and any affected controller, save or race behavior. |
+| Network or performance | Record the OS, browser, device count, topology, disc policy and actual scope in [verification](docs/verification.md). Measure console steps, browser pacing and input latency separately. |
 
-```sh
-python3 tools/test-emulator-view.py
-```
+For gameplay and presentation changes, verify matching clients and
+independent controller input through the affected race modes and counts.
+For reconnect changes, check creator departure, reservation during a
+race and replacement of a saved controller assignment in the lobby.
+Investigate unexplained differences before changing checksums.
 
-The HTTP and protocol tests use synthetic data and need loopback socket access.
-Native presentation tests cover viewport bounds, canonical GPU/VRAM preservation,
-interpreter register/RAM restoration and partial UI-call failure. They do not
-replace actual game or internet verification.
+## Prepare a release
 
-For the save library's real IndexedDB and dialog checks, run
-`node tools/serve-save-checks.mjs`, open its printed loopback URL in a desktop
-browser and choose **Run storage checks**. This isolated origin uses synthetic
-snapshots and needs no disc. It checks legacy migration, slot rotation,
-cross-tab conflicts, transaction rollback, persistent delete recovery, portable
-files and one-use restoration handoff. **Open sample library** exercises the
-dialog, previews and import/export controls without starting an emulator.
+Review `git diff --cached` and `git status --ignored`. Keep wrapper versions
+in sync across `VERSION`, `server/` and `research/network/` package and
+lockfiles, the README and `web/index.html`. Use **Unreleased** in the
+[Changelog](CHANGELOG.md) until versioning the release. Keep prior entries
+for version history.
 
-Gameplay changes require matching clients through the affected race modes and
-player counts, independent controller input, original menu proportions and state
-agreement. Dedicated-room changes also require checking creator departure,
-returning to a reserved controller during a race and replacing a saved
-controller assignment in the lobby.
-Presentation changes also need full-state before/after checks. Add
-`?dev=1` for loopback diagnostics or `?verifyView=1` for sampled isolation checks.
-Do not weaken checksums to accommodate unexplained divergence. Record exact
-scope and limits in [the verification record](docs/verification.md).
-
-## Before a commit
-
-Review `git diff --cached` and `git status --ignored`. Do not stage game-derived
-artifacts, user-specific absolute paths, secrets, tunnel capabilities or room
-invitations. Fetch dependencies through bootstrap rather than copying source or
-nested Git repositories into the project. Preserve upstream notices and keep
-original contribution licensing separate from derived output.
-
-## Versions and changelog
-
-Use semantic versions for this wrapper, independently of the game and upstream
-components. Bump the wrapper version before publishing a development build or
-pushing to `main`, including documentation changes. Keep `VERSION`,
-`research/network/package.json`, `server/package.json` and their lockfile
-root/package versions in sync with the release labels in `README.md` and
-`web/index.html`, including the launcher script's version parameter. Record
-changes in `CHANGELOG.md` with an ISO date and use Unreleased while working.
-Never record private tunnel domains,
-access tokens, disc paths or invitation fragments. Distinguish an internet-path
-check on one computer from a test with players on separate remote computers.
-
-For a release, run the documented checks, update the current verification
-summary with the actual scope, and review the staged file list. Tag the exact
-release commit as `vMAJOR.MINOR.PATCH` and publish matching GitHub release notes.
-The 1.0.0 source release is a regular release, without a prerelease marker.
-Release archives must exclude game data, private links, generated emulator
-binaries and local browser automation output. Preserve historical changelog
-and verification entries when updating current guides.
+Follow the [release checklist](docs/verification.md#release-checklist),
+record the exact tested commit and archive digest, and review assets and
+notices before publishing. Release a tag and archive from the same
+revision.
