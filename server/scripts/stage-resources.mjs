@@ -2,7 +2,7 @@
 // panel's page, the pinned tunnel program and the pinned browser, and the
 // emulator files when this checkout has been bootstrapped and built
 // (docs/setup.md). Nothing is compiled here.
-import { access, chmod, constants, cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { access, chmod, constants, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pinnedChromium } from './fetch-chromium.mjs';
 import { pinnedCloudflared } from './fetch-cloudflared.mjs';
@@ -18,12 +18,12 @@ export const PANEL_FILES = ['index.html', 'panel.css', 'session.js', 'view.js', 
 
 export const RELEASE_WEB_FILES = [
   'app.js', 'controls-ui.js', 'controls.js', 'core-state.js', 'disc-download.js', 'disc-identity.js',
-  'disc-parts.js', 'disc-sheet.js', 'disc-source.js', 'disc-zip.js', 'display.js', 'frame-sync.js',
+  'disc-parts.js', 'disc-sheet.js', 'disc-source.js', 'disc-zip.js', 'display.js',
   'game-data-folder.js', 'graphics-presets.js', 'hardware-preview.js', 'index.html', 'invitation.js',
-  'lobby-mountains.svg', 'lobby-snow-trail.svg', 'lobby-ui.js', 'local-disc.js', 'netplay-downlink.js',
+  'launch-mode.js', 'lobby-mountains.svg', 'lobby-snow-trail.svg', 'lobby-ui.js', 'local-disc.js', 'netplay-downlink.js',
   'netplay-wire.js', 'pal-profile.js', 'performance-metrics.js', 'performance-ui.js', 'playstation-controller.svg',
   'retroarch-netplay.js', 'room-identity.js', 'room-restore.js', 'save-file.js', 'save-manager.js',
-  'save-storage.js', 'session-client.js', 'shaders/crt-lottes.glsl', 'shaders/sharp-bilinear.glsl',
+  'save-storage.js', 'shaders/crt-lottes.glsl', 'shaders/sharp-bilinear.glsl',
   'sled-storm-logo.png', 'sled-storm-pal-cover.jpg', 'solo-save.js', 'style.css',
 ];
 
@@ -45,8 +45,12 @@ export async function stageResources(target, { candidate = false } = {}) {
   } else {
     // Tests and their fixtures are not part of the client.
     await cp(join(repoRoot, 'web'), join(target, 'web'),
-      { recursive: true, filter: source => !source.endsWith('.test.mjs') && !source.endsWith('.fixtures.json') });
+      { recursive: true, filter: source => !source.endsWith('.test.mjs') && !source.endsWith('.fixtures.json')
+          && !['frame-sync.js', 'session-client.js'].some(name => source.endsWith(`/${name}`)) });
   }
+  const index = join(target, 'web', 'index.html');
+  const html = await readFile(index, 'utf8');
+  await writeFile(index, html.replace('<html lang="en">', '<html lang="en" data-launcher="mac">'));
   await stagePanel(target);
 
   const program = await pinnedCloudflared();

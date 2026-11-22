@@ -1,4 +1,4 @@
-import { sampleGamepad } from './session-client.js';
+import { sampleGamepad } from './controls.js';
 import { mirrorNetplayDownlink } from './netplay-downlink.js';
 import { invitationVersion } from './room-identity.js';
 import { restoreInRoom } from './room-restore.js';

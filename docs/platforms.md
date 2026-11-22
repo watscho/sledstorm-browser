@@ -29,7 +29,8 @@ to host and a mix of desktop devices to play.
 ## Choose a host workflow
 
 The **app preview** bundles the server, emulator browser and tunnel tool.
-Its panel exposes room, disc, player and tunnel status. The room stays
+Its window shows the live player count and controls for starting, stopping
+and joining the room. The room stays
 available with the panel closed and the operator can leave every seat to
 browser players. Both disc policies support the dedicated room.
 

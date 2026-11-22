@@ -45,10 +45,10 @@ test('a new installation is asked for its folder and its policy, and cannot be s
     options: { progress: 'all', camera: true, locked: false, note: PAL_ONLY },
     game: null,
     start: { shown: true, enabled: false },
-    stop: { shown: false, enabled: false, label: 'Stop room' },
+    stop: { shown: true, enabled: false, label: 'Stop Server' },
     newGame: { shown: false, enabled: false, label: 'New game' },
     quit: { enabled: true, label: 'Quit server' },
-    players: null,
+    players: '0',
     invite: { url: null, note: null },
     openGame: null,
     autoStart: { checked: false, enabled: true },
@@ -85,7 +85,7 @@ test('with both chosen the server can be started, and the folder can still be ch
   assert.equal(ready.sentence, null);
   assert.deepEqual(ready.setup, { unfinished: false, folder: FOLDER, policy: 'shared-allowed', locked: false });
   assert.deepEqual(ready.start, { shown: true, enabled: true });
-  assert.deepEqual(ready.stop, { shown: false, enabled: false, label: 'Stop room' });
+  assert.deepEqual(ready.stop, { shown: true, enabled: false, label: 'Stop Server' });
   assert.deepEqual(ready.autoStart, { checked: true, enabled: true });
 
   // The other policy is a choice like the first. What stops a start, the server says at that start.
@@ -108,8 +108,8 @@ test('while the server prepares and starts, it can be stopped and the setup is l
   assert.equal(starting.game, 'Sled Storm (PAL), 2 tracks, 613 MB');
   assert.deepEqual(starting.details, [['Version', '1.2.0'], ['Room', 'starting'], ['Public address', 'starting'], ['Second address', 'off']]);
   for (const under of [preparing, starting]) {
-    assert.deepEqual(under.start, { shown: false, enabled: false });
-    assert.deepEqual(under.stop, { shown: true, enabled: true, label: 'Stop room' });
+    assert.deepEqual(under.start, { shown: true, enabled: false });
+    assert.deepEqual(under.stop, { shown: true, enabled: true, label: 'Stop Server' });
     assert.deepEqual(under.setup, { unfinished: false, folder: FOLDER, policy: 'shared-allowed', locked: true });
     assert.deepEqual(under.quit, { enabled: true, label: 'Quit server' });
   }
@@ -117,8 +117,8 @@ test('while the server prepares and starts, it can be stopped and the setup is l
   // A stop that is under way is not asked for again.
   const stopping = view({ config: chosen(), report: report('stopping', { game: DISC }) });
   assert.equal(stopping.headline, 'Stopping');
-  assert.deepEqual(stopping.start, { shown: false, enabled: false });
-  assert.deepEqual(stopping.stop, { shown: true, enabled: false, label: 'Stop room' });
+  assert.deepEqual(stopping.start, { shown: true, enabled: false });
+  assert.deepEqual(stopping.stop, { shown: true, enabled: false, label: 'Stop Server' });
   assert.equal(stopping.setup.locked, true);
 
   // A disc that is not the known one is named so, and one track is one track.
@@ -136,11 +136,11 @@ test('an online room shows its invitation, its players and the way into the game
     setup: { unfinished: false, folder: FOLDER, policy: 'shared-allowed', locked: true },
     options: { progress: 'all', camera: true, locked: true, note: PAL_ONLY },
     game: 'Sled Storm (PAL), 2 tracks, 613 MB',
-    start: { shown: false, enabled: false },
-    stop: { shown: true, enabled: true, label: 'Stop room' },
+    start: { shown: true, enabled: false },
+    stop: { shown: true, enabled: true, label: 'Stop Server' },
     newGame: { shown: true, enabled: true, label: 'New game' },
     quit: { enabled: true, label: 'Quit server' },
-    players: '1 connected, 0 away with a controller kept',
+    players: '1',
     invite: { url: PUBLIC, note: null },
     openGame: LOCAL,
     autoStart: { checked: true, enabled: true },
@@ -149,8 +149,8 @@ test('an online room shows its invitation, its players and the way into the game
   });
 
   // An empty room is counted too, and so is a controller that is kept for a player who is away.
-  assert.equal(view({ report: room('online', { players: { connected: 0, reserved: 0 } }) }).players, '0 connected, 0 away with a controller kept');
-  assert.equal(view({ report: room('online', { players: { connected: 2, reserved: 1 } }) }).players, '2 connected, 1 away with a controller kept');
+  assert.equal(view({ report: room('online', { players: { connected: 0, reserved: 0 } }) }).players, '0');
+  assert.equal(view({ report: room('online', { players: { connected: 2, reserved: 1 } }) }).players, '2');
   // The same words serve a question about the players, which counts those of the server's refusal.
   assert.equal(inTheRoom({ connected: 2, reserved: 1 }), '2 connected, 1 away with a controller kept');
   assert.equal(inTheRoom(null), null);
@@ -172,7 +172,7 @@ test('a room without a public address says so and can still be played on this co
     { url: null, note: 'The public address is not available.' });
   // What has failed can be tried again, and the room can be stopped.
   assert.deepEqual(local.start, { shown: true, enabled: true });
-  assert.deepEqual(local.stop, { shown: true, enabled: true, label: 'Stop room' });
+  assert.deepEqual(local.stop, { shown: true, enabled: true, label: 'Stop Server' });
   assert.equal(local.setup.locked, true);
   assert.deepEqual(local.details, [['Version', '1.2.0'], ['Room', 'open'], ['Public address', 'failed'], ['Second address', 'off']]);
 
@@ -180,7 +180,7 @@ test('a room without a public address says so and can still be played on this co
   const early = view({ config: chosen(), report: report('starting', { room: 'starting' }), invitation: null });
   assert.deepEqual(early.invite, { url: null, note: null });
   assert.equal(early.openGame, null);
-  assert.equal(early.players, null);
+  assert.equal(early.players, '0');
 });
 
 test('a failed start shows its sentence and can be tried again', () => {
@@ -189,8 +189,8 @@ test('a failed start shows its sentence and can be tried again', () => {
   assert.equal(failed.headline, 'Failed');
   assert.equal(failed.sentence, message);
   assert.deepEqual(failed.start, { shown: true, enabled: true });
-  assert.deepEqual(failed.stop, { shown: false, enabled: false, label: 'Stop room' });
-  assert.deepEqual(failed.setup, { unfinished: false, folder: FOLDER, policy: 'shared-allowed', locked: false });
+  assert.deepEqual(failed.stop, { shown: true, enabled: false, label: 'Stop Server' });
+  assert.deepEqual(failed.setup, { unfinished: false, folder: FOLDER, policy: 'shared-allowed', locked: false, repair: true });
 
   // What the status says comes before what the configuration's file says, and the page's own sentence before both.
   const both = { config: chosen({ problem: DAMAGED }), report: report('failed', { problem: { component: 'emulator', message } }) };
@@ -209,7 +209,7 @@ test('a stop that the server refused for players becomes a question', () => {
   const quitting = view({ config: chosen(), report: room('online'), confirming: 'quit', notice: 'Quit anyway?' });
   assert.equal(quitting.sentence, 'Quit anyway?');
   assert.deepEqual(quitting.quit, { enabled: true, label: 'Quit anyway' });
-  assert.deepEqual(quitting.stop, { shown: true, enabled: true, label: 'Stop room' });
+  assert.deepEqual(quitting.stop, { shown: true, enabled: true, label: 'Stop Server' });
 });
 
 test('a request under way disables every button', () => {
@@ -226,7 +226,7 @@ test('a request under way disables every button', () => {
 
     const hosting = view({ config: chosen(), report: room('degraded'), busy });
     assert.deepEqual(hosting.start, { shown: true, enabled: false }, busy);
-    assert.deepEqual(hosting.stop, { shown: true, enabled: false, label: 'Stop room' }, busy);
+    assert.deepEqual(hosting.stop, { shown: true, enabled: false, label: 'Stop Server' }, busy);
     assert.deepEqual(hosting.newGame, { shown: true, enabled: false, label: 'New game' }, busy);
     assert.equal(hosting.quit.enabled, busy === 'folder', busy);
   }
@@ -248,11 +248,11 @@ test('a state or a value that the page does not know is shown as it is', () => {
   assert.equal(odd.version, '2');
   assert.equal(odd.headline, 'resting');
   assert.equal(odd.sentence, null, 'only a sentence is shown as one');
-  assert.equal(odd.players, 'many connected, few away with a controller kept');
+  assert.equal(odd.players, '0');
   assert.equal(odd.game, 'Unrecognized disc, null tracks, 613');
   assert.deepEqual(odd.setup, { unfinished: true, folder: null, policy: null, locked: true });
-  assert.deepEqual(odd.start, { shown: false, enabled: false });
-  assert.deepEqual(odd.stop, { shown: false, enabled: false, label: 'Stop room' });
+  assert.deepEqual(odd.start, { shown: true, enabled: false });
+  assert.deepEqual(odd.stop, { shown: true, enabled: false, label: 'Stop Server' });
   assert.deepEqual(odd.quit, { enabled: true, label: 'Quit server' });
   assert.deepEqual(odd.invite, { url: null, note: null });
   assert.equal(odd.openGame, null);
@@ -293,7 +293,7 @@ test('a state or a value that the page does not know is shown as it is', () => {
   assert.equal(bare[4].headline, 'unknown');
   assert.equal(bare[4].version, 'unknown');
   assert.deepEqual(bare[4].details, [['Version', 'unknown'], ['Room', 'unknown'], ['Public address', 'unknown'], ['Second address', 'unknown']]);
-  assert.equal(bare[5].players, null);
+  assert.equal(bare[5].players, '0');
   assert.equal(bare[5].game, null);
 });
 
@@ -371,7 +371,7 @@ test('a new game is offered while a room exists, and with players it becomes a q
   const asked = view({ config: chosen(), report: room('online'), confirming: 'newGame', notice: question });
   assert.equal(asked.sentence, question);
   assert.deepEqual(asked.newGame, { shown: true, enabled: true, label: 'New game anyway' });
-  assert.equal(asked.stop.label, 'Stop room');
+  assert.equal(asked.stop.label, 'Stop Server');
   assert.equal(asked.quit.label, 'Quit server');
 });
 

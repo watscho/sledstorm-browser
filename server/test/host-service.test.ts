@@ -85,12 +85,44 @@ async function service(t: TestContext, { policy = 'shared-allowed' as DiscPolicy
       ? { browser: worker.program ?? standIn.program, graceMs: worker.graceMs ?? 500, startupMs: worker.startupMs,
         room: { restartDelaysMs: [30, 30], ...worker.room } } : undefined });
   // Bounded: a stop that hangs is a failure to report, not a run to wait for.
-  t.after(() => Promise.race([host.stop(), delay(10_000)]));
+  t.after(() => Promise.race([host.close(), delay(10_000)]));
   const browserEvents = async () => standIn ? standIn.events() : [];
   const launches = async () => (await readFile(record, 'utf8').catch(() => '')).split('\n').filter(Boolean)
     .map(line => JSON.parse(line) as { kind: 'primary' | 'mirror'; pid: number; args: string[] });
   return { paths, folder, gamePort, netplayPort, host, lines, launches, browserEvents };
 }
+
+test('solo serves the configured disc without Netplay and survives stopping a room', async t => {
+  const { host, gamePort, netplayPort } = await service(t);
+  const url = await host.startSolo();
+  assert.equal(url, `http://127.0.0.1:${gamePort}/solo`);
+  const page = await fetch(url);
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get('content-security-policy'), "connect-src 'self' blob: data:");
+  const assets = await (await fetch(`${url}/session-info`)).json() as { disc: string; discMode: string };
+  assert.equal(assets.discMode, 'shared');
+  assert.match(assets.disc, /^[a-f0-9]{64}$/);
+  assert.equal((await raw(gamePort, 'HEAD', '/solo/disc.zip')).status, 200);
+  assert.equal((await raw(gamePort, 'HEAD', '/solo/disc.zip', { 'x-sled-gateway': '1' })).status, 404);
+  assert.ok(await refused(netplayPort));
+  assert.equal(host.status().room, 'off');
+
+  await host.start();
+  await host.stop();
+  assert.equal((await fetch(url)).status, 200);
+  assert.ok(await refused(netplayPort));
+  await host.close();
+  assert.ok(await refused(gamePort));
+});
+
+test('solo without a configured disc can still start with browser files', async t => {
+  const { host } = await service(t, { policy: null });
+  const url = await host.startSolo();
+  const assets = await (await fetch(`${url}/session-info`)).json() as { disc: string | null; discMode: string };
+  assert.equal(assets.disc, null);
+  assert.equal(assets.discMode, 'local');
+  assert.equal((await fetch(`${url}/disc.zip`)).status, 404);
+});
 
 test('an unconfigured server needs setup', async t => {
   const { host, gamePort } = await service(t, { policy: null });
@@ -745,8 +777,10 @@ const roomFailed = (reason: string) => `The room could not be started (${reason}
  * One connection to the relay from the game page's origin. `answer` resolves to the first answer, or to
  * why there was none; `inbox` keeps every answer that is text.
  */
-function connectRoom(t: TestContext, { netplayPort, gamePort }: { netplayPort: number; gamePort: number }, request: object) {
-  const socket = new WebSocket(`ws://127.0.0.1:${netplayPort}`, { origin: `http://127.0.0.1:${gamePort}` });
+function connectRoom(t: TestContext, { netplayPort, gamePort, gatewayPort }: { netplayPort: number; gamePort: number; gatewayPort?: number }, request: object) {
+  const socket = gatewayPort
+    ? new WebSocket(`ws://127.0.0.1:${gatewayPort}/netplay`, { origin: `http://127.0.0.1:${gatewayPort}`, headers: cookie })
+    : new WebSocket(`ws://127.0.0.1:${netplayPort}`, { origin: `http://127.0.0.1:${gamePort}` });
   t.after(() => socket.terminate());
   const inbox: Record<string, unknown>[] = [];
   socket.on('message', (data, binary) => { if (!binary) inbox.push(JSON.parse(String(data)) as Record<string, unknown>); });
@@ -761,6 +795,33 @@ function connectRoom(t: TestContext, { netplayPort, gamePort }: { netplayPort: n
   socket.once('open', () => socket.send(JSON.stringify(request)));
   return { socket, answer, closed, inbox };
 }
+
+test('four players can use the public invitation and a fifth waits for a free controller', async t => {
+  const served = await service(t, { worker: {}, tunnel: {}, accessToken: token });
+  const status = await served.host.start();
+  const link = served.host.invitation();
+  assert.ok(link);
+  assert.ok(status.gatewayPort);
+  const { room, token: roomToken, progress, camera, nativeCamera } = parseInvitation(new URL(link).hash);
+  const response = await fetch(`http://127.0.0.1:${status.gatewayPort}/session-info`, { headers: cookie });
+  const info = await response.json() as RoomIdentityInput;
+  const identity = await roomIdentity({ ...info, bios: 'HLE', options: { progress, camera, nativeCamera } });
+  const join = () => connectRoom(t, { ...served, gatewayPort: status.gatewayPort! },
+    { role: 'guest', room, token: roomToken, identity, roster: true });
+  const players = [];
+  for (let seat = 0; seat < 4; seat++) {
+    const player = join();
+    const ready = await player.answer;
+    assert.equal(ready.slot, seat);
+    player.socket.send('{"type":"synchronized"}');
+    players.push(player);
+  }
+  assert.equal(served.host.status().players?.connected, 4);
+  assert.deepEqual(await join().answer, { closed: 'All controllers are connected or reserved' });
+  players[0]!.socket.close();
+  await until('controller released in the lobby', () => served.host.status().players?.connected === 3);
+  assert.equal((await join().answer).slot, 0);
+});
 
 /**
  * What a player's page does with the server's link: it reads the room from it, works out its own
@@ -834,6 +895,10 @@ test('the room\'s options follow the disc', () => {
   assert.deepEqual(roomOptionsFor(true, { progress: 'original', camera: true }), { progress: 'original', camera: true, nativeCamera: true });
   assert.deepEqual(roomOptionsFor(true, { progress: 'all', camera: false }), { progress: 'all', camera: false });
   assert.deepEqual(roomOptionsFor(true, { progress: 'original', camera: false }), { progress: 'original', camera: false });
+  assert.deepEqual(roomOptionsFor(true, { progress: 'original', camera: false }, true),
+    { progress: 'original', camera: true, nativeCamera: true });
+  assert.deepEqual(roomOptionsFor(false, { progress: 'original', camera: true }, true),
+    { progress: 'original', camera: false });
   // Any other disc has neither unlocked content nor separate cameras, whatever was chosen.
   for (const progress of ['all', 'original'] as const)
     for (const camera of [true, false]) assert.deepEqual(roomOptionsFor(false, { progress, camera }), { progress: 'original', camera: false });

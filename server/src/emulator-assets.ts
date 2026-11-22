@@ -53,7 +53,12 @@ export async function loadEmulatorAssets(resourceRoot: string): Promise<Emulator
     emulatorRoot: join(resourceRoot, 'emulator', 'emulatorjs'),
     coreData: join(resourceRoot, 'emulator', 'network-core.data'),
     hardwareRenderer: await exists(join(webRoot, 'generated', 'enge-hardware.js')),
-    assetPaths: mode => emulatorAssetPaths({ files: files as Record<string, string> }, mode),
+    assetPaths: mode => {
+      const assets = emulatorAssetPaths({ files: files as Record<string, string> }, mode);
+      assets.delete('/session-client.js');
+      assets.delete('/frame-sync.js');
+      return assets;
+    },
     identity: { core, adapter: 'pcsx-frame-gate-v3', native: native as Record<string, string> },
   };
 }

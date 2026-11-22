@@ -12,16 +12,8 @@ import { pipeline } from 'node:stream/promises';
 import { createDeliveryLimit, DeliveryBusyError } from './delivery-limit.ts';
 import type { ArchiveManifest } from './game-data.ts';
 
-export interface RuntimeHttpOptions {
-  port: number;
-  webRoot: string;
-  /** Served under /emulator/. */
-  emulatorRoot: string;
-  /** Served as /network-core.data. */
-  coreData: string;
-  hardwareRenderer: boolean;
+export interface RuntimeSession {
   sessionInfo: object;
-  invitation(): { origin: string; path: string } | null;
   /** Null keeps the host disc private: /disc.zip and /game-data/ answer 404. */
   archive: {
     size: number;
@@ -30,6 +22,18 @@ export interface RuntimeHttpOptions {
     open(): Promise<Readable>;
     openChunk(index: number): Promise<Readable>;
   } | null;
+}
+
+export interface RuntimeHttpOptions extends RuntimeSession {
+  port: number;
+  webRoot: string;
+  emulatorRoot: string;
+  coreData: string;
+  hardwareRenderer: boolean;
+  invitation(): { origin: string; path: string } | null;
+  /** Live room data can change while the local game origin remains open. */
+  room?(): RuntimeSession | null;
+  solo?(): RuntimeSession;
   /** The limit on disc deliveries to guests, which the gateway marks (D94); the defaults are DELIVERY's. */
   delivery?: { active: number; waiting: number; idleMs: number };
 }
@@ -125,8 +129,10 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
     }
   }
 
+  const room = () => options.room ? options.room() : options;
+
   async function gameData(request: IncomingMessage, response: ServerResponse, path: string): Promise<void> {
-    const { archive } = options;
+    const archive = room()?.archive;
     if (!archive) return plain(response, 404, 'Not found');
     if (path === '/game-data/manifest') {
       const body = JSON.stringify({ version: 1, ...archive.manifest });
@@ -172,7 +178,7 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
     response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
     response.setHeader('X-Content-Type-Options', 'nosniff');
-    if (raw === '/session-info' || raw.startsWith('/game-data/')) response.setHeader('Cache-Control', 'no-store');
+    if (raw === '/session-info' || raw.startsWith('/game-data/') || raw.startsWith('/solo/')) response.setHeader('Cache-Control', 'no-store');
     // Without this a browser may use a kept copy for a while without asking, and the tag gets no say.
     else if (!raw.startsWith('/disc.zip')) response.setHeader('Cache-Control', 'no-cache');
 
@@ -184,17 +190,23 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
       return plain(response, 405, 'Method not allowed');
     }
 
-    if (raw === '/session-info') {
-      const body = JSON.stringify(options.sessionInfo);
+    const solo = raw === '/solo' || raw.startsWith('/solo/');
+    if (solo && (!options.solo || request.headers[GATEWAY_MARK] !== undefined)) return plain(response, 404, 'Not found');
+    if (raw === '/solo') response.setHeader('Content-Security-Policy', "connect-src 'self' blob: data:");
+    if (raw === '/session-info' || raw === '/solo/session-info') {
+      const session = solo ? options.solo?.() : room();
+      if (!session) return plain(response, 404, 'No room is open.');
+      const body = JSON.stringify(session.sessionInfo);
       if (options.hardwareRenderer) response.setHeader('X-Sled-Hardware-Renderer', 'webgl2');
       // The host page builds invitations for the public address of this exact server.
-      const invitation = options.invitation();
+      const invitation = solo ? null : options.invitation();
       if (invitation && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(invitation.origin)
           && /^\/access\/[a-f0-9]{48}$/.test(invitation.path)) {
         response.setHeader('X-Invite-Origin', invitation.origin);
         response.setHeader('X-Invite-Path', invitation.path);
       }
-      response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) })
+        .end(request.method === 'HEAD' ? undefined : body);
       return;
     }
 
@@ -207,8 +219,8 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
 
     // The disc's pieces are matched as they were written, so an encoded spelling never names one.
     if (path.startsWith('/game-data/') || route.startsWith('/game-data/')) return gameData(request, response, path);
-    if (route === '/disc.zip') {
-      const { archive } = options;
+    if (route === '/disc.zip' || raw === '/solo/disc.zip') {
+      const archive = (solo ? options.solo?.() : room())?.archive;
       if (!archive) return plain(response, 404, 'Not found');
       return deliver(request, response, () => archive.open(), { 'Content-Type': 'application/zip', 'Content-Length': archive.size });
     }
@@ -216,7 +228,7 @@ export async function startRuntimeHttp(options: RuntimeHttpOptions): Promise<Run
 
     const emulator = route.startsWith('/emulator/');
     const root = emulator ? emulatorRoot : webRoot;
-    const relative = emulator ? route.slice('/emulator/'.length) : route.replace(/^\/+/, '') || 'index.html';
+    const relative = emulator ? route.slice('/emulator/'.length) : raw === '/solo' ? 'index.html' : route.replace(/^\/+/, '') || 'index.html';
     // Hidden files and dot segments are never part of the client.
     if (/[\0\\]/.test(relative) || relative.split('/').some(segment => segment.startsWith('.')))
       return plain(response, 404, 'Not found');

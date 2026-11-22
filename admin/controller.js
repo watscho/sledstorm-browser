@@ -55,7 +55,7 @@ function reportName(report) {
  * `lost()` is called when the server answers 401, so that the tab lets go of its session.
  * `save(name, text)` hands a file to the browser to save, and throws when it cannot.
  */
-export function createPanel({ ask, render, wait, clipboard, lost, save }) {
+export function createPanel({ ask, render, wait, clipboard, lost, save, openGame, openAtLaunch = false }) {
   let report = null;
   let config = null;
   let invitation = null;
@@ -74,6 +74,7 @@ export function createPanel({ ask, render, wait, clipboard, lost, save }) {
   /** The reading that began last. */
   let latest = Promise.resolve();
   let shown = null;
+  let openOnReady = openAtLaunch;
 
   const show = () => {
     const gone = over ?? away;
@@ -135,6 +136,12 @@ export function createPanel({ ask, render, wait, clipboard, lost, save }) {
     if (notice !== null) heard = saying;
     ({ report, config, invitation } = next);
     show();
+    const { state, room } = report.host ?? {};
+    if (['needs_setup', 'failed', 'stopping'].includes(state) || room === 'failed') openOnReady = false;
+    if (openOnReady && !pending.includes('stop') && shown.openGame) {
+      openOnReady = false;
+      openGame?.(shown.openGame);
+    }
   }
 
   /** Begins a reading, which is then the latest. A reading never rejects. */
@@ -178,11 +185,12 @@ export function createPanel({ ask, render, wait, clipboard, lost, save }) {
   }
 
   /** A button whose request the server either takes or refuses in a sentence. */
-  async function press(name, path, init) {
+  async function press(name, path, init, done = () => {}) {
     if (!ready()) return;
     forget();
     await request(name, path, init, answer => {
-      if (!taken(answer)) say(refusal(answer));
+      if (taken(answer)) done();
+      else say(refusal(answer));
     });
   }
 
@@ -220,8 +228,16 @@ export function createPanel({ ask, render, wait, clipboard, lost, save }) {
       const { progress = DEFAULT_OPTIONS.progress, camera = DEFAULT_OPTIONS.camera } = saved;
       return press('options', '/api/config', json('PUT', { roomOptions: { progress, camera, ...change } }));
     },
-    start: () => press('start', '/api/host/start', POST),
-    stop: () => guarded('stop', '/api/room/stop', 'Stop it anyway?', () => {}),
+    start: () => press('start', '/api/host/start', POST, () => { openOnReady = true; }),
+    async solo() {
+      if (!ready() || !openGame) return;
+      forget();
+      await request('solo', '/api/solo/start', POST, answer => {
+        if (taken(answer) && typeof answer.body?.url === 'string') openGame(answer.body.url);
+        else say(refusal(answer));
+      });
+    },
+    stop: () => guarded('stop', '/api/room/stop', 'Stop it anyway?', () => { openOnReady = false; }),
     newGame: () => guarded('newGame', '/api/room/new-game', 'A new game disconnects them. Start one anyway?', () => say(NEW_GAME)),
     /** The server asks about the players in its own answer, so a player who joined after the last reading is asked about too. */
     quit: () => guarded('quit', '/api/host/quit', 'Quit anyway?', () => end(HAS_QUIT)),

@@ -42,7 +42,7 @@ function folderDialog(): ChooseFolder | undefined {
   return process.env.SLED_SERVER_NO_BROWSER === '1' || process.platform !== 'darwin' ? undefined : systemFolderDialog();
 }
 
-export async function serve(paths: Paths, { echo }: { echo: boolean }): Promise<number> {
+export async function serve(paths: Paths, { echo, launcher = false }: { echo: boolean; launcher?: boolean }): Promise<number> {
   await ensureWritableRoots(paths);
   const log = createLog(paths, echo);
   const release = acquireInstanceLock(instanceLockFile(paths));
@@ -79,14 +79,14 @@ export async function serve(paths: Paths, { echo }: { echo: boolean }): Promise<
     const unprobed = process.env.SLED_SERVER_TUNNEL_PROBE === 'off'
       ? { command: { command: shippedTunnelProgram(paths), args: [] }, guard: selfCommand(['internal', 'guard']) }
       : undefined;
-    const hosting = service = createHostService({ paths, log, tunnels: unprobed,
+    const hosting = service = createHostService({ paths, log, tunnels: unprobed, launcher,
       worker: { browser: chosenBrowser({ sea: isSea(), env: process.env, paths }) },
       gamePort: testPort('SLED_SERVER_GAME_PORT'), netplayPort: testPort('SLED_SERVER_NETPLAY_PORT') });
-    control = createHostControl({ paths, service: hosting, chooseFolder: folderDialog(), log });
+    control = createHostControl({ paths, service: hosting, chooseFolder: folderDialog(), checkGameFolder: launcher, log });
     host = await startHostServer({ version: appVersion, panelRoot: join(paths.resourceRoot, 'admin'), onQuit: () => { void stop('quit request'); },
       status: () => hosting.status(),
       invitation: () => ({ url: hosting.invitation(), localUrl: hosting.localInvitation() }),
-      control });
+      control, startSolo: () => hosting.startSolo() });
     // A launch of another build tells this server by its build, and may ask it to quit.
     await writeInstanceRecord(paths, { instance: host.instance, pid: process.pid, port: host.port,
       token: host.token, startedAt: host.startedAt, version: appVersion, build: await currentBuild(paths.resourceRoot) });
@@ -101,7 +101,7 @@ export async function serve(paths: Paths, { echo }: { echo: boolean }): Promise<
   // control listener must answer meanwhile. A host who switched that off starts
   // it with a request. A file that cannot be used counts as no choice, so the
   // start is tried and the status says what is wrong with the file.
-  if ((await readConfig(paths)).config.autoStart) void service.start();
+  if (!launcher && (await readConfig(paths)).config.autoStart) void service.start();
   await finished;
   return 0;
 }

@@ -76,10 +76,11 @@ room. Keep that tab open during play.
 
 ## Upgrade an existing installation
 
-Stop the launcher and update the checkout you intend to run. When
-upgrading from 1.0.0 or 1.1.0 to 1.2.0, reuse the pinned emulator build.
-For older installations or changes to the emulator or adapter, rerun
-bootstrap and the native build.
+Stop the launcher and update the checkout you intend to run. Version
+1.3.0 changes the native emulator. Rebuild it and refresh the archive
+with `python3 tools/build-emulator.py` and
+`python3 tools/prepare-emulator.py --native`. Run bootstrap first if
+the pinned dependencies are missing.
 Regenerate the optional hardware renderer if you use it.
 
 Restart hosting, reload the browser pages and share the new invitation.

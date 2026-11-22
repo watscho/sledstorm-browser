@@ -1,9 +1,9 @@
 # Sled Storm Server
 
-The internal macOS preview is a self-contained host for Apple Silicon
+The internal macOS preview is a self-contained launcher for Apple Silicon
 with a declared minimum of **macOS 15**. It bundles Node.js, Chromium and
-`cloudflared`. Setup and room controls run in the browser; the app runs the
-dedicated room and leaves all four controller seats for browser players.
+`cloudflared`. Single Player runs in your browser. The Multiplayer server
+runs a dedicated room with four controller seats for browser players.
 
 Use a locally built or supplied internal `*-preview.zip`. The
 [release checklist](verification.md#release-checklist) tracks Developer ID,
@@ -12,21 +12,19 @@ notarization and installation on a clean Mac. For Intel or Linux, see
 
 ## First run
 
-1. Extract the ZIP and open **Sled Storm Server.app**. The app opens its
-   admin page in your default browser. Open the app again to return to
-   the same running server.
-2. Under **Needs setup**, choose the folder holding the
-   [PAL CUE and eleven BIN tracks](setup.md#add-the-game-files). The system
-   dialog can open behind the browser.
-3. Choose a [disc policy](#disc-policy). Click **Start server** if the room
-   has not already started.
-4. When the public address is ready, use **Copy invite link**. Use **Open
-   game** to join from the host computer.
+1. Extract the ZIP and open **Sled Storm Server.app**.
+2. In **Settings**, choose the folder holding the
+   [PAL CUE and eleven BIN tracks](setup.md#add-the-game-files).
+3. Choose **Single Player** and click **Play** in your browser. The installed
+   app works offline from the first launch. You can also choose CUE/BIN
+   files or a ZIP when the game asks for them.
+4. For **Multiplayer**, choose a [disc policy](#disc-policy) in **Settings**.
+   The game opens in the default browser when the room is ready. Use **Join
+   Room** to open it again and **Copy Invite** when the public link is ready.
 
-Closing the admin tab leaves the server running. The admin page stays on
-loopback. Send players the private game invitation and keep it within the
-group. Opening the app can auto-start a configured room when the launch
-switch is enabled.
+Closing the window leaves the server running. Open the app again to return
+to that server. The control listener stays on loopback. Send players the
+private game invitation and keep it within the group.
 
 ## Disc policy
 
@@ -45,10 +43,9 @@ disc folder, policy or room options while the room is stopped.
 
 | Control | Effect |
 | --- | --- |
-| **Start server** | Prepare the disc, open a room and start the public tunnel. If the tunnel is unavailable, play on the host still works and Start server can retry the address. |
-| **New game** | Replace the game inside the current room. Players rejoin using the same invitation. |
-| **Stop room** | Close the game and tunnel. The admin service stays available. Starting again creates new links. |
-| **Quit server** | Stop the room, tunnel and admin service. A pending folder chooser closes too. |
+| **Start Server** | Prepare the disc, open a room and start the public tunnel. If the tunnel is unavailable, play on the host still works and Start Server can retry the address. |
+| **Stop Server** | Close the room and tunnel. Single Player remains available. Starting again creates new links. |
+| **Quit server** | In Settings, stop the room, tunnel and local game service. |
 
 When a player is connected or has a reserved controller, the panel asks
 for confirmation before interrupting the room. Room options include
@@ -57,19 +54,19 @@ can use their own camera and original HUD.
 
 ## Diagnostics and updates
 
-Open **Details** for room and tunnel status, or select **Save diagnostics**
-to export the app's JSON report. Review the report before sharing.
-For launch problems, run the bundle executable from a terminal. Adjust
-the example path if the app lives somewhere else.
+Run the bundle executable from a terminal to check the status, export the
+app's JSON report or open the advanced server panel. Review the report
+before sharing. Adjust the example path if the app lives somewhere else.
 
 ```sh
 "/Applications/Sled Storm Server.app/Contents/MacOS/SledStormServer" status
 "/Applications/Sled Storm Server.app/Contents/MacOS/SledStormServer" diagnostics
+"/Applications/Sled Storm Server.app/Contents/MacOS/SledStormServer" panel
 ```
 
 Other commands include `configure --game-folder <folder> --disc-policy
 <shared-allowed|local-only>`, `start`, `invitation`, `new-game`, `stop`,
-`quit` and `self-test`. Use the panel for room options and auto-start.
+`quit` and `self-test`.
 `invitation` prints private links. The CLI asks for `--force` to stop,
 quit or start a new game while players occupy seats.
 

@@ -36,7 +36,7 @@ export function resolvePaths({ sea, execPath, platform, env, home, temp }: PathI
     // Resources sit beside the executable, wherever the user put the application.
     const directory = dirname(execPath);
     const contents = dirname(directory);
-    resourceRoot = basename(directory) === 'MacOS' && basename(contents) === 'Contents'
+    resourceRoot = ['MacOS', 'Helpers'].includes(basename(directory)) && basename(contents) === 'Contents'
       ? join(contents, 'Resources')
       : join(directory, 'resources');
   } else {

@@ -50,3 +50,20 @@ export function restoreKeyboardProfile(saved) {
     : preset === 'custom' ? bindings : null;
   return { preset, customBindings, bindings: preset === 'custom' ? customBindings : preset === 'wasd' ? WASD : CLASSIC };
 }
+
+export const STANDARD_GAMEPAD = Object.freeze([14, 13, 15, 12, 10, 11, 8, 9, 0, 3, 1, 2, 4, 6, 7, 5]);
+
+export function sampleGamepad(pad, selected, profiles) {
+  let devices = [];
+  try { devices = Array.from(navigator.getGamepads?.() || []); } catch { /* Keyboard remains usable. */ }
+  const gamepad = selected === -1 ? null : devices.find(pad => pad?.mapping === 'standard' && (selected == null || pad.index === selected));
+  if (gamepad?.mapping === 'standard') {
+    const map = profiles?.get(gamepad.id) || STANDARD_GAMEPAD;
+    for (let i = 0; i < map.length; ++i) if (map[i] !== null && gamepad.buttons[i]?.pressed) pad &= ~(1 << map[i]);
+    if (gamepad.axes[0] < -0.4) pad &= ~(1 << 7);
+    if (gamepad.axes[0] > 0.4) pad &= ~(1 << 5);
+    if (gamepad.axes[1] < -0.4) pad &= ~(1 << 4);
+    if (gamepad.axes[1] > 0.4) pad &= ~(1 << 6);
+  }
+  return pad;
+}

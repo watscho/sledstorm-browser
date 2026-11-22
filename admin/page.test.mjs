@@ -124,6 +124,8 @@ function node(tagName, attributes = {}, parent = null) {
   typed('hidden', 'boolean', 'hidden' in attributes);
   typed('disabled', 'boolean', 'disabled' in attributes);
   typed('checked', 'boolean', 'checked' in attributes);
+  if (tagName === 'details') typed('open', 'boolean', 'open' in attributes);
+  if (tagName === 'a') typed('ariaDisabled', 'string', attributes['aria-disabled'] ?? 'false');
   typed('download', 'string', attributes.download ?? '');
   // An address that the document gives, or null where it gives none.
   let href = attributes.href ?? null;
@@ -133,6 +135,7 @@ function node(tagName, attributes = {}, parent = null) {
   } });
   Object.assign(made, {
     addEventListener(type, listener) { (made.listeners[type] ??= []).push(listener); },
+    getAttribute(name) { return name === 'href' ? href : (attributes[name] ?? null); },
     removeAttribute(name) {
       assert.equal(name, 'href');
       href = null;
@@ -242,15 +245,17 @@ let pages = 0;
  * the table is an answer, a function that gives one, or DOWN; an answer has a `body`, a `text` that is no JSON,
  * or is `cut` short after its status.
  */
-async function opened(t, { hash = '', kept = null, table = {} } = {}) {
+async function opened(t, { hash = '', kept = null, table = {}, native = false } = {}) {
   const document = documentOf(html);
   const answers = { 'GET /api/status': ok(report('idle')), 'GET /api/config': ok(saved()), ...table };
   const requests = [];
   const due = [];
   const copied = [];
+  const gameTabs = [];
   const state = { clipboard: true };
   const values = new Map(kept === null ? [] : [[KEY, kept]]);
   const window = {
+    webkit: native ? { messageHandlers: { openGame: { postMessage: url => gameTabs.push(url) } } } : undefined,
     location: { pathname: '/', search: '', hash },
     history: { replaceState(_state, _title, url) { window.location.hash = new URL(url, 'http://127.0.0.1').hash; } },
     sessionStorage: { getItem: key => values.get(key) ?? null, setItem(key, value) { values.set(key, String(value)); }, removeItem(key) { values.delete(key); } },
@@ -299,11 +304,11 @@ async function opened(t, { hash = '', kept = null, table = {} } = {}) {
     const element = document.at(id);
     assert.ok(document.shown(id) && !element.disabled, `${id} can be pressed`);
     change(element);
-    for (const listener of element.listeners[type] ?? []) listener({ target: element, detail });
+    for (const listener of element.listeners[type] ?? []) listener({ target: element, detail, preventDefault() {} });
     await settled();
   };
   return {
-    document, answers, requests, due, copied, state, values, window, blobs,
+    document, answers, requests, due, copied, state, values, window, blobs, gameTabs,
     get screen() { return screen(document); },
     /** What the server was asked since the last look. */
     taken: () => requests.splice(0).map(request => request.asked),
@@ -329,6 +334,68 @@ async function opened(t, { hash = '', kept = null, table = {} } = {}) {
 }
 
 // ---- The page ----
+
+test('the configured window shows a live count and Join Room without settings', async t => {
+  const page = await opened(t, { kept: SESSION, table: hosting(), native: true });
+  await page.press('multiplayer');
+  const { at } = page.document;
+  assert.equal(page.document.shown('settings'), false);
+  assert.equal(at('settings').open, false);
+  assert.equal(page.document.shown('choose-folder'), false);
+  assert.equal(at('open-game').textContent, 'Join Room');
+  assert.equal(at('open-game').ariaDisabled, 'false');
+  assert.deepEqual(page.gameTabs, []);
+  await page.press('copy-room-invite');
+  assert.deepEqual(page.copied, [PUBLIC]);
+  page.state.clipboard = false;
+  await page.press('copy-room-invite');
+  assert.equal(page.document.shown('invite-url'), true);
+  assert.equal(at('invite-url').selected, true);
+  await page.press('open-game');
+  assert.deepEqual(page.gameTabs, [LOCAL]);
+  Object.assign(page.answers, hosting({ players: { connected: 2, reserved: 1 } }));
+  await page.later();
+  assert.equal(at('players').textContent, '2');
+  assert.equal(at('settings').open, false);
+  assert.deepEqual(page.gameTabs, [LOCAL]);
+  page.answers['GET /api/status'] = ok(room('starting', { room: 'starting' }));
+  await page.later();
+  assert.equal(at('open-game').ariaDisabled, 'true');
+  assert.equal(at('open-game').href, null);
+});
+
+test('the first-run window exposes the game folder and disc policy only until setup is complete', async t => {
+  const page = await opened(t, { kept: SESSION, native: true });
+  await page.press('multiplayer');
+  const { shown } = page.document;
+  assert.equal(shown('choose-folder'), true);
+  assert.equal(shown('policy-local-only'), true);
+  assert.equal(shown('room-options'), true);
+  assert.equal(shown('camera'), false);
+  assert.equal(shown('auto-start'), false);
+  page.answers['GET /api/config'] = ok(chosen());
+  await page.later();
+  assert.equal(shown('choose-folder'), false);
+  assert.equal(page.screen.start.enabled, true);
+
+  page.answers['GET /api/status'] = ok(report('failed', { problem: { component: 'game-data', message: 'Game files missing.' } }));
+  await page.later();
+  assert.equal(shown('choose-folder'), true);
+  assert.equal(shown('room-options'), true);
+});
+
+test('the native launcher starts in a mode chooser and opens the local solo page without hosting', async t => {
+  const page = await opened(t, { kept: SESSION, native: true, table: {
+    'GET /api/config': ok(chosen()), 'POST /api/solo/start': ok({ url: 'http://127.0.0.1:8000/solo' }),
+  } });
+  assert.equal(page.document.shown('solo'), true);
+  assert.equal(page.document.shown('multiplayer'), true);
+  page.taken();
+  await page.press('solo');
+  assert.deepEqual(page.gameTabs, ['http://127.0.0.1:8000/solo']);
+  assert.ok(page.taken().includes('POST /api/solo/start'));
+  assert.equal(page.document.shown('start'), false);
+});
 
 test('before its script runs, the document says that it is connecting and offers nothing', () => {
   const document = documentOf(html);
@@ -369,8 +436,8 @@ test('the page that the application opened trades its token and shows a new inst
     unfinished: true, folder: null, noFolder: true, game: null,
     chooseFolder: { label: 'Choose game folder', enabled: true }, shared: { checked: false, enabled: true }, local: { checked: false, enabled: true },
     allContent: { checked: true, enabled: true }, original: { checked: false, enabled: true }, camera: { checked: true, enabled: true }, optionsNote: PAL_ONLY,
-    start: { label: 'Start server', enabled: false }, stop: null, newGame: null,
-    players: null, inviteNote: null, invite: null, copy: null, openGame: null,
+    start: { label: 'Start Server', enabled: false }, stop: { label: 'Stop Server', enabled: false }, newGame: null,
+    players: '0', inviteNote: null, invite: null, copy: null, openGame: null,
     autoStart: { checked: true, enabled: true },
     details: DETAILS,
     diagnostics: { label: 'Save diagnostics', enabled: true }, quit: { label: 'Quit server', enabled: true },
@@ -385,8 +452,8 @@ test('an open room shows its players and its links, and a link that is gone leav
     unfinished: false, folder: FOLDER, noFolder: false, game: 'Sled Storm (PAL), 2 tracks, 613 MB',
     chooseFolder: { label: 'Choose game folder', enabled: false }, shared: { checked: true, enabled: false }, local: { checked: false, enabled: false },
     allContent: { checked: true, enabled: false }, original: { checked: false, enabled: false }, camera: { checked: true, enabled: false }, optionsNote: PAL_ONLY,
-    start: null, stop: { label: 'Stop room', enabled: true }, newGame: { label: 'New game', enabled: true },
-    players: '1 connected, 0 away with a controller kept', inviteNote: null, invite: PUBLIC, copy: { label: 'Copy invite link', enabled: true }, openGame: LOCAL,
+    start: { label: 'Start Server', enabled: false }, stop: { label: 'Stop Server', enabled: true }, newGame: { label: 'New game', enabled: true },
+    players: '1', inviteNote: null, invite: PUBLIC, copy: { label: 'Copy invite link', enabled: true }, openGame: LOCAL,
     autoStart: { checked: false, enabled: true },
     details: ['dt Version', 'dd 1.2.0', 'dt Room', 'dd open', 'dt Public address', 'dd online', 'dt Second address', 'dd off'],
     diagnostics: { label: 'Save diagnostics', enabled: true }, quit: { label: 'Quit server', enabled: true },
@@ -397,7 +464,7 @@ test('an open room shows its players and its links, and a link that is gone leav
   Object.assign(page.answers, { 'GET /api/status': ok(room('degraded', { tunnel: 'failed', problem: { component: 'tunnel', message: NO_ADDRESS } })),
     'GET /api/invitation': ok({ url: null, localUrl: LOCAL }) });
   await page.later();
-  assert.deepEqual(page.screen, { ...online, headline: 'Running, with a problem', sentence: NO_ADDRESS, start: { label: 'Start server', enabled: true },
+  assert.deepEqual(page.screen, { ...online, headline: 'Running, with a problem', sentence: NO_ADDRESS, start: { label: 'Start Server', enabled: true },
     inviteNote: 'The public address is not available.', invite: null, copy: null,
     details: ['dt Version', 'dd 1.2.0', 'dt Room', 'dd open', 'dt Public address', 'dd failed', 'dt Second address', 'dd off'] });
   assert.equal(page.document.at('invite-url').value, '', 'a link that is not offered is not kept in the page');
@@ -407,8 +474,8 @@ test('an open room shows its players and its links, and a link that is gone leav
   await page.later();
   assert.deepEqual(page.screen, { ...online, headline: 'Stopped', game: null, chooseFolder: { label: 'Choose game folder', enabled: true },
     shared: { checked: true, enabled: true }, local: { checked: false, enabled: true }, allContent: { checked: true, enabled: true },
-    original: { checked: false, enabled: true }, camera: { checked: true, enabled: true }, start: { label: 'Start server', enabled: true }, stop: null,
-    newGame: null, players: null, invite: null, copy: null, openGame: null, details: DETAILS });
+    original: { checked: false, enabled: true }, camera: { checked: true, enabled: true }, start: { label: 'Start Server', enabled: true }, stop: { label: 'Stop Server', enabled: false },
+    newGame: null, players: '0', invite: null, copy: null, openGame: null, details: DETAILS });
   assert.equal(page.document.at('open-game').href, null);
   assert.ok(!page.document.shown('room'));
 });
@@ -657,7 +724,7 @@ test('markup that the server sends is text in the page', async t => {
   } });
   const { screen: shown } = page;
   assert.deepEqual([shown.application, shown.sentence, shown.folder, shown.players, shown.invite, shown.openGame, shown.details.slice(0, 4)],
-    [markup, markup, `/Users/owner/${markup}`, `${markup} connected, 0 away with a controller kept`, `https://example.test/${markup}`, null,
+    [markup, markup, `/Users/owner/${markup}`, '0', `https://example.test/${markup}`, null,
       ['dt Version', `dd ${markup}`, 'dt Room', `dd ${markup}`]]);
   assert.deepEqual([...new Set(page.document.created)].sort(), ['dd', 'dt'], 'the page makes no element but the lines of its details');
 });

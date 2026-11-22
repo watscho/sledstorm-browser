@@ -92,7 +92,7 @@ function panelFile(response: ServerResponse, data: Buffer | null | undefined, ty
   response.writeHead(200, { 'Content-Type': type, 'Content-Length': data.length, 'Content-Security-Policy': PANEL_POLICY }).end(data);
 }
 
-export async function startHostServer({ version, panelRoot, onQuit, status, invitation, control, sessions = createPanelSessions() }: {
+export async function startHostServer({ version, panelRoot, onQuit, status, invitation, control, startSolo, sessions = createPanelSessions() }: {
   version: string;
   /** The folder of the panel's page, `admin` in the resources. */
   panelRoot: string;
@@ -100,6 +100,7 @@ export async function startHostServer({ version, panelRoot, onQuit, status, invi
   status: () => object;
   /** Start, stop, a new game, the configuration and the diagnostic report, for a command or the panel. */
   control: HostControl;
+  startSolo?: () => Promise<string>;
   /** The links to the server's room: for guests, and for a browser on this computer. Each is null while it does not work. */
   invitation: () => { url: string | null; localUrl: string | null };
   /** The sessions of the panel. A test gives its own, with a clock. */
@@ -202,6 +203,10 @@ export async function startHostServer({ version, panelRoot, onQuit, status, invi
       return url || localUrl ? send(response, 200, { url, localUrl }) : send(response, 409, { error: 'No room is open.' });
     }
     if (path === '/api/host/start' && request.method === 'POST') return later(hosting(request, response, force => control.start(force)));
+    if (path === '/api/solo/start' && request.method === 'POST' && startSolo) return later(startSolo().then(
+      url => send(response, 200, { url }),
+      error => send(response, 503, { error: error instanceof Error ? error.message : 'The local game could not be opened.' }),
+    ));
     if (path === '/api/room/stop' && request.method === 'POST') return later(hosting(request, response, force => control.stop(force)));
     if (path === '/api/room/new-game' && request.method === 'POST') return later(hosting(request, response, force => control.newGame(force)));
     // The folder's path leaves the server in these two answers only.

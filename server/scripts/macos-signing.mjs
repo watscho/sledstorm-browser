@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { readdir, realpath, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
-import { repoRoot, run, sha256File } from './lib.mjs';
+import { executableName, repoRoot, run, sha256File } from './lib.mjs';
 import { isMachO } from './macos-minimum.mjs';
 
 const exec = promisify(execFile);
@@ -28,9 +28,11 @@ async function bundleExecutable(app) {
   return realpath(join(contents, 'MacOS', name));
 }
 
-/** Sign real files first, then helper apps, the framework, Chromium and the SEA app. */
+/** Sign executables first, then helper apps, the framework, Chromium and the outer app. */
 async function signingTargets(app) {
-  const resources = join(app, 'Contents', 'Resources');
+  const contents = join(app, 'Contents');
+  const resources = join(contents, 'Resources');
+  const server = join(contents, 'Helpers', executableName);
   const browser = join(resources, 'chromium', 'Chromium.app');
   const framework = join(browser, 'Contents', 'Frameworks', 'Chromium Framework.framework');
   const helpers = await realpath(join(framework, 'Versions', 'Current', 'Helpers'));
@@ -49,7 +51,7 @@ async function signingTargets(app) {
     if (containerExecutables.has(path) || !await isMachO(path)) continue;
     leaves.push({ path });
   }
-  return [...leaves, ...helperApps, { path: framework }, { path: browser }, { path: app, jit: true }];
+  return [{ path: server, jit: true }, ...leaves, ...helperApps, { path: framework }, { path: browser }, { path: app }];
 }
 
 export async function packagedCodeHashes(app, browserPin) {

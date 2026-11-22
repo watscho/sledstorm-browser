@@ -19,15 +19,15 @@ import { appVersion } from './version.ts';
 const panelUrl = (port: number) => `http://127.0.0.1:${port}/`;
 
 /**
- * What a double-click does. The first launch starts a detached server; every
- * later launch finds that server and opens its page again. A server of another
- * build, as after the application was replaced, is asked to quit first when
- * nobody is in its room, and this build's server takes its place. This process
- * exits either way, so the application never sits unresponsive in the Dock.
- * `open` stands in for the user's browser in tests.
+ * Start a detached server or find the one that's already running. If a server
+ * of another build has an empty room, ask it to quit and start this build's
+ * server in its place.
+ * The macOS window receives a one-time address through its private subprocess
+ * pipe. `open` stands in for the user's browser in tests of the CLI launcher.
  */
-export async function launch(paths: Paths, { openPanel, open = openBrowser, quitWait = QUIT_WAIT_MS }: {
+export async function launch(paths: Paths, { openPanel, nativePanel = false, open = openBrowser, quitWait = QUIT_WAIT_MS }: {
   openPanel: boolean;
+  nativePanel?: boolean;
   open?: (url: string) => Promise<void>;
   /** How long a server of another build that accepted a quit may take to go. Shorter in tests. */
   quitWait?: number;
@@ -49,7 +49,7 @@ export async function launch(paths: Paths, { openPanel, open = openBrowser, quit
   }
   let spawned: number | undefined;
   if (!record) {
-    const { command, args } = selfCommand(['serve']);
+    const { command, args } = selfCommand(nativePanel ? ['serve', '--launcher'] : ['serve']);
     const server = spawn(command, args, { detached: true, stdio: 'ignore' });
     server.once('error', () => { /* Reported below when no server appears. */ });
     server.unref();
@@ -62,14 +62,18 @@ export async function launch(paths: Paths, { openPanel, open = openBrowser, quit
     return 1;
   }
   const url = panelUrl(record.port);
-  if (openPanel) {
-    // The page gets in with a token that is good once and for a minute. Without one, as from a server
-    // of an earlier build that is still running, the page opens and says that it is not connected.
+  const event = record.pid !== spawned ? 'reused' : replaced ? 'replaced' : 'started';
+  if (openPanel || nativePanel) {
+    // The page gets in with a token that is good once and for a minute.
     const bootstrap = await requestBootstrap(record);
-    await open(bootstrap ? `${url}#bootstrap=${bootstrap}` : url);
+    const address = bootstrap ? `${url}#bootstrap=${bootstrap}` : url;
+    if (nativePanel) {
+      console.log(JSON.stringify({ address, openAtLaunch: false }));
+      return 0;
+    }
+    await open(address);
   }
   // The token is a credential: what is printed is the address alone.
-  const event = record.pid !== spawned ? 'reused' : replaced ? 'replaced' : 'started';
   console.log(JSON.stringify({ event, pid: record.pid, url, ...(otherBuild && { otherBuild: true }) }));
   return 0;
 }

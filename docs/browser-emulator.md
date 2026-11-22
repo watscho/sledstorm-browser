@@ -5,8 +5,8 @@
 | Area | Location and responsibility |
 | --- | --- |
 | Browser client | [`web/`](../web) handles the launcher, game-data choices, local emulation, presentation, controls and saves. |
-| Packaged host | [`server/`](../server) bundles TypeScript into Node SEA. The executable opens the local admin page, owns one dedicated room and supervises Chromium and the tunnel connectors. |
-| Browser admin | [`admin/`](../admin) renders local control and status. Use loopback and an authenticated panel session. |
+| Packaged host | [`server/`](../server) bundles TypeScript into Node SEA. The server helper owns one dedicated room and supervises Chromium and the tunnel connectors. |
+| Server window | [`packaging/macos/`](../packaging/macos) opens the [`admin/`](../admin) controls in a macOS window with an authenticated loopback session. |
 | Python host | [`server.py`](../server.py) serves the game origin. [`tools/play-online.py`](../tools/play-online.py) starts the runtime, relay, private gateway and connectors. |
 | Netplay and gateway | [`research/network/`](../research/network) runs the RetroArch relay, dedicated browser runtime and private HTTP/WebSocket gateway. |
 | Native preparation | [`research/emulator/`](../research/emulator) and [`tools/prepare-emulator-native.py`](../tools/prepare-emulator-native.py) carry the adapter and anchor-checked transformations. |
@@ -15,8 +15,8 @@ The desktop app resolves read-only assets from its bundle and keeps
 writable configuration, cache and logs in the user's Library.
 `SLED_SERVER_HOME` isolates these paths in tests. A kernel advisory lock,
 private instance record and authenticated probe coordinate a single
-server per user. The default executable starts or reuses that server,
-opens its panel and exits so LaunchServices can open it again.
+server per user. The app opens a window and starts or reuses that server.
+The server can keep hosting while the window is closed.
 
 The game origin and RetroArch relay use loopback ports 8000 and 8006.
 The packaged gateway and admin listener select free ports. Keep the

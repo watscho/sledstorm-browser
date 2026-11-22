@@ -94,6 +94,7 @@ static unsigned seat, enabled, recording, replaying, used, overflow, drawn, fram
 static unsigned last_clip, first_clip;
 static uint32_t hud_words[256][9];
 enum hud_popup { HUD_STATIC, HUD_AWARD, HUD_FINISH };
+enum { SPLIT_SCREEN_HUD = 64 };
 static unsigned char hud_popup[256];
 static unsigned hud_count, hud_error;
 static unsigned award_first, award_end;
@@ -680,8 +681,8 @@ int sled_view_pc(psxRegisters *regs) {
   unsigned players = ram32(0x800d6a10);
   if ((regs->pc != 0x80064128 && regs->pc != 0x800650fc) || ram32(0x800d6980) != 1 || players < 2 || players > 4
       || ram32(0x800c3ca0) != 0 || ram32(0x800c34e0)) return 0;
-  /* The original multiplayer HUD is replaced at presentation. Building four
-   * single-player HUDs canonically would overflow the game's 256 UI slots. */
+  /* Keep the canonical HUD suppressed. Both view layouts draw their HUDs
+   * privately using the same single-player texture atlas. */
   advance_speedometers(players);
   advance_award_popups(players);
   advance_finish_popups(players);
@@ -778,6 +779,55 @@ static void build_local_hud(void) {
     center_hud_popup(HUD_AWARD);
     center_hud_popup(HUD_FINISH);
   }
+}
+
+static void draw_split_screen_hud(unsigned players) {
+  if (gpu.screen.src_x || gpu.screen.src_y > 256 || (gpu.status & PSX_GPU_STATUS_RGB24)) return;
+  struct psx_gpu saved = gpu;
+  const unsigned local_seat = seat, base_y = saved.screen.src_y;
+  memcpy(private_vram, gpu.vram, VRAM_BYTES);
+  gpu.vram = private_vram;
+  sled_renderer_set_vram(private_vram);
+  replaying = 1;
+
+  for (seat = 0; seat < players; ++seat) {
+    const unsigned view = 0x800e2cb0 + seat * 0x224;
+    const unsigned origin = ram32(view + 0x154);
+    const unsigned size = ram32(view + 0x158);
+    const int x = origin & 0xffff, y = origin >> 16;
+    int width = size & 0xffff, height = size >> 16;
+    // The right and lower panes reserve two columns and one row for dividers.
+    if (width > 512 - x) width = 512 - x;
+    if (height > 256 - y) height = 256 - y;
+    if (width <= 0 || height <= 0) continue;
+
+    build_local_hud();
+    uint32_t env[8];
+    memcpy(env, saved.ex_regs, sizeof(env));
+    env[2] = 0xe2000000u;
+    env[3] = 0xe3000000u | ((base_y + y) << 10) | x;
+    env[4] = 0xe4000000u | ((base_y + y + height - 1) << 10) | (x + width - 1);
+    env[5] = 0xe5000000u;
+    env[6] = 0xe6000000u;
+    renderer_sync_ecmds(env);
+    for (unsigned index = 0; index < hud_count; ++index) {
+      uint32_t *quad = hud_words[index];
+      for (unsigned vertex = 1; vertex < 9; vertex += 2) {
+        const uint16_t px = x + (int16_t)quad[vertex] * width / 512;
+        const uint16_t py = base_y + y + (int16_t)(quad[vertex] >> 16) * height / 256;
+        quad[vertex] = ((uint32_t)py << 16) | px;
+      }
+      int sum = 0, cycles = 0, command = 0;
+      do_cmd_list(quad, 9, &sum, &cycles, &command);
+    }
+  }
+
+  vout_update();
+  seat = local_seat;
+  gpu = saved;
+  sled_renderer_set_vram(gpu.vram);
+  renderer_sync_ecmds(gpu.ex_regs);
+  replaying = 0;
 }
 void sled_view_configure(unsigned slot, unsigned flags) {
   seat = slot;
@@ -954,6 +1004,13 @@ void sled_view_present(void) {
     return;
   }
 #endif
+  if ((enabled & SPLIT_SCREEN_HUD) && hud_advanced) {
+#ifdef __EMSCRIPTEN__
+    if (!skip_view)
+#endif
+      draw_split_screen_hud(players);
+    return;
+  }
   if (!recording || (!solo_render && !personal_race) ||
       (solo_render && (!render_captured || !solo_hud_captured))) {
 #ifdef __EMSCRIPTEN__

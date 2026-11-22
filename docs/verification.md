@@ -2,7 +2,7 @@
 
 ## Current status
 
-The **1.2.0 Python source launcher** is the established workflow. The
+The **1.3.0 Python source launcher** is the established workflow. The
 **Apple Silicon server app** is an internal preview. The arm64 bundle
 declares macOS 15.0 based on the bundled `cloudflared` deployment target.
 Test coverage below applies to the environment and workflow listed.
@@ -18,6 +18,9 @@ Test coverage below applies to the environment and workflow listed.
 - [x] Check the real room lifecycle, Safari local play, app replacement
   with a compatible autosave, and synthetic resumable transfers over
   Quick Tunnel on one Mac.
+- [x] Check offline first launch and checkpoint restore in Chromium.
+  Join a local PAL room with four Chromium profiles using mixed race
+  views and check the HUD in each split-screen pane.
 
 ### Open for public release
 

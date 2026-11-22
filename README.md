@@ -13,6 +13,7 @@ while sharing the game's menus, races and pause state.
 
 | I want to | Start here |
 | --- | --- |
+| Play on my own | Open the macOS app, choose **Single Player** and press **Play** in your browser. [App setup](docs/sled-storm-server.md#first-run) |
 | Join a friend's room | Open the full invitation in a compatible desktop browser and choose a game-data source. [Join and race](docs/multiplayer.md) |
 | Host with the Apple Silicon app | Open the internal preview on macOS 15 or later, select your disc folder, start a room and copy the invitation. [App setup](docs/sled-storm-server.md#first-run) |
 | Host from the terminal | Build the emulator and run the Python launcher. [Source setup](docs/setup.md) |
@@ -39,8 +40,9 @@ enables sharing. Only enable host downloads for files you may distribute.
 
 ## Release status
 
-**Version 1.2.0.** The Python launcher is the established source workflow.
-Sled Storm Server is an internal Apple Silicon preview. Signed installation,
+**Version 1.3.0.** The Apple Silicon preview opens a native launcher with
+offline **Single Player** and dedicated **Multiplayer**. The Python launcher
+is the established source workflow. Signed installation,
 clean-Mac qualification and races on separate physical devices are still on
 the release checklist.
 

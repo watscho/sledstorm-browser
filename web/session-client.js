@@ -1,22 +1,8 @@
+import { sampleGamepad } from './controls.js';
+export { sampleGamepad, STANDARD_GAMEPAD } from './controls.js';
+
 const KEY_BITS = { ShiftRight: 0, Enter: 3, ArrowUp: 4, ArrowRight: 5, ArrowDown: 6,
   ArrowLeft: 7, KeyE: 8, KeyR: 9, KeyQ: 10, KeyW: 11, KeyA: 12, KeyS: 13, KeyX: 14, KeyZ: 15 };
-
-export const STANDARD_GAMEPAD = Object.freeze([14, 13, 15, 12, 10, 11, 8, 9, 0, 3, 1, 2, 4, 6, 7, 5]);
-
-export function sampleGamepad(pad, selected, profiles) {
-  let devices = [];
-  try { devices = Array.from(navigator.getGamepads?.() || []); } catch { /* Keyboard remains usable. */ }
-  const gamepad = selected === -1 ? null : devices.find(pad => pad?.mapping === 'standard' && (selected == null || pad.index === selected));
-  if (gamepad?.mapping === 'standard') {
-    const map = profiles?.get(gamepad.id) || STANDARD_GAMEPAD;
-    for (let i = 0; i < map.length; ++i) if (map[i] !== null && gamepad.buttons[i]?.pressed) pad &= ~(1 << map[i]);
-    if (gamepad.axes[0] < -0.4) pad &= ~(1 << 7);
-    if (gamepad.axes[0] > 0.4) pad &= ~(1 << 5);
-    if (gamepad.axes[1] < -0.4) pad &= ~(1 << 4);
-    if (gamepad.axes[1] > 0.4) pad &= ~(1 << 6);
-  }
-  return pad;
-}
 
 export class BrowserSession {
   constructor(onStatus, options = {}) {

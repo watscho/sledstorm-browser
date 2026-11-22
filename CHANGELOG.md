@@ -3,6 +3,21 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 1.3.0 - 2026-11-22
+
+- The Apple Silicon preview opens a native launcher with **Single Player**
+  and **Multiplayer**. Solo play starts a local emulator and can load and save
+  checkpoints offline from the first launch.
+- Multiplayer starts a dedicated room and opens the game when the local
+  room is ready. The launcher shows live player counts and lets the host
+  stop the server, reopen the game with **Join Room**, and copy the invite
+  once the public link is available.
+- The launcher's **Settings** hold the game folder and the download policy.
+  Players choose their own game files or ZIP when required by the room.
+- In rooms with the verified PAL disc, each player can choose **Personal
+  camera** or **Split screen** under **Display and audio**. Both views
+  show the appropriate HUD and can be used together in the same race.
+
 ## 1.2.0 - 2026-11-22
 
 Version 1.2.0 integrates the Node SEA server and browser admin. The

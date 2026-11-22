@@ -2,7 +2,7 @@
 // uncompressed ZIP archive that is never written to disk. The archive is
 // streamed as small headers around the user's own files, so its bytes depend
 // only on the file names, their contents and their order.
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, open, readFile, rename, stat, writeFile, type FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -308,7 +308,7 @@ export async function prepareGameData(disc: DiscFolder, cacheRoot: string, optio
   if (!stamp) {
     stamp = await build(files, sources, chunkSize, size, options.onProgress, options.signal);
     await mkdir(folder, { recursive: true, mode: 0o700 });
-    const temporary = `${stampPath}.${process.pid}.tmp`;
+    const temporary = `${stampPath}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
     await writeFile(temporary, sealStamp(stamp), { mode: 0o600 });
     await rename(temporary, stampPath);
   }

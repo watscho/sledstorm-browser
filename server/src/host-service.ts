@@ -19,7 +19,7 @@ import { createPublicGateway, createRetroArchRelay, identityKey, invitationUrl, 
   type NetplayRelay, type RoomOptions } from './network.ts';
 import type { Paths } from './paths.ts';
 import { keepRoom, type RoomKeeper, type RoomState, type RoomTiming } from './room.ts';
-import { startRuntimeHttp } from './runtime-http.ts';
+import { startRuntimeHttp, type RuntimeHttp, type RuntimeSession } from './runtime-http.ts';
 import { selfCommand } from './self.ts';
 import { StackStartError, startStack, type StackStep } from './stack.ts';
 import { publicProbe } from './tunnel-probe.ts';
@@ -56,12 +56,14 @@ export interface HostStatus {
 }
 
 /**
- * The options of a room on this disc. The verified PAL disc plays what the owner chose, and its separate
- * cameras are its native camera; any other disc plays the original progression with a shared camera.
+ * Launcher rooms on the verified PAL disc support both views. The legacy
+ * server controls can still choose whether to enable the native camera.
  */
-export function roomOptionsFor(pal: boolean, chosen: RoomPreference): RoomOptions {
+export function roomOptionsFor(pal: boolean, chosen: RoomPreference, launcher = false): RoomOptions {
   if (!pal) return { progress: 'original', camera: false };
-  return chosen.camera ? { progress: chosen.progress, camera: true, nativeCamera: true } : { progress: chosen.progress, camera: false };
+  return launcher || chosen.camera
+    ? { progress: chosen.progress, camera: true, nativeCamera: true }
+    : { progress: chosen.progress, camera: false };
 }
 
 /**
@@ -69,6 +71,8 @@ export function roomOptionsFor(pal: boolean, chosen: RoomPreference): RoomOption
  * every call resolves once the service has settled on it.
  */
 export interface HostService {
+  /** Opens the local game without creating a network room. */
+  startSolo(): Promise<string>;
   /** A frozen snapshot. */
   status(): HostStatus;
   /**
@@ -182,11 +186,12 @@ function primaryProtocol(): string {
   return chosen === 'quic' || chosen === 'http2' ? chosen : 'auto';
 }
 
-export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPort = NETPLAY_PORT, accessToken, tunnels, worker }: {
+export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPort = NETPLAY_PORT, accessToken, tunnels, worker, launcher = false }: {
   paths: Paths;
   log: Log;
   gamePort?: number;
   netplayPort?: number;
+  launcher?: boolean;
   /** The gateway credential, 48 hexadecimal digits. Random unless a test supplies one. */
   accessToken?: string;
   /** Absent: the shipped tunnel program. Null: no tunnels, for tests of the local stack. */
@@ -212,6 +217,57 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
   let attempted = false;
   let working: Promise<void> | null = null;
   let interrupt: AbortController | null = null;
+  let keepOrigin = launcher;
+  let runtime: Promise<RuntimeHttp> | null = null;
+  let closingRuntime: Promise<void> = Promise.resolve();
+  let roomSession: RuntimeSession | null = null;
+  let roomAddress: () => { origin: string; path: string } | null = () => null;
+  let soloSession: RuntimeSession | null = null;
+  let soloWork: Promise<string> | null = null;
+  const soloLifetime = new AbortController();
+
+  function ensureRuntime(assets: EmulatorAssets): Promise<RuntimeHttp> {
+    runtime ??= closingRuntime.then(() => expectFree(gamePort)).then(() => startRuntimeHttp({
+      port: gamePort, webRoot: assets.webRoot, emulatorRoot: assets.emulatorRoot, coreData: assets.coreData,
+      hardwareRenderer: assets.hardwareRenderer, sessionInfo: {}, archive: null,
+      invitation: () => roomAddress(), room: () => roomSession,
+      solo: () => {
+        if (soloSession) return soloSession;
+        const manifest = roomSession?.archive?.manifest;
+        return { sessionInfo: { ...assets.identity, disc: manifest?.disc ?? null, pal: manifest?.pal ?? null,
+          archive: manifest?.archive, discMode: manifest ? 'shared' : 'local' }, archive: roomSession?.archive ?? null };
+      },
+    })).catch(error => { runtime = null; throw error; });
+    return runtime;
+  }
+
+  function closeRuntime(): Promise<void> {
+    const opened = runtime;
+    runtime = null;
+    if (opened) closingRuntime = opened.then(server => server.close(), () => {});
+    return closingRuntime;
+  }
+
+  async function prepareSolo(): Promise<string> {
+    const assets = await loadEmulatorAssets(paths.resourceRoot);
+    const { config } = await readConfig(paths);
+    let archive: RuntimeSession['archive'] = null;
+    if (config.gameFolder) {
+      try {
+        const disc = await findDisc(config.gameFolder);
+        const data = await prepareGameData(disc, paths.cacheRoot, { signal: soloLifetime.signal });
+        const { identity } = data;
+        archive = { size: identity.archive.size, manifest: identity, open: data.openArchive, openChunk: data.openChunk };
+      } catch (error) {
+        if (!(error instanceof GameFolderError || error instanceof GameFilesChangedError)) throw error;
+      }
+    }
+    soloLifetime.signal.throwIfAborted();
+    soloSession = { sessionInfo: { ...assets.identity, disc: archive?.manifest.disc ?? null, pal: archive?.manifest.pal ?? null,
+      archive: archive?.manifest.archive, discMode: archive ? 'shared' : 'local' }, archive };
+    await ensureRuntime(assets);
+    return `http://127.0.0.1:${gamePort}/solo`;
+  }
 
   const set = (next: HostStatus) => { status = snapshot(next); };
   /** The status with the players of this moment: they come and go without a word to the host. */
@@ -287,7 +343,7 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
     // The room is the server's: its name and token are made here, and so is its identity, from the real
     // game data and this build. A player's page works out the same identity for itself, or is not let in.
     // The built-in BIOS is the only one a dedicated room runs. The options are the owner's, as far as the disc allows.
-    const options = roomOptionsFor(identity.pal, config.roomOptions);
+    const options = roomOptionsFor(identity.pal, config.roomOptions, launcher);
     let room: { room: string; token: string; identity: string; saves: string } | null = null;
     if (browser) {
       // The saves that fit the room are those of this game and this build, under the key that a player's
@@ -357,26 +413,24 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
       {
         name: 'runtime',
         async start() {
-          await expectFree(gamePort);
-          const runtime = await startRuntimeHttp({
-            port: gamePort,
-            webRoot: assets.webRoot,
-            emulatorRoot: assets.emulatorRoot,
-            coreData: assets.coreData,
-            hardwareRenderer: assets.hardwareRenderer,
+          await ensureRuntime(assets);
+          roomSession = {
             // The keys keep the launcher's order. A Netplay room is identified by a fixed list of these fields
             // (web/room-identity.js), so what is added here for the page, like `serverRoom`, does not count.
             // `shared` says that this origin serves the archive, which it does under either policy (D72).
             sessionInfo: { disc: identity.disc, pal: identity.pal, archive: identity.archive, discMode: 'shared',
               roomCheck: true, ...assets.identity, ...(browser && { dedicated: true, serverRoom: true }) },
-            // The host page builds invitations for the public address, once that address works.
-            invitation: () => {
-              const origin = live.primary?.origin();
-              return origin ? { origin, path: `/access/${token}` } : null;
-            },
             archive,
-          });
-          return () => runtime.close();
+          };
+          roomAddress = () => {
+            const origin = live.primary?.origin();
+            return origin ? { origin, path: `/access/${token}` } : null;
+          };
+          return async () => {
+            roomSession = null;
+            roomAddress = () => null;
+            if (!keepOrigin) await closeRuntime();
+          };
         },
       },
       {
@@ -625,6 +679,11 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
 
   return {
     status: current,
+    startSolo() {
+      if (closed) return Promise.reject(new Error('The launcher is quitting.'));
+      keepOrigin = true;
+      return soloWork ??= prepareSolo().finally(() => { soloWork = null; });
+    },
     invitation: () => invite?.() ?? null,
     localInvitation: () => localInvite?.() ?? null,
     newGame: () => renew?.() ?? false,
@@ -645,9 +704,11 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
       return current();
     },
     stop,
-    close() {
+    async close() {
       closed = true;
-      return stop();
+      soloLifetime.abort();
+      await Promise.all([stop(), soloWork?.catch(() => {})]);
+      await closeRuntime();
     },
     closed: () => closed,
     starting: () => wanted && working !== null,

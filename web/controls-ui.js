@@ -1,4 +1,4 @@
-import { STANDARD_GAMEPAD } from '/session-client.js';
+import { STANDARD_GAMEPAD } from './controls.js';
 import { BUTTONS, CLASSIC, WASD, restoreKeyboardProfile, rebind, keyMap, keyLabel } from './controls.js';
 
 // Hotspot centers in the illustration's SVG viewBox (0 14 128 94).

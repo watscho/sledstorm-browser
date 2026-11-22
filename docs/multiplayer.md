@@ -55,9 +55,12 @@ with limited RAM. Preview chunk/resume behavior is described in the
 5. With Classic controls, steer with the arrows, hold **S** to accelerate,
    press **Enter** to pause and **W** to go back in menus.
 
-A room has up to four controllers. **Separate cameras** gives racers their
-own view and original HUD. Players can mix personal 4:3 and widescreen
-settings. The shared pause/options menu keeps its original 4:3 shape.
+A room has up to four controllers. In a Mac Launcher room using the
+verified PAL disc, open **Display and audio** before joining and choose
+**Race view**. **Personal camera** fills your screen with your racer's view
+and HUD, in 4:3 or widescreen. **Split screen** shows all racers in the
+original 4:3 layout. Each browser remembers its choice. The shared
+pause/options menu keeps its original 4:3 shape.
 
 ## Reconnect or stop
 
@@ -66,7 +69,7 @@ rejoin. A dedicated room can reserve a controller during a race for the
 returning player. A new lobby assignment can replace the previous
 credential. In browser-hosted play the creator's tab must stay open.
 
-To end a packaged room, use **Stop room** or **Quit server**. For Python
+To end a packaged room, click **Stop Server**. For Python
 hosting, press **Ctrl+C** in the host terminal. The tunnel's temporary
 invitation expires when hosting stops. If the host gets a new address,
 use the new invitation.

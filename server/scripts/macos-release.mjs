@@ -86,7 +86,7 @@ async function checkResources(app, { signing, stapled = false } = {}) {
 
   requireNames(await readdir(app), ['Contents'], 'application root');
   const contentNames = await readdir(contents);
-  const expectedContents = ['_CodeSignature', 'Info.plist', 'MacOS', 'Resources'];
+  const expectedContents = ['_CodeSignature', 'Helpers', 'Info.plist', 'MacOS', 'Resources'];
   if (stapled) {
     requireMatch((await lstat(join(contents, 'CodeResources'))).isFile(), true, 'ticket file type');
     expectedContents.push('CodeResources');
@@ -96,6 +96,7 @@ async function checkResources(app, { signing, stapled = false } = {}) {
     [applicationIcon, 'admin', 'bin', 'chromium', 'emulator', 'licenses', 'runtime-manifest.json', 'web'], 'resource roots');
   requireNames(await readdir(join(resources, 'chromium')), ['Chromium.app'], 'Chromium resource root');
   await checkFiles(join(contents, 'MacOS'), [executableName]);
+  await checkFiles(join(contents, 'Helpers'), [executableName]);
   await checkFiles(join(contents, '_CodeSignature'), ['CodeResources']);
   await checkFiles(join(resources, 'admin'), PANEL_FILES);
   await checkFiles(join(resources, 'web'), RELEASE_WEB_FILES);
@@ -138,7 +139,8 @@ async function checkResources(app, { signing, stapled = false } = {}) {
   for (const [name, hash] of Object.entries(await packagedCodeHashes(app, browser))) {
     requireMatch(hash, expectedCode[name], `shipped ${name} digest`);
   }
-  await Promise.all([executable, tunnel, join(chromiumApp, browser.executable)].map(path => access(path, constants.X_OK)));
+  await Promise.all([executable, join(contents, 'Helpers', executableName), tunnel, join(chromiumApp, browser.executable)]
+    .map(path => access(path, constants.X_OK)));
 
   requireMatch(await sha256File(join(emulator, 'emulator.lock.json')), await sha256File(join(repoRoot, 'emulator.lock.json')), 'emulator source lock');
   for (const [field, file] of Object.entries({ lock: 'emulator.lock.json', nativeBuild: 'native-build.json', coreData: 'network-core.data' })) {

@@ -14,6 +14,8 @@ const packaged: PathInputs = {
 
 test('a packaged executable finds resources inside its application bundle', () => {
   assert.equal(resolvePaths(packaged).resourceRoot, '/Volumes/Games Disk/Sled Storm Server.app/Contents/Resources');
+  assert.equal(resolvePaths({ ...packaged, execPath: packaged.execPath.replace('/MacOS/', '/Helpers/') }).resourceRoot,
+    '/Volumes/Games Disk/Sled Storm Server.app/Contents/Resources');
 });
 
 test('a bare packaged executable finds resources beside itself', () => {

@@ -19,6 +19,7 @@ static int expected_award_quad;
 static int check_finish, expected_finish_quad;
 static unsigned expected_finish_ticks;
 static int check_local_hud;
+static int split_hud;
 static unsigned local_seat, local_speed;
 static const unsigned racer_base = 0x800dae20, racer_stride = 0x530;
 static const unsigned finish_timer = 0x800a7400, racer_finished = 0x800dae20 + 0x35c;
@@ -38,6 +39,15 @@ void renderer_sync_ecmds(uint32_t *env) { memcpy(gpu.ex_regs, env, sizeof(gpu.ex
 int do_cmd_list(uint32_t *words, int count, int *sum, int *cycles, int *command) {
   if (count == 9) {
     assert(words[0] == 0x2c808080);
+    if (split_hud) {
+      const unsigned x = 258 * (hud_draws & 1), y = 129 * (hud_draws >> 1);
+      const unsigned width = x ? 254 : 256, height = y ? 127 : 128;
+      assert((uint16_t)words[1] == x + 120 * width / 512);
+      assert((uint16_t)words[3] == x + 150 * width / 512);
+      assert(words[1] >> 16 == y + 50 * height / 256);
+      ++hud_draws;
+      return count;
+    }
     const int centered = expected_award_quad || expected_finish_quad;
     assert((uint16_t)words[1] == (centered ? 241 : 120));
     assert((uint16_t)words[3] == (centered ? 271 : 150));
@@ -403,6 +413,24 @@ int main(void) {
     }
   }
   check_local_hud = 0;
+  for (unsigned slot = 0; slot < 4; ++slot) {
+    const unsigned view = native_view + slot * 0x224;
+    word(view + 0x154, 258 * (slot & 1) | (129 * (slot >> 1) << 16));
+    word(view + 0x158, 0x00800100);
+  }
+  sled_view_configure(2, 2 | 16 | 64);
+  sled_view_begin();
+  psxRegs.pc = 0x800650fc;
+  assert(sled_view_pc(&psxRegs) && psxRegs.pc == psxRegs.GPR.n.ra);
+  memcpy(saved_ram, psxM, 0x200000);
+  gpu.screen.w = 512; gpu.screen.h = 256;
+  struct psx_gpu split_gpu = gpu;
+  split_hud = 1;
+  hud_draws = 0;
+  sled_view_present();
+  split_hud = 0;
+  assert(hud_draws == 4 && sled_view_status(7) == 0);
+  assert(!memcmp(psxM, saved_ram, 0x200000) && !memcmp(&gpu, &split_gpu, sizeof(gpu)));
   free(saved_ram);
   word(0x800c34e0, 1); calls = 0;
   sled_view_begin(); pane(0, 255, 0, 255); sled_view_present();

@@ -43,6 +43,20 @@ function call(port: number, method: string, path: string, headers: Record<string
 const json = { 'content-type': 'application/json' };
 const expired = { error: 'This link to the panel has expired. Open Sled Storm Server again.' };
 
+test('only the authenticated panel can open the solo launcher', async () => {
+  let starts = 0;
+  const host = await startHostServer({ panelRoot, version: '9.9.9', onQuit() {}, status: () => ({ state: 'idle' }),
+    invitation: () => ({ url: null, localUrl: null }), control: standInControl().control,
+    startSolo: async () => { starts++; return 'http://127.0.0.1:8000/solo'; } });
+  try {
+    assert.equal((await call(host.port, 'POST', '/api/solo/start')).status, 401);
+    const response = await call(host.port, 'POST', '/api/solo/start', { authorization: `Bearer ${host.token}` });
+    assert.equal(response.status, 200);
+    assert.deepEqual(JSON.parse(response.body), { url: 'http://127.0.0.1:8000/solo' });
+    assert.equal(starts, 1);
+  } finally { await host.close(); }
+});
+
 /** What a WebSocket client is answered with, when the answer is not a socket. */
 function upgrade(port: number, path: string, headers: Record<string, string> = {}): Promise<number | 'socket'> {
   return new Promise((resolve, reject) => {
@@ -321,6 +335,7 @@ function standInService(initial: Partial<HostStatus> = {}) {
   let closed = false;
   let starting = false;
   const service: HostService = {
+    async startSolo() { throw new Error('Unexpected solo launch'); },
     status: () => status,
     async start() {
       calls.push('start');

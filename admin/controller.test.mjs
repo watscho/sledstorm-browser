@@ -53,13 +53,14 @@ function held() {
  * A page whose server answers from a table and keeps what it was asked. An entry of the table is an
  * answer, a function that gives one, or DOWN. Without a table the server is a new installation at rest.
  */
-function page(table = {}) {
+function page(table = {}, openAtLaunch = false) {
   const answers = { 'GET /api/status': ok(report('idle')), 'GET /api/config': ok(saved()), ...table };
   const asked = [];
   const views = [];
   const due = [];
   const copied = [];
   const files = [];
+  const opened = [];
   const state = { lost: 0, clipboard: true, save: true };
   const ask = async (path, init = {}) => {
     const method = init.method ?? 'GET';
@@ -73,6 +74,8 @@ function page(table = {}) {
   };
   const panel = createPanel({
     ask,
+    openAtLaunch,
+    openGame: url => opened.push(url),
     render: view => { views.push(view); },
     wait: ms => new Promise(resolve => { due.push({ ms, resolve }); }),
     clipboard: async text => {
@@ -86,7 +89,7 @@ function page(table = {}) {
     },
   });
   return {
-    panel, answers, views, due, copied, files, state,
+    panel, answers, views, due, copied, files, opened, state,
     /** What the page shows now. */
     get view() { return views.at(-1); },
     /** What the server was asked since the last look. */
@@ -105,6 +108,37 @@ function page(table = {}) {
     },
   };
 }
+
+test('Start opens the local game once when the room is ready, and Stop cancels a pending open', bounded, async () => {
+  const pendingRoom = { ...hosting({ room: 'starting' }),
+    'GET /api/status': ok(room('starting', { room: 'starting' })) };
+  const p = page({ 'GET /api/config': ok(chosen()),
+    'POST /api/host/start': () => { Object.assign(p.answers, pendingRoom); return accepted; },
+    'POST /api/room/stop': () => { p.answers['GET /api/status'] = ok(report('idle')); return accepted; } });
+  await p.open();
+  await p.panel.start();
+  assert.deepEqual(p.opened, []);
+  Object.assign(p.answers, hosting({ tunnel: 'starting' }));
+  await p.later();
+  await p.later();
+  assert.deepEqual(p.opened, [LOCAL]);
+  await p.panel.stop();
+  await p.panel.start();
+  await p.panel.stop();
+  Object.assign(p.answers, hosting());
+  await p.later();
+  assert.deepEqual(p.opened, [LOCAL]);
+});
+
+test('only a fresh foreground launch opens a room started by auto-start', bounded, async () => {
+  const fresh = page(hosting(), true);
+  const existing = page(hosting());
+  await fresh.open();
+  await existing.open();
+  await fresh.later();
+  assert.deepEqual(fresh.opened, [LOCAL]);
+  assert.deepEqual(existing.opened, []);
+});
 
 test('the page reads the status, the configuration and the invitation, and reads again a second later', bounded, async () => {
   const p = page();
@@ -125,7 +159,7 @@ test('the page reads the status, the configuration and the invitation, and reads
   assert.equal(p.view.setup.folder, FOLDER);
   assert.deepEqual(p.view.invite, { url: PUBLIC, note: null });
   assert.equal(p.view.openGame, LOCAL);
-  assert.equal(p.view.players, '1 connected, 0 away with a controller kept');
+  assert.equal(p.view.players, '1');
   assert.deepEqual(p.due.map(({ ms }) => ms), [1000]);
 
   // A room that is not open yet has no links, and the server's answer about that is no sentence of the page.
@@ -250,7 +284,7 @@ test('a press ends once the page shows what the server said after it, even when 
   readings[1].answer(ok(report('preparing')));
   await pressing;
   assert.equal(p.view.headline, 'Preparing the game files');
-  assert.deepEqual(p.view.stop, { shown: true, enabled: true, label: 'Stop room' });
+  assert.deepEqual(p.view.stop, { shown: true, enabled: true, label: 'Stop Server' });
   assert.equal(p.view.quit.enabled, true, 'nothing is under way');
 });
 
@@ -296,7 +330,7 @@ test('start and stop send one request, and what the server refuses is shown in i
   await p.panel.start();
   assert.deepEqual(p.taken(), ['POST /api/host/start', ...READING]);
   assert.equal(p.view.headline, 'Preparing the game files');
-  assert.deepEqual(p.view.stop, { shown: true, enabled: true, label: 'Stop room' });
+  assert.deepEqual(p.view.stop, { shown: true, enabled: true, label: 'Stop Server' });
 
   p.answers['POST /api/room/stop'] = () => {
     p.answers['GET /api/status'] = ok(report('idle'));
@@ -355,7 +389,7 @@ test('a stop with players asks first and then stops with force', bounded, async 
   assert.deepEqual(p.taken(), ['POST /api/room/stop {"force":true}', ...READING]);
   assert.equal(p.view.headline, 'Stopped');
   assert.equal(p.view.sentence, null);
-  assert.equal(p.view.stop.label, 'Stop room');
+  assert.equal(p.view.stop.label, 'Stop Server');
 
   // Another press in between takes the question back, and the next stop asks again.
   const other = page(hosting());
@@ -365,7 +399,7 @@ test('a stop with players asks first and then stops with force', bounded, async 
   await other.panel.stop();
   assert.equal(other.view.stop.label, 'Stop anyway');
   await other.panel.setAutoStart(true);
-  assert.equal(other.view.stop.label, 'Stop room');
+  assert.equal(other.view.stop.label, 'Stop Server');
   assert.equal(other.view.sentence, null);
   other.taken();
   await other.panel.stop();
@@ -376,7 +410,7 @@ test('a stop with players asks first and then stops with force', bounded, async 
   other.answers['GET /api/status'] = ok(room('online', { players: { connected: 0, reserved: 0 } }));
   await other.later();
   assert.equal(other.view.sentence, null);
-  assert.equal(other.view.stop.label, 'Stop room');
+  assert.equal(other.view.stop.label, 'Stop Server');
   other.taken();
   other.answers['POST /api/room/stop'] = accepted;
   await other.panel.stop();
@@ -393,13 +427,13 @@ test("a quit is asked about from the server's refusal, not from the last reading
   await settled();
   p.taken();
   p.answers['GET /api/status'] = ok(room('online'));
-  assert.equal(p.view.players, '0 connected, 0 away with a controller kept');
+  assert.equal(p.view.players, '0');
 
   await p.panel.quit();
   assert.deepEqual(p.taken(), ['POST /api/host/quit', ...READING_A_ROOM]);
   assert.equal(p.view.sentence, 'Players are in the room: 1 connected, 0 away with a controller kept. Quit anyway?');
   assert.deepEqual(p.view.quit, { enabled: true, label: 'Quit anyway' });
-  assert.equal(p.view.stop.label, 'Stop room');
+  assert.equal(p.view.stop.label, 'Stop Server');
 
   // The second press says force, and the page is over.
   await p.panel.quit();
@@ -511,7 +545,7 @@ test('a new game with players asks first, then sends force', bounded, async () =
   assert.deepEqual(p.taken(), ['POST /api/room/new-game', ...READING_A_ROOM]);
   assert.equal(p.view.sentence, question);
   assert.deepEqual(p.view.newGame, { shown: true, enabled: true, label: 'New game anyway' });
-  assert.equal(p.view.stop.label, 'Stop room');
+  assert.equal(p.view.stop.label, 'Stop Server');
 
   await p.panel.newGame();
   assert.deepEqual(p.taken(), ['POST /api/room/new-game {"force":true}', ...READING_A_ROOM]);
@@ -525,7 +559,7 @@ test('a new game with players asks first, then sends force', bounded, async () =
   p.taken();
   await p.panel.newGame();
   assert.deepEqual(p.taken(), ['POST /api/room/new-game', ...READING_A_ROOM]);
-  assert.deepEqual([p.view.stop.label, p.view.newGame.label], ['Stop room', 'New game anyway']);
+  assert.deepEqual([p.view.stop.label, p.view.newGame.label], ['Stop Server', 'New game anyway']);
 
   // An empty room gets its new game at once, and a refusal is the server's sentence.
   const empty = page({ ...hosting({ players: { connected: 0, reserved: 0 } }), 'POST /api/room/new-game': accepted });
@@ -687,7 +721,7 @@ test('a server that cannot be reached is said to be out of reach, and the page f
   await p.later();
   assert.equal(p.view.headline, 'Online');
   assert.equal(p.view.sentence, 'The server did not answer. Try again.');
-  assert.deepEqual(p.view.stop, { shown: true, enabled: true, label: 'Stop room' });
+  assert.deepEqual(p.view.stop, { shown: true, enabled: true, label: 'Stop Server' });
 });
 
 test('the invitation that is shown is the one of the latest reading', bounded, async () => {
@@ -780,7 +814,7 @@ test('an answer that is not what the page expects does not stop the reading', bo
   p.answers['GET /api/status'] = ok({});
   await p.later();
   assert.equal(p.view.headline, 'unknown');
-  assert.deepEqual(p.view.start, { shown: false, enabled: false });
+  assert.deepEqual(p.view.start, { shown: true, enabled: false });
 
   // Without a configuration or an invitation that can be read, the page shows the rest. A refusal is
   // neither of them, whatever it carries.

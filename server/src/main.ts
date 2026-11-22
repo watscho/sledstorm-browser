@@ -10,7 +10,8 @@ import { appVersion } from './version.ts';
 
 const usage = `Usage: SledStormServer [command]
 
-  (no command)  Open the server page, starting the server first when needed
+  (no command)  Open the server window in the macOS app
+  panel         Open the server controls in a browser
   configure     Save the game folder and the disc policy
   serve         Run the server in the foreground
   start         Start hosting on the running server; --force when it closes a room with players
@@ -47,13 +48,15 @@ export async function main(argv: string[]): Promise<number> {
   }
   const paths = currentPaths();
   switch (command) {
-    case undefined: {
+    case '--native-panel': return launch(paths, { openPanel: false, nativePanel: true });
+    case undefined:
+    case 'panel': {
       const opener = standInOpener();
       return launch(paths, { openPanel: opener !== undefined || process.env.SLED_SERVER_NO_BROWSER !== '1',
         open: url => openBrowser(url, opener) });
     }
     case 'configure': return configure(paths, rest);
-    case 'serve': return serve(paths, { echo: process.stderr.isTTY === true });
+    case 'serve': return serve(paths, { echo: process.stderr.isTTY === true, launcher: rest[0] === '--launcher' });
     case 'start': return start(paths, rest);
     case 'stop': return stop(paths, rest);
     case 'new-game': return newGame(paths, rest);

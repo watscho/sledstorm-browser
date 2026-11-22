@@ -1,5 +1,3 @@
-import { BrowserSession } from '/session-client.js';
-import { FrameSync } from './frame-sync.js';
 import { canonicalStateDigest, encodeState, decodeState, captureState, restoreCoreState } from './core-state.js';
 import { unlockPal } from './pal-profile.js';
 import { sessionDiscMode } from '/local-disc.js';
@@ -14,6 +12,7 @@ import { initLobby } from './lobby-ui.js';
 import { createSaveManager } from './save-manager.js';
 import { enablePerformanceDiagnostics } from './performance-ui.js';
 import { downloadDisc } from './disc-download.js';
+import { launchMode, roomViewFlags } from './launch-mode.js';
 import {
   canChooseGameArchive, chooseGameArchiveDestination, saveGameArchive, gameDataStore, canKeepCopies, pickCopy,
   askToKeepStorage, unsavedGameDataNotice,
@@ -67,21 +66,41 @@ try {
   }
 } catch (error) { invitationError = error; showStatus(error.message); }
 const dedicatedWorker = location.origin === 'http://127.0.0.1:8000' && window.sledDedicatedWorker;
+const packaged = document.documentElement.dataset.launcher === 'mac';
+const local = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
+const mode = launchMode({ packaged, local, pathname: location.pathname, invitationVersion: invitation?.v, worker: dedicatedWorker });
+const solo = mode === 'solo';
+if (solo) {
+  // Existing loopback bookmarks also enter solo play at /. Restrict connections there too.
+  if (location.pathname !== '/solo') {
+    const policy = document.createElement('meta');
+    policy.httpEquiv = 'Content-Security-Policy';
+    policy.content = "connect-src 'self' blob: data:";
+    document.head.append(policy);
+  }
+  document.querySelector('#launch-label').textContent = 'Play';
+  document.querySelector('#summary-session').textContent = 'Single Player';
+  lobby.solo();
+} else if (mode === 'invalid' && !invitationError) {
+  invitationError = new Error(invitation ? 'This invitation is outdated. Ask the host for a new link.'
+    : 'Open the full invitation supplied by the server.');
+  showStatus(invitationError.message);
+}
 if (dedicatedWorker) {
   document.querySelector('#progress').value = dedicatedWorker.progress;
   document.querySelector('#camera').checked = dedicatedWorker.camera;
 }
-const lab = new URLSearchParams(location.search).has('lab') && location.port === '8000'
+const lab = !packaged && new URLSearchParams(location.search).has('lab') && location.port === '8000'
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
-const localConsole = new URLSearchParams(location.search).has('console') && location.port === '8000'
+const localConsole = !packaged && new URLSearchParams(location.search).has('console') && location.port === '8000'
   && ['127.0.0.1', 'localhost'].includes(location.hostname);
 const hardwarePreview = localConsole && new URLSearchParams(location.search).get('renderer') === 'hardware';
 const canSaveSolo = !invitation && !invitationError && !dedicatedWorker && !lab && !localConsole;
 const canManageSaves = !invitationError && !dedicatedWorker && !lab && !localConsole;
 // A load into a server's room reloads the page, which then comes back to the room by its invitation.
 const pendingLoadId = canSaveSolo ? loadRequestId : invitation && canManageSaves ? takeRejoin() : undefined;
-const retroArch = !lab && !localConsole && (invitation ? invitation.v === invitationVersion :
-  new URLSearchParams(location.search).get('transport') !== 'legacy');
+const retroArch = mode === 'room' || mode === 'worker' || (mode === 'source' && !lab && !localConsole && (invitation ? invitation.v === invitationVersion :
+  new URLSearchParams(location.search).get('transport') !== 'legacy'));
 let refreshSoloSave;
 let unverifiedSharedRoom = false;
 function noteOtherPlayer() {
@@ -89,7 +108,7 @@ function noteOtherPlayer() {
 }
 let retroRoom;
 const diagnostics = new URLSearchParams(location.search).has('diagnostics');
-const developerTools = new URLSearchParams(location.search).has('dev');
+const developerTools = !packaged && new URLSearchParams(location.search).has('dev');
 function renderStatus() {
   const message = (noticeOverStatus && actionNotice) || roomMessage || actionNotice;
   const live = roomSynchronized && !message;
@@ -194,7 +213,7 @@ for (const button of gameDataDialogActions) {
 // any, and the check against the room's disc (`check`, then `disc` or `refused`). A refusal is final for
 // that copy: the player chooses again, and no other source is tried.
 const copies = { files: null, zip: null };
-const launchWord = () => invitation ? 'Join game' : 'Start game';
+const launchWord = () => solo ? 'Play' : invitation ? (packaged ? 'Join Room' : 'Join game') : 'Start game';
 const chosenName = files => files.length === 1 ? `“${files[0].name}”` : `${files.length} files`;
 function describeCopy(kind) {
   const copy = copies[kind];
@@ -213,9 +232,10 @@ function describeCopy(kind) {
 }
 /** Whether `copy` is still what the player chose: a check of a copy left behind speaks no more. */
 const isChosen = (kind, copy) => copies[kind] === copy && lobby.discSource() === kind;
+const browserDiscInfo = info => solo ? { ...info, disc: null, archive: undefined } : info;
 /** Checks a copy against the room's disc once (D89); a copy chosen through the picker is then remembered (D88). */
 function checkCopy(kind, copy, info) {
-  copy.check ??= copyDisc(copy.files, info, text => { if (isChosen(kind, copy)) showStatus(text); }).then(async disc => {
+  copy.check ??= copyDisc(copy.files, browserDiscInfo(info), text => { if (isChosen(kind, copy)) showStatus(text); }).then(async disc => {
     copy.disc = disc;
     // The address keeps one copy: the one chosen when its check ends, never one the player left since.
     if (copy.handles && isChosen(kind, copy)) await rememberCopy(gameDataStore, { kind, handles: copy.handles, disc: disc.disc });
@@ -277,7 +297,7 @@ for (const [kind, input] of Object.entries(discInputs)) {
 let availableArchive;
 let hardwareRendererAvailable = false;
 let netplayDelivery, netplayMirrorOrigin;
-const launcherInfo = fetch('/session-info').then(async response => {
+const launcherInfo = fetch(solo ? '/solo/session-info' : '/session-info').then(async response => {
   if (!response.ok) throw new Error('Could not read launcher settings.');
   hardwareRendererAvailable = response.headers.get('X-Sled-Hardware-Renderer') === 'webgl2';
   // Keep transport discovery separate from the launcher info used for room compatibility.
@@ -290,12 +310,15 @@ const launcherInfo = fetch('/session-info').then(async response => {
   const offered = fixedDisc ? [] : offeredSources(info);
   const restored = !fixedDisc && canKeepCopies ? await restoreCopy(gameDataStore, info) : null;
   if (restored) copies[restored.kind] = { files: restored.files, handles: restored.handles };
-  lobby.discSources(offered, initialSource(offered, lobby.lastDiscSource(), restored?.kind), canKeepCopies);
+  const remembered = packaged ? restored?.kind : lobby.lastDiscSource();
+  lobby.discSources(offered, initialSource(offered, remembered, restored?.kind), canKeepCopies);
+  if (mode === 'room') lobby.guest({ packaged: true, personalCamera: invitation.nativeCamera === true });
+  if (mode === 'room' || solo) lobby.deferDiscChoice();
   for (const kind of Object.keys(copies)) describeCopy(kind);
   const nativeCamera = retroArch &&
     (invitation ? invitation.nativeCamera : new URLSearchParams(location.search).get('nativeCamera') !== '0');
   lobby.widescreenAvailable(lab || (invitation ? Boolean(nativeCamera) : info.pal || info.discMode === 'local'));
-  if (invitation && offered.includes('download') &&
+  if (!packaged && invitation && offered.includes('download') &&
       (quickTunnel ? canChooseGameArchive && info.archive : Boolean(window.caches))) {
     availableArchive = info.archive;
     describeGameData();
@@ -310,7 +333,7 @@ const launcherInfo = fetch('/session-info').then(async response => {
   document.querySelector('#saved-games').hidden = !canManageSaves;
   return info;
 });
-launcherInfo.catch(error => { showStatus(error.message); launch.disabled = true; });
+launcherInfo.catch(error => { showStatus(invitationError?.message ?? error.message); launch.disabled = true; });
 document.querySelector('#saved-games').addEventListener('click', async event => {
   if (!canManageSaves || saveManager.isOpen()) return;
   const button = event.currentTarget;
@@ -380,6 +403,11 @@ if (pendingLoadId) {
   }).catch(() => {});
 }
 async function sharedDiscFile(info, keep) {
+  if (solo) {
+    const response = await fetch('/solo/disc.zip', { cache: 'no-store' });
+    if (!response.ok) throw new Error('The game folder is unavailable. Choose game files or a ZIP to play.');
+    return new File([await response.blob()], 'disc.zip');
+  }
   const fingerprint = info.disc;
   const url = '/disc.zip';
   // Each Quick Tunnel hostname has its own storage that later tunnels cannot clear.
@@ -487,7 +515,7 @@ async function startGame(loadRequest) {
   changeGameData.disabled = true;
   roomOptions = {
     progress: document.querySelector('#progress').value,
-    camera: document.querySelector('#camera').checked,
+    camera: !solo && document.querySelector('#camera').checked,
   };
   const image = document.querySelector('#image').value;
   let widescreen = document.querySelector('#aspect').value === 'wide';
@@ -515,7 +543,7 @@ async function startGame(loadRequest) {
     }
     // The exact copy of the room's archive goes to the emulator as /disc.zip does, with the session info's
     // identity (D74); any other disc is handed over as separate files, identified and checked (D89).
-    const disc = source === 'request' ? await copyDisc(files, launchInfo, showStatus)
+    const disc = source === 'request' ? await copyDisc(files, browserDiscInfo(launchInfo), showStatus)
       : copy ? await checkCopy(source, copy, launchInfo) : null;
     // Under local-only the page never asks for the server's disc (DATA-01).
     if (!disc && launchInfo.discMode !== 'shared') throw new Error(`Choose your game files or a saved ZIP to ${invitation ? 'join' : 'start'}.`);
@@ -528,8 +556,13 @@ async function startGame(loadRequest) {
     if (roomOptions.progress === 'all' && !launchInfo.pal) throw new Error('The unlock preset requires the verified PAL SLES-02194 disc. Select Original progression.');
     if (roomOptions.camera && !launchInfo.pal) throw new Error('Separate camera hooks require the verified PAL SLES-02194 disc.');
     if (!launchInfo.pal && !lab) widescreen = false;
+    if (solo && !disc) {
+      showStatus('Reading game files…');
+      try { discArchive = await sharedDiscFile(launchInfo, keep); }
+      catch (error) { lobby.showDiscChoice(); throw error; }
+    }
     shaders = dedicatedWorker ? {} : await loadDisplayShaders();
-    const accelerated = retroArch && launchInfo.dedicated && hardwareRendererAvailable && renderEnhanced
+    const accelerated = (solo || (retroArch && launchInfo.dedicated)) && hardwareRendererAvailable && renderEnhanced
       && new URLSearchParams(location.search).get('renderer') !== 'software';
     if ((hardwarePreview || accelerated) && widescreen && launchInfo.pal) {
       try { ({ enableHardwarePreview } = await import('./hardware-preview.js')); }
@@ -660,8 +693,21 @@ async function startGame(loadRequest) {
           else { module.sledBeforeFrame = () => false; showStatus(error.message); }
           return;
         }
+        if (solo) {
+          const drive = driveRetroPad(emulator, lobby.inputOptions());
+          const wide = launchInfo.pal && (module.sledWidescreen || module.sledEnhancedGraphics || module.sledDrawDistance);
+          module._sled_view_configure(0, wide ? 32 : 0);
+          qualifyView(module, emulator.gameManager);
+          module.sledBeforeFrame = () => { drive(); return true; };
+          module.sledCoreBefore = () => {
+            if (roomOptions.progress === 'all') unlockPal(new Uint8Array(module.HEAPU8.buffer, module._sled_ram_pointer(), 0x200000));
+            return true;
+          };
+          roomSynchronized = true;
+          showStatus('');
+        }
         if (soloStorage) refreshSoloSave = trackSoloSave(emulator, soloStorage,
-          () => roomSynchronized && !unverifiedSharedRoom && (retroArch
+          () => solo ? !isMultiplayerRace(module) : roomSynchronized && !unverifiedSharedRoom && (retroArch
             ? !retroRoom?.failed && retroRoom?.soleController && !module.sledCatchup && module._sled_netplay_status(1) === 1
               // A server's room says who may save and load: the player it belongs to, while it offers a load.
               && (!launchInfo.serverRoom || Boolean(retroRoom.restore && retroRoom.owner))
@@ -688,6 +734,7 @@ async function startGame(loadRequest) {
               if (retroArch && launchInfo.dedicated) await retroRoom.releaseForLoad();
             });
           }, saveManager, () => ({ progress: roomOptions.progress, camera: roomOptions.camera }), () => {
+            if (solo) return 'Return to the solo menus to save or load a checkpoint.';
             if (!roomSynchronized || module.sledCatchup) return 'Wait for the room to finish synchronizing before saving or loading.';
             if (retroArch ? !retroRoom?.soleController : session?.members > 1)
               return 'Saving and loading are paused while another player is connected or reserved.';
@@ -695,8 +742,9 @@ async function startGame(loadRequest) {
             if (launchInfo.serverRoom) return 'Saving and loading are not available in this room right now.';
             return 'Start a new synchronized solo room to save or load a checkpoint.';
           }, () => Boolean(retroRoom?.restore));
+        if (solo) refreshSoloSave?.();
         if (retroArch) startRetroArchRoom();
-        else connectRoom(bios).catch(error => { showStatus(error.message); session?.fail(error.message); });
+        else if (!solo) connectRoom(bios).catch(error => { showStatus(error.message); session?.fail(error.message); });
       }
       if (!dedicatedWorker) {
         startPerformanceDiagnostics();
@@ -704,10 +752,6 @@ async function startGame(loadRequest) {
       }
     },
   });
-  lobby.start();
-  game.classList.add('active');
-  game.classList.toggle('race-widescreen', widescreen);
-  document.querySelector('#game-stage').scrollIntoView({ block: 'start' });
   showStatus('Loading emulator and disc…');
   if (!discFiles && !discArchive) {
     try {
@@ -719,6 +763,10 @@ async function startGame(loadRequest) {
     }
     showStatus('Starting emulator…');
   }
+  lobby.start();
+  game.classList.add('active');
+  game.classList.toggle('race-widescreen', widescreen);
+  document.querySelector('#game-stage').scrollIntoView({ block: 'start' });
   const script = document.createElement('script');
   script.src = '/emulator/loader.js';
   script.onerror = () => {
@@ -863,11 +911,10 @@ function startRetroArchRoom() {
   const drive = dedicatedWorker ? () => {} : driveRetroPad(emulator, lobby.inputOptions());
   // Asset and HUD hooks affect the emulated console. The headless runtime
   // applies the same hooks as every player while skipping local rendering.
-  const view = roomOptions.camera ? 2 | (roomOptions.nativeCamera ? 16 : 0) : 0;
+  const view = roomViewFlags(roomOptions, { mode, raceView: lobby.raceView(), worker: Boolean(dedicatedWorker) });
   const soloView = launchInfo.pal && slot === 0 &&
     (module.sledWidescreen || module.sledEnhancedGraphics || module.sledDrawDistance) ? 32 : 0;
-  const personalView = view && !dedicatedWorker ? 1 | (roomOptions.nativeCamera ? 4 : 0) : 0;
-  module._sled_view_configure(slot, view | personalView | soloView);
+  module._sled_view_configure(slot, view | soloView);
   qualifyView(module, manager);
   if (!dedicatedWorker) retroRoom.syncDeadline = setTimeout(
     () => netplayFailed('RetroArch could not synchronize with the room.'),
@@ -1016,6 +1063,7 @@ async function connectRoom(bios) {
   }
   if (invitation) game.classList.add('joining-room');
   showStatus('Connecting session…');
+  const [{ BrowserSession }, { FrameSync }] = await Promise.all([import('./session-client.js'), import('./frame-sync.js')]);
   emulator.gameManager.getState = () => captureState(emulator.Module, emulator.gameManager.functions.saveStateInfo);
   qualifyView(emulator.Module, emulator.gameManager);
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1076,7 +1124,7 @@ async function connectRoom(bios) {
 }
 
 function qualifyView(module, manager) {
-  if (!developerTools && !new URLSearchParams(location.search).has('verifyView')) return;
+  if (packaged || (!developerTools && !new URLSearchParams(location.search).has('verifyView'))) return;
   module.sledViewDiagnostics = true;
   let previous, sampledAt = -Infinity;
   module.sledViewBefore = () => {
@@ -1167,7 +1215,7 @@ function startPerformanceDiagnostics() {
     const emulator = window.EJS_emulator;
     const module = emulator.Module;
     const netplay = field => module._sled_netplay_status?.(field) ?? 0;
-    const networked = !lab && !localConsole;
+  const networked = !solo && !lab && !localConsole;
     return {
       target: launchInfo.pal ? 50 : 60,
       mode: networked ? (launchInfo.dedicated ? 'dedicated' : 'browser-hosted') : 'local',

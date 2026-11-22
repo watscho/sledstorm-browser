@@ -40,12 +40,13 @@
       <div class="settings-panel" id="panel-game" role="tabpanel" aria-labelledby="tab-game" tabindex="0">
         <div class="section-title"><h2>Game settings</h2><span>01 / 04</span></div>
         <div class="field"><label for="progress">Progress</label><select id="progress" aria-describedby="progress-help"><option value="all">All content unlocked</option><option value="original">Original progression</option></select><p class="field-help" id="progress-help">Unlock riders, sleds and courses for this session. Your original saves stay unchanged.</p></div>
-        <label class="setting-row switch-row"><span><strong>Separate cameras</strong><small>Your own view and original HUD, for up to four racers.</small></span><input type="checkbox" id="camera" checked><span class="switch" aria-hidden="true"></span></label>
+        <label class="setting-row switch-row" id="shared-camera-setting"><span><strong>Separate cameras</strong><small>Your own view and original HUD, for up to four racers.</small></span><input type="checkbox" id="camera" checked><span class="switch" aria-hidden="true"></span></label>
         <div class="next-step"><span class="step-number">LIKE A CONSOLE</span><p>Choose game modes, riders and tracks in the original game menus.</p></div>
         <p class="room-note" id="room-note">One link, one game. Friends join as the next controllers.</p>
       </div>
       <div class="settings-panel" id="panel-display" role="tabpanel" aria-labelledby="tab-display" tabindex="0" hidden>
         <div class="section-title"><h2>Display and audio</h2><span>02 / 04</span></div>
+        <div class="field" id="race-view-setting" hidden><label for="race-view">Race view</label><select id="race-view" aria-describedby="race-view-help"><option value="personal">Personal camera</option><option value="split">Split screen</option></select><p class="field-help" id="race-view-help">Show only your racer or see everyone on a split screen. This setting applies to your browser.</p></div>
         <div class="field graphics-preset"><label for="graphics-preset">Graphics preset</label><select id="graphics-preset" aria-describedby="graphics-preset-help graphics-custom-help"><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="quality" selected>Quality</option><option value="custom">Custom</option></select><p class="field-help" id="graphics-preset-help">16:9 · Clean · 2× · +100% distance.</p><p class="field-help" id="graphics-custom-help">Adjust any graphics setting below to switch to Custom. Volume is independent.</p></div>
         <div class="field"><label for="aspect">Race aspect ratio</label><select id="aspect" aria-describedby="aspect-help"><option value="original">4:3 · Original</option><option value="wide">16:9 · Widescreen</option></select><p class="field-help" id="aspect-help">16:9 works in solo PAL races and RetroArch rooms with personal cameras. Menus and shared split-screen use 4:3.</p></div>
         <div class="field"><label for="image">Image filter</label><select id="image"><option value="clean" selected>Clean · Sharp Bilinear</option><option value="crisp">Crisp pixels</option><option value="smooth">Smooth</option><option value="crt">CRT · Lottes</option></select><p class="field-help">Switch filters during play from the toolbar or with F7.</p></div>
@@ -250,6 +251,6 @@
     <button class="text-button" value="cancel">Cancel</button>
   </form>
 </dialog>
-<script type="module" src="/app.js?v=1.2.0"></script>
+<script type="module" src="/app.js?v=1.3.0"></script>
 </body>
 </html>

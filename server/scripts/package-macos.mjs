@@ -1,4 +1,4 @@
-// Assemble the macOS application around the single executable and sign it ad hoc.
+// Assemble the macOS window and its server helper, then sign the bundle ad hoc.
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,10 +21,15 @@ export async function packageMacos({ candidate = false } = {}) {
   await rm(application, { recursive: true, force: true });
   const contents = join(application, 'Contents');
   await mkdir(join(contents, 'MacOS'), { recursive: true });
-  await cp(sea.executable, join(contents, 'MacOS', executableName));
+  const helpers = join(contents, 'Helpers');
+  await mkdir(helpers, { recursive: true });
+  await cp(sea.executable, join(helpers, executableName));
   // The browser inside the resources is an application bundle of its own; its links must stay relative.
   const resources = join(contents, 'Resources');
   const packaging = join(repoRoot, 'packaging', 'macos');
+  await run('/usr/bin/xcrun', ['swiftc', '-parse-as-library', '-target', 'arm64-apple-macos15.0', '-O',
+    '-module-cache-path', join(distRoot, 'swift-module-cache'),
+    join(packaging, 'ServerWindow.swift'), '-o', join(contents, 'MacOS', executableName)]);
   await cp(sea.resources, resources, bundleCopy);
   await cp(join(packaging, applicationIcon), join(resources, applicationIcon));
   const minimumSystem = await macosMinimum(contents);

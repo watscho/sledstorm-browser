@@ -87,11 +87,12 @@ const occupied = (players: HostStatus['players']): players is NonNullable<HostSt
 const report = (config: HostConfig, problem: string | null): SavedConfig =>
   ({ gameFolder: config.gameFolder, discPolicy: config.discPolicy, autoStart: config.autoStart, roomOptions: { ...config.roomOptions }, problem });
 
-export function createHostControl({ paths, service, chooseFolder, log = () => {} }: {
+export function createHostControl({ paths, service, chooseFolder, checkGameFolder = false, log = () => {} }: {
   paths: Paths;
   service: HostService;
   /** The system's folder dialog. Without one, as in a server that may show nothing, a folder cannot be chosen that way. */
   chooseFolder?: ChooseFolder;
+  checkGameFolder?: boolean;
   /** The server's log. It hears why a dialog could not be shown, in words that name no folder. */
   log?: (line: string) => void;
 }): HostControl {
@@ -108,6 +109,12 @@ export function createHostControl({ paths, service, chooseFolder, log = () => {}
   const atRest = () => !service.starting() && AT_REST.includes(service.status().state);
   const config = async () => {
     const { config, problem } = await readConfig(paths);
+    if (checkGameFolder && config.gameFolder && !problem) {
+      try { await findDisc(config.gameFolder); }
+      catch (error) {
+        return report(config, error instanceof GameFolderError ? error.message : 'The game folder could not be read.');
+      }
+    }
     return report(config, problem);
   };
   /** The dialog that is open, if one is. */

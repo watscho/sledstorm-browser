@@ -181,7 +181,7 @@ async function untilGone(pid) {
 // of their staging directory instead of the whole path.
 async function servers({ root }) {
   const { stdout } = await run('/bin/ps', ['-axwwo', 'pid=,command=']);
-  return stdout.split('\n').filter(line => line.includes(root.slice(-6)) && line.endsWith('SledStormServer serve'))
+  return stdout.split('\n').filter(line => line.includes(root.slice(-6)) && /SledStormServer serve(?: --launcher)?$/.test(line))
     .map(line => Number.parseInt(line, 10));
 }
 
@@ -376,6 +376,46 @@ test('HOST-01: a second launch gets a new one-time token for the same server', a
     await staged.unchanged();
   } finally {
     if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('the window receives a fresh one-time session address without invoking the browser opener', async () => {
+  const staged = await stage('application', { emulator: true });
+  try {
+    staged.env.SLED_SERVER_OPENER = '/no-such-browser-opener';
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    const folder = await syntheticDisc(join(staged.root, 'game'));
+    await staged.command('configure', '--game-folder', folder, '--disc-policy', 'local-only');
+    const first = await staged.command('--native-panel');
+    const again = await staged.command('--native-panel');
+    const { pid, url, host } = await staged.command('status');
+    assert.equal(host.state, 'idle', 'opening the chooser does not start hosting');
+    assert.equal(first.openAtLaunch, false);
+    assert.equal(again.openAtLaunch, false);
+    assert.notEqual(first.address, again.address);
+    for (const { address } of [first, again]) {
+      const panel = new URL(address);
+      const bootstrap = /^#bootstrap=([a-f0-9]{64})$/.exec(panel.hash)?.[1];
+      assert.ok(bootstrap);
+      assert.equal(new URL('/', panel).href, url);
+      const session = await fetch(new URL('/api/session', panel), { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: JSON.stringify({ bootstrap }) });
+      assert.equal(session.status, 201);
+      const { session: credential } = await session.json();
+      const solo = await fetch(new URL('/api/solo/start', panel), { method: 'POST', headers: { authorization: `Bearer ${credential}` } });
+      assert.equal(solo.status, 200);
+      const { url: game } = await solo.json();
+      assert.equal(game, `http://127.0.0.1:${gamePort}/solo`);
+      assert.match(await (await fetch(game)).text(), /data-launcher="mac"/);
+      assert.equal((await fetch(`${game}/disc.zip`, { method: 'HEAD' })).status, 200);
+      assert.ok(await refused(netplayPort));
+    }
+    assert.deepEqual(await servers(staged), [pid]);
+  } finally {
+    await staged.command('quit');
     await staged.remove();
   }
 });
@@ -1382,22 +1422,22 @@ test('the first run, as the page asks for it: a folder from the dialog, a policy
       return views.at(-1);
     };
     const parts = ({ headline, sentence, setup, start, stop, players }) => ({ headline, sentence, setup, start, stop, players });
-    const off = { shown: false, enabled: false };
+    const off = { shown: true, enabled: false };
 
     // The start at launch found nothing to host, and the page asks for the setup.
     const asksForSetup = 'Choose the game folder and the disc policy to start hosting.';
     assert.deepEqual(parts(await shows('Needs setup', asksForSetup)), { headline: 'Needs setup', sentence: asksForSetup,
-      setup: { unfinished: true, folder: null, policy: null, locked: false }, start: { shown: true, enabled: false }, stop: { ...off, label: 'Stop room' },
-      players: null });
+      setup: { unfinished: true, folder: null, policy: null, locked: false }, start: { shown: true, enabled: false }, stop: { ...off, label: 'Stop Server' },
+      players: '0' });
     assert.deepEqual([views.at(-1).application, views.at(-1).invite, views.at(-1).openGame, views.at(-1).autoStart],
       ['Sled Storm Server', { url: null, note: null }, null, { checked: true, enabled: true }]);
 
     await panel.chooseFolder();
     assert.deepEqual(parts(views.at(-1)), { headline: 'Needs setup', sentence: null, setup: { unfinished: true, folder, policy: null, locked: false },
-      start: { shown: true, enabled: false }, stop: { ...off, label: 'Stop room' }, players: null });
+      start: { shown: true, enabled: false }, stop: { ...off, label: 'Stop Server' }, players: '0' });
     await panel.setPolicy('shared-allowed');
     assert.deepEqual(parts(views.at(-1)), { headline: 'Stopped', sentence: null, setup: { unfinished: false, folder, policy: 'shared-allowed', locked: false },
-      start: { shown: true, enabled: true }, stop: { ...off, label: 'Stop room' }, players: null });
+      start: { shown: true, enabled: true }, stop: { ...off, label: 'Stop Server' }, players: '0' });
     await panel.setOptions({ camera: false });
     assert.deepEqual([views.at(-1).sentence, views.at(-1).options], [null,
       { progress: 'all', camera: false, locked: false, note: 'Unlocked content and separate cameras need the verified PAL disc.' }]);
@@ -1405,7 +1445,7 @@ test('the first run, as the page asks for it: a folder from the dialog, a policy
     await panel.start();
     const online = await shows('Online');
     assert.deepEqual(parts(online), { headline: 'Online', sentence: null, setup: { unfinished: false, folder, policy: 'shared-allowed', locked: true },
-      start: off, stop: { shown: true, enabled: true, label: 'Stop room' }, players: '0 connected, 0 away with a controller kept' });
+      start: off, stop: { shown: true, enabled: true, label: 'Stop Server' }, players: '0' });
     assert.equal(online.game, 'Unrecognized disc, 2 tracks, 0 MB');
     // The synthetic disc is not the verified one: its room plays with the original progression and a shared camera.
     assert.deepEqual(online.options, { progress: 'all', camera: false, locked: true, note: 'This disc plays with the original progression and a shared camera.' });
@@ -1450,7 +1490,7 @@ test('the first run, as the page asks for it: a folder from the dialog, a policy
     await panel.stop();
     const stopped = await shows('Stopped');
     assert.deepEqual(parts(stopped), { headline: 'Stopped', sentence: null, setup: { unfinished: false, folder, policy: 'shared-allowed', locked: false },
-      start: { shown: true, enabled: true }, stop: { ...off, label: 'Stop room' }, players: null });
+      start: { shown: true, enabled: true }, stop: { ...off, label: 'Stop Server' }, players: '0' });
     assert.deepEqual([stopped.invite, stopped.openGame, stopped.game], [{ url: null, note: null }, null, null]);
     assert.equal((await staged.command('status')).host.state, 'idle');
     assert.ok(await refused(gamePort) && await refused(netplayPort), 'nothing is hosted');

@@ -32,11 +32,12 @@ export function initLobby(notify, returnToLobby) {
     tab.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      let index = tabs.indexOf(tab);
+      const visible = tabs.filter(item => !item.hidden);
+      let index = visible.indexOf(tab);
       if (event.key === 'Home') index = 0;
-      else if (event.key === 'End') index = tabs.length - 1;
-      else index = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-      activate(tabs[index]); tabs[index].focus();
+      else if (event.key === 'End') index = visible.length - 1;
+      else index = (index + (event.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length;
+      activate(visible[index]); visible[index].focus();
     });
   }
   activate(tabs.find(tab => tab.id === preferences.tab) || tabs[0], false);
@@ -46,6 +47,9 @@ export function initLobby(notify, returnToLobby) {
   const enhanced = $('#enhanced-render');
   const progress = $('#progress');
   const camera = $('#camera');
+  const raceView = $('#race-view');
+  const raceViewSetting = $('#race-view-setting');
+  const splitScreen = () => !raceViewSetting.hidden && raceView.value === 'split';
   const volume = $('#volume');
   const drawDistance = $('#draw-distance');
   const keepGameData = $('#keep-game-data');
@@ -60,6 +64,7 @@ export function initLobby(notify, returnToLobby) {
   paintGraphics();
   if ([...progress.options].some(option => option.value === preferences.progress)) progress.value = preferences.progress;
   if (typeof preferences.camera === 'boolean') camera.checked = preferences.camera;
+  if (preferences.raceView === 'split') raceView.value = 'split';
   if (typeof preferences.keepGameData === 'boolean') keepGameData.checked = preferences.keepGameData;
   if (Number.isInteger(preferences.volume) && preferences.volume >= 0 && preferences.volume <= 100) volume.value = preferences.volume;
   let widescreenAvailable = false;
@@ -86,9 +91,10 @@ export function initLobby(notify, returnToLobby) {
     $('#launch').classList.toggle('is-ready', state.status === 'ready');
   };
   const refresh = () => {
-    wideOption.disabled = !widescreenAvailable;
-    drawDistance.disabled = locked || !widescreenAvailable;
+    wideOption.disabled = !widescreenAvailable || splitScreen();
+    drawDistance.disabled = locked || wideOption.disabled;
     aspect.value = wideOption.disabled ? 'original' : graphics.settings.aspect;
+    drawDistance.value = wideOption.disabled ? 0 : graphics.settings.drawDistance;
     const descriptions = {
       performance: '4:3 · Crisp pixels · 1× · Original distance. A lighter starting point.',
       balanced: '16:9 · Clean · 1× · +50% distance. A middle ground for personal cameras.',
@@ -96,11 +102,13 @@ export function initLobby(notify, returnToLobby) {
       custom: 'Your manual graphics settings. Choose a preset to apply its settings together.',
     };
     $('#graphics-preset-help').textContent = descriptions[graphics.preset] +
-      (!widescreenAvailable && (graphics.settings.aspect === 'wide' || graphics.settings.drawDistance > 0)
-        ? ' This room uses 4:3 and Original distance; your preference is kept.' : '');
+      (wideOption.disabled && (graphics.settings.aspect === 'wide' || graphics.settings.drawDistance > 0)
+        ? ' This view uses 4:3 and Original distance. Your preference is kept.' : '');
     $('#summary-graphics').textContent = GRAPHICS_LABELS[graphics.preset];
     $('#summary-progress').textContent = $('#progress').selectedOptions[0].textContent;
-    $('#summary-camera').textContent = $('#camera').checked ? 'Personal view' : 'Original shared view';
+    $('#summary-camera').textContent = raceViewSetting.hidden
+      ? camera.checked ? 'Personal view' : 'Original shared view'
+      : raceView.selectedOptions[0].textContent;
     $('#summary-image').textContent = image.selectedOptions[0].textContent +
       (enhanced.checked ? ' · 2×' : '');
     $('#summary-aspect').textContent = aspect.selectedOptions[0].textContent;
@@ -127,6 +135,7 @@ export function initLobby(notify, returnToLobby) {
     } else if (input === image) rememberFilter(image.value);
     else if (input === progress) remember({ progress: progress.value });
     else if (input === camera) remember({ camera: camera.checked });
+    else if (input === raceView) remember({ raceView: raceView.value });
     else if (input === enhanced) commitGraphics(customizeGraphics(graphics, { enhanced: enhanced.checked }));
     else if (input === volume) remember({ volume: Number(volume.value) });
     else if (input === keepGameData) remember({ keepGameData: keepGameData.checked });
@@ -139,6 +148,10 @@ export function initLobby(notify, returnToLobby) {
     }
     commitGraphics(restoreGraphics());
     if (!$('#camera').disabled) $('#camera').checked = true;
+    if (!raceViewSetting.hidden) {
+      raceView.value = 'personal';
+      remember({ raceView: raceView.value });
+    }
     keepGameData.checked = true;
     keepGameData.dispatchEvent(new Event('change'));
     remember({ volume: 50, keepGameData: true,
@@ -228,12 +241,31 @@ export function initLobby(notify, returnToLobby) {
       refresh();
     },
     inputOptions: () => controls.options(),
-    guest() {
-      $('#launch-label').textContent = 'Join game';
+    raceView: () => raceViewSetting.hidden ? undefined : raceView.value,
+    solo() {
+      camera.disabled = true;
+      $('#shared-camera-setting').hidden = true;
+      $('#summary-camera').parentElement.hidden = true;
+      $('#room-note').hidden = true;
+    },
+    guest({ packaged = false, personalCamera = false } = {}) {
+      const label = packaged ? 'Join Room' : 'Join game';
+      $('#launch-label').textContent = label;
       $('#summary-session').textContent = 'Join existing room';
-      $('#lobby-title').textContent = 'Join game';
+      $('#lobby-title').textContent = label;
       $('#room-note').textContent = 'Progress and camera settings come from the host.';
+      if (packaged) {
+        $('#tab-game').hidden = true;
+        raceViewSetting.hidden = !personalCamera;
+        $('#bios').closest('.field').hidden = true;
+        if ($('#tab-game').tabIndex === 0) activate($('#tab-display'), false);
+      }
       refresh();
+    },
+    deferDiscChoice() {
+      const files = $('#tab-files');
+      files.hidden = true;
+      if (files.tabIndex === 0) activate(tabs.find(tab => !tab.hidden), false);
     },
     /**
      * Shows the sources this page offers with `initial` chosen (web/disc-source.js). An empty list is a
@@ -276,7 +308,9 @@ export function initLobby(notify, returnToLobby) {
     },
     /** Opens the Game files tab with the choice in focus, for a Join with nothing chosen. */
     showDiscChoice() {
-      activate(tabs.find(tab => tab.id === 'tab-files'));
+      const tab = $('#tab-files');
+      tab.hidden = false;
+      activate(tab);
       (discRadios.find(radio => radio.checked) ?? discRadios[0]).focus();
     },
     start() {
