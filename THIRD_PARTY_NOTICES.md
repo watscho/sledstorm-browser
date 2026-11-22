@@ -144,6 +144,7 @@ and are outside the wrapper's MIT license.
 logo asset from [HFS DB](https://db.hfsplay.fr/games/87858-sled-storm?lang=en),
 [original PNG](https://db.hfsplay.fr/files/2019/09/04/Sled_Storm_274TiZl.png),
 retrieved on 2026-11-07. It is used unchanged, rather than recreated with a font.
+The macOS app icon uses this artwork with a silver fill.
 The game logo remains the property of its respective rights holders and is
 outside the wrapper's MIT license.
 

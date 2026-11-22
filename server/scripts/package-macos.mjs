@@ -8,6 +8,8 @@ import { macosMinimum } from './macos-minimum.mjs';
 import { stageMacosNotices } from './macos-notices.mjs';
 import { bundleCopy } from './stage-resources.mjs';
 
+export const applicationIcon = 'AppIcon.icns';
+
 export async function packageMacos({ candidate = false } = {}) {
   if (process.platform !== 'darwin') throw new Error('The macOS application bundle is assembled on macOS.');
   const sea = await buildSea({ candidate });
@@ -22,14 +24,16 @@ export async function packageMacos({ candidate = false } = {}) {
   await cp(sea.executable, join(contents, 'MacOS', executableName));
   // The browser inside the resources is an application bundle of its own; its links must stay relative.
   const resources = join(contents, 'Resources');
+  const packaging = join(repoRoot, 'packaging', 'macos');
   await cp(sea.resources, resources, bundleCopy);
+  await cp(join(packaging, applicationIcon), join(resources, applicationIcon));
   const minimumSystem = await macosMinimum(contents);
   sea.manifest.macosMinimum = minimumSystem;
   if (candidate) sea.manifest.notices = await stageMacosNotices(resources, sea.manifest);
   await writeFile(join(resources, 'runtime-manifest.json'), `${JSON.stringify(sea.manifest, null, 2)}\n`);
-  const template = await readFile(join(repoRoot, 'packaging', 'macos', 'Info.plist'), 'utf8');
+  const template = await readFile(join(packaging, 'Info.plist'), 'utf8');
   const values = { NAME: applicationName, EXECUTABLE: executableName, IDENTIFIER: bundleIdentifier,
-    VERSION: sea.manifest.app.version, MINIMUM_SYSTEM: minimumSystem };
+    ICON: applicationIcon, VERSION: sea.manifest.app.version, MINIMUM_SYSTEM: minimumSystem };
   await writeFile(join(contents, 'Info.plist'), template.replace(/@([A-Z_]+)@/g, (_match, key) => {
     if (!(key in values)) throw new Error(`Unknown Info.plist placeholder ${key}`);
     return values[key];

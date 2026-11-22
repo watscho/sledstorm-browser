@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 import { applicationName, distRoot, executableName, readJson, repoRoot, run, serverRoot, sha256File } from './lib.mjs';
 import { macosMinimum } from './macos-minimum.mjs';
 import { packagedCodeHashes, signingIdentity, signMacosApp, verifyMacosSigning } from './macos-signing.mjs';
-import { packageMacos } from './package-macos.mjs';
+import { applicationIcon, packageMacos } from './package-macos.mjs';
 import { PANEL_FILES, RELEASE_WEB_FILES } from './stage-resources.mjs';
 
 const exec = promisify(execFile);
@@ -92,7 +92,8 @@ async function checkResources(app, { signing, stapled = false } = {}) {
     expectedContents.push('CodeResources');
   }
   requireNames(contentNames, expectedContents, 'application contents');
-  requireNames(await readdir(resources), ['admin', 'bin', 'chromium', 'emulator', 'licenses', 'runtime-manifest.json', 'web'], 'resource roots');
+  requireNames(await readdir(resources),
+    [applicationIcon, 'admin', 'bin', 'chromium', 'emulator', 'licenses', 'runtime-manifest.json', 'web'], 'resource roots');
   requireNames(await readdir(join(resources, 'chromium')), ['Chromium.app'], 'Chromium resource root');
   await checkFiles(join(contents, 'MacOS'), [executableName]);
   await checkFiles(join(contents, '_CodeSignature'), ['CodeResources']);
@@ -163,6 +164,10 @@ async function checkResources(app, { signing, stapled = false } = {}) {
   const { stdout } = await exec('/usr/bin/unzip', ['-p', coreArchive, wasm], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
   requireMatch(createHash('sha256').update(stdout).digest('hex'), native.files[wasm], 'prepared WebAssembly digest');
   const plist = join(contents, 'Info.plist');
+  const icon = join(resources, applicationIcon);
+  requireMatch(await run('/usr/bin/plutil', ['-extract', 'CFBundleIconFile', 'raw', plist]), applicationIcon, 'Finder icon filename');
+  requireMatch((await lstat(icon)).isFile(), true, 'Finder icon file type');
+  requireMatch(await sha256File(icon), await sha256File(join(repoRoot, 'packaging', 'macos', applicationIcon)), 'Finder icon digest');
   requireMatch(await run('/usr/bin/plutil', ['-extract', 'LSMinimumSystemVersion', 'raw', plist]), manifest.macosMinimum, 'Finder minimum macOS');
   requireMatch(await macosMinimum(contents), manifest.macosMinimum, 'shipped Mach-O minimum macOS');
   await run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);

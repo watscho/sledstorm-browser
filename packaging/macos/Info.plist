@@ -8,6 +8,8 @@
 	<string>@NAME@</string>
 	<key>CFBundleExecutable</key>
 	<string>@EXECUTABLE@</string>
+	<key>CFBundleIconFile</key>
+	<string>@ICON@</string>
 	<key>CFBundleIdentifier</key>
 	<string>@IDENTIFIER@</string>
 	<key>CFBundleInfoDictionaryVersion</key>
