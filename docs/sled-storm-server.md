@@ -45,12 +45,47 @@ disc folder, policy or room options while the room is stopped.
 | --- | --- |
 | **Start Server** | Prepare the disc, open a room and start the public tunnel. If the tunnel is unavailable, play on the host still works and Start Server can retry the address. |
 | **Stop Server** | Close the room and tunnel. Single Player remains available. Starting again creates new links. |
-| **Quit server** | In Settings, stop the room, tunnel and local game service. |
+| **Quit server** | Stop the room, tunnel and local game service. The button is beside **Stop Server**. |
 
 When a player is connected or has a reserved controller, the panel asks
 for confirmation before interrupting the room. Room options include
 progression and separate cameras. With the verified PAL disc, racers
 can use their own camera and original HUD.
+
+## Run SEA from the terminal
+
+On Apple Silicon, [prepare the pinned emulator](setup.md#one-time-setup)
+and run these commands from the repository root. If you already built the
+macOS app from this checkout, the SEA executable is already in `dist/sea/`.
+
+```sh
+npm ci --prefix server
+npm run build:sea --prefix server
+```
+
+Open the browser panel with `./dist/sea/SledStormServer panel`. In the
+panel, choose the game folder and disc policy, click **Start Server**,
+and copy the invitation when the public address is ready.
+
+To host from the terminal, point `configure` at the folder containing
+your PAL CUE and BIN files. This example uses `game/` and asks each
+guest to provide their own copy.
+
+```sh
+./dist/sea/SledStormServer configure --game-folder "$PWD/game" --disc-policy local-only
+./dist/sea/SledStormServer panel
+./dist/sea/SledStormServer start
+./dist/sea/SledStormServer status
+./dist/sea/SledStormServer invitation
+```
+
+The `panel` command starts the server in the background. Closing the
+terminal or browser tab leaves it running. Click **Quit server** beside
+**Stop Server**, or run `./dist/sea/SledStormServer quit`. If you set
+`SLED_SERVER_HOME` at launch, use the same value when running `status`
+or `quit`. To keep the process in a terminal, use `serve` in place of
+`panel`, then run `start` from a second terminal. Press **Ctrl+C** in
+the first terminal to shut it down.
 
 ## Diagnostics and updates
 

@@ -313,12 +313,12 @@ const launcherInfo = fetch(solo ? '/solo/session-info' : '/session-info').then(a
   const remembered = packaged ? restored?.kind : lobby.lastDiscSource();
   lobby.discSources(offered, initialSource(offered, remembered, restored?.kind), canKeepCopies);
   if (mode === 'room') lobby.guest({ packaged: true, personalCamera: invitation.nativeCamera === true });
-  if (mode === 'room' || solo) lobby.deferDiscChoice();
+  if (solo) lobby.deferDiscChoice();
   for (const kind of Object.keys(copies)) describeCopy(kind);
   const nativeCamera = retroArch &&
     (invitation ? invitation.nativeCamera : new URLSearchParams(location.search).get('nativeCamera') !== '0');
   lobby.widescreenAvailable(lab || (invitation ? Boolean(nativeCamera) : info.pal || info.discMode === 'local'));
-  if (!packaged && invitation && offered.includes('download') &&
+  if (invitation && offered.includes('download') &&
       (quickTunnel ? canChooseGameArchive && info.archive : Boolean(window.caches))) {
     availableArchive = info.archive;
     describeGameData();

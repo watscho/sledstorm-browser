@@ -342,6 +342,9 @@ test('the configured window shows a live count and Join Room without settings', 
   assert.equal(page.document.shown('settings'), false);
   assert.equal(at('settings').open, false);
   assert.equal(page.document.shown('choose-folder'), false);
+  assert.equal(page.document.shown('quit'), true);
+  const actions = at('hosting').children.map(child => child.id);
+  assert.deepEqual(actions.slice(actions.indexOf('stop'), actions.indexOf('stop') + 2), ['stop', 'quit']);
   assert.equal(at('open-game').textContent, 'Join Room');
   assert.equal(at('open-game').ariaDisabled, 'false');
   assert.deepEqual(page.gameTabs, []);

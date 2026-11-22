@@ -8,6 +8,7 @@
 | [Playing with friends](multiplayer.md) | Join, pick game data, start a race and reconnect. |
 | [Controls, graphics and saves](browser-lobby.md) | Configure your player and manage checkpoints. |
 | [Sled Storm Server app](sled-storm-server.md) | Open the macOS preview, start and stop a room, diagnose problems and replace the app. |
+| [SEA from the terminal](sled-storm-server.md#run-sea-from-the-terminal) | Build the standalone server executable and manage its room from the terminal. |
 | [Python source setup](setup.md) | Install dependencies, build the emulator and run from the terminal. |
 
 ## Maintain or release
