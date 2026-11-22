@@ -39,7 +39,7 @@ enables sharing. Only enable host downloads for files you may distribute.
 
 ## Release status
 
-**Version 1.1.0.** The Python launcher is the established source workflow.
+**Version 1.2.0.** The Python launcher is the established source workflow.
 Sled Storm Server is an internal Apple Silicon preview. Signed installation,
 clean-Mac qualification and races on separate physical devices are still on
 the release checklist.

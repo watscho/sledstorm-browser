@@ -2,7 +2,7 @@
 
 ## Current status
 
-The **1.1.0 Python source launcher** is the established workflow. The
+The **1.2.0 Python source launcher** is the established workflow. The
 **Apple Silicon server app** is an internal preview. The arm64 bundle
 declares macOS 15.0 based on the bundled `cloudflared` deployment target.
 Test coverage below applies to the environment and workflow listed.
@@ -84,7 +84,7 @@ RELEASE-01, `stapler validate` and `syspolicy_check distribution`.
 
 ## Node SEA macOS preview qualification
 
-The recorded candidate is from clean revision `f611aa8`, tested on one
+The recorded 1.1.0 candidate is from clean revision `f611aa8`, tested on one
 Apple M1 Pro with macOS 27.2.1 (26B131). It passed all 11 checks in
 `npm run verify --prefix server`, including 30 packaged smoke tests.
 Both ZIP extractions passed RELEASE-01 and all five SEA self-tests.

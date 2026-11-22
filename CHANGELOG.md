@@ -3,7 +3,13 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
-## Unreleased
+## 1.2.0 - 2026-11-22
+
+Version 1.2.0 integrates the Node SEA server and browser admin. The
+packaged Apple Silicon app is an internal preview. The Python launcher
+remains the established source workflow. See the
+[device guide](docs/platforms.md) and
+[release checklist](docs/verification.md#release-checklist).
 
 ### Added - 2026-11-22
 

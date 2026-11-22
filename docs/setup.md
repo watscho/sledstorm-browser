@@ -76,9 +76,10 @@ room. Keep that tab open during play.
 
 ## Upgrade an existing installation
 
-Stop the launcher and update the checkout you intend to run. From 1.0.0 to
-1.1.0, the pinned emulator build can be reused. For older installations
-or changes to the emulator or adapter, rerun bootstrap and the native build.
+Stop the launcher and update the checkout you intend to run. When
+upgrading from 1.0.0 or 1.1.0 to 1.2.0, reuse the pinned emulator build.
+For older installations or changes to the emulator or adapter, rerun
+bootstrap and the native build.
 Regenerate the optional hardware renderer if you use it.
 
 Restart hosting, reload the browser pages and share the new invitation.
