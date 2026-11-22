@@ -21,8 +21,8 @@ was actually done and verified. Anything not run stays listed as open.
 | P2 Server-owned rooms | Done 2026-11-21 in two slices. Open items are listed under P2. |
 | P3 Browser admin and macOS launch | Done 2026-11-21 in three slices. Open items are listed under P3. |
 | P4 Independent data sources | Done 2026-11-22 in three slices, each in three phases. Open items are listed under P4. |
-| P5 Resumable delivery | In progress: three slices; slices 1 and 2 done 2026-11-22, each in three phases; slice 3 in three phases, phase 1 done 2026-11-22, phase 2 half done (Task 4). Open items are listed under P5. |
-| P6 Qualification and release package | Not started |
+| P5 Resumable delivery | Done 2026-11-22 in three slices. DATA-05 to DATA-08 passed in the local qualification setup. Open items are listed under P5. |
+| P6 Qualification and release package | Internal ZIP and signing rehearsal passed RELEASE-01. Developer ID, notarization and manual qualification are open. |
 
 ## Where to continue
 
@@ -32,103 +32,53 @@ here: this section says where the work stands, what comes next and how it is
 done. Every session ends by rewriting it, so that the record follows the work
 and the next session needs nothing but this file.
 
-**Position, 2026-11-22, 11:55.** P0 to P4 are done and P5 is under way. On
-the owner's word at 11:50 the whole working tree (P3, P4 and P5 so far) was
-committed on branch `claude/sea-server` and pushed to `origin`; check
-`git status` and `git log` first. Each P3 slice's
-results, hand checks, what was not verified and what stays open are under
-"P3 Browser admin and macOS launch"; its decisions are D38 to D46 (slice 1), D47 to D59 (slice 2) and
-D60 to D71 (slice 3); its task plans are in
-`docs/superpowers/plans/2026-11-21-p3-*.md`.
+**Position, 2026-11-22.** P0 through P5 are complete. P5 closed on the
+working tree based on `20c2064` on `claude/sea-server`. The P5 results,
+DATA-05 to DATA-08 exit checks and review are under "P5 Resumable delivery".
+The phase 3 ledger and verification logs are in
+`.superpowers/sdd/2026-11-22-p5-fallbacks-portable-zip/`.
 
-P4, Independent data sources, is done in three slices (D72 to D91): hosting
-under `local-only` (slice 1), a player's own ZIP and one disc identity for
-the server and the page (slice 2), and the player's choice of source with
-one room from mixed sources (slice 3). Its exit checks and each slice's
-results, hand checks, what was not verified, the review and what stays open
-are under "P4"; its task plans are
-`docs/superpowers/plans/2026-11-21-p4-local-only.md`,
-`2026-11-21-p4-own-zip.md` and `2026-11-22-p4-mixed-sources.md`.
+**P6 slice 1, phase 1.** The internal arm64 ZIP passed RELEASE-01 on a
+fresh extraction. Its declared minimum is macOS 15.0, set by the highest
+deployment target in the bundled code. The
+[release package plan](superpowers/plans/2026-11-22-p6-release-package.md)
+records the archive digest, review baseline, verified notices and checks.
 
-P5, Resumable delivery, is cut into three slices (the table under "P5"):
-the server's chunk routes and the host's delivery limit; the page's
-resumable download; fallbacks, the portable ZIP and the end of P5. Slice 1
-is done in three phases (D92 to D95, task plan
-`docs/superpowers/plans/2026-11-22-p5-chunk-routes.md`, ledger
-`.superpowers/sdd/2026-11-22-p5-chunk-routes/progress.md`, the review's
-report `review.md` beside it): the loopback listener serves
-`/game-data/manifest` and `/game-data/<sha256>/chunks/<index>`
-(`server/src/runtime-http.ts`), each chunk a range of the streamed archive
-(`openChunk` in `server/src/game-data.ts`), every disc delivery that the
-gateway forwards and marks runs under one limit
-(`server/src/delivery-limit.ts`) while the room's emulator and the owner's
-page are never queued, and the gateway passes the two shapes in its shared
-mode only (`research/network/public-server.mjs`). Its
-results, hand checks, what was not verified, the review and what stays open
-are under "P5".
+**P6 slice 1, phase 2.** The Developer ID and notarization workflow is
+prepared. RELEASE-01 and the SEA self-test passed on a hardened ad-hoc
+rehearsal ZIP. Chromium's hardened runtime check needs a Developer ID team.
+The original preview ZIP also passed a LaunchServices first-launch, reopen
+and quit check with isolated state on the development Mac.
+The full verify run passed 10 of 11 checks. The Python syntax check needs
+the emulator build scripts quarantined by SentinelOne. The
+[P6 plan](superpowers/plans/2026-11-22-p6-release-package.md#status) records
+the incident and the remaining qualification work.
 
-P5 slice 2, the page's resumable download, is done in three phases (D96 to
-D99, task plan `docs/superpowers/plans/2026-11-22-p5-resumable-download.md`,
-ledger `.superpowers/sdd/2026-11-22-p5-resumable-download/progress.md`, the
-review's report `review.md` beside it): "Download from server" fetches the
-room's archive as the server's chunks, two at a time, each checked for its
-manifest length and SHA-256 before it counts (`web/disc-download.js`), keeps
-the checked parts in the origin private file system with the progress in
-IndexedDB, one page of the origin at a time (`web/disc-parts.js`), uses
-them again after a reload or a cut on the same origin (DATA-05), fetches a
-corrupt one again (DATA-06), checks the whole archive before it hands it
-over, removes the parts once the game has started (`web/app.js`), and takes
-the whole `/disc.zip` where the manifest answers 404 (the Python launcher).
-Its results, hand checks, what was not verified, the review and what stays
-open are under "P5".
+**Next: finish P6 phase 2.** After the security team restores the build
+scripts, rerun full verify. With a valid Developer ID Application identity,
+check Chromium in the signed ZIP before notarization and test the final
+app on clean Apple Silicon macOS. The plan carries forward the physical-device
+races and the open P5 network and browser checks.
 
-P5 slice 3, Fallbacks, the portable ZIP and the end of P5, is under way
-in three phases (task plan
-`docs/superpowers/plans/2026-11-22-p5-fallbacks-portable-zip.md`, ledger
-`.superpowers/sdd/2026-11-22-p5-fallbacks-portable-zip/progress.md`); its
-decisions D100 to D105 stay in the task plan until the slice closes. Phase 1
-is done (2026-11-22): the part store asks for the quota before it keeps
-parts, only for what is missing, and every store says why it keeps parts in
-memory (`reason`: no private file system, storage refused, another tab, the
-quota, or a full disk after a refused write; D100, `web/disc-parts.js`);
-the progress lines carry that reason as a note, and a stop says "Reload the
-invitation to continue" only where the parts are saved, "to try again"
-otherwise (D101, `web/disc-download.js`); the listener marks its
-changed-files 503 with `X-Sled-Game-Files: changed`, the gateway passes it,
-and the page stops on that mark alone, a bare 503 being a failure asked
-again (D102, `server/src/runtime-http.ts`). `web/app.js` is not changed
-yet. `npm run verify --prefix server`: all 11 checks passed in 157 s (web
-and panel 235 of 235, server 267 of 267 on both Node.js versions, network
-74, smoke 30; `verify-phase-1.log` in the ledger folder). An orphaned
-`node --test … test/delivery-limit.test.ts` from an earlier chat (started
-08:13, parent launchd) was still running at 11:30; this chat left it.
+**Handoff to another Mac.** The checkpoint on `claude/sea-server` is based
+on `20c2064`. If transferring `SledStorm-P6.bundle`, apply it in an
+authorized checkout that already contains that base:
 
-Phase 2, Task 4 is done (2026-11-22, 11:41 to 11:50): `askToKeepStorage`
-in `web/game-data-folder.js` asks for persistent storage before the
-download where game data is kept on a stable address, never on a Quick
-Tunnel (D103), and a browser copy or a Quick Tunnel ZIP that could not be
-kept is told through the action notice once the room is LIVE
-(`unsavedGameDataNotice`, D104, `web/app.js`). Tests and 9 mutants;
-`npm run verify --prefix server` passed all 11 checks in 156 s
-(`verify-phase-2.log` in the ledger folder). The owner then stopped the
-chat at 11:50, before Task 5, to commit and push.
+```sh
+git bundle verify /path/to/SledStorm-P6.bundle
+git fetch /path/to/SledStorm-P6.bundle refs/heads/claude/sea-server
+git switch -c codex/p6-continuation FETCH_HEAD
+```
 
-**Next: P5 slice 3, phase 2, Task 5**: the checks by hand of DATA-05 to
-DATA-08 on the owner's disc through a copy of the bundle, as Task 5 lists
-them (a small quota with the DevTools protocol's
-`Storage.overrideQuotaForOrigin`, no private file system, a second tab, a
-cancelled picker, a new gateway port as a new host name with the saved ZIP,
-a disc changed during a download), and the two notices of Task 4. The
-extended `player.mjs` (visible windows, quota, no private file system, a
-mapped `*.trycloudflare.com` name for the Quick Tunnel path, pickers that
-cancel, a save picker, a second tab) and `drive.mjs` are in the ledger
-folder, not yet run; host an APFS clone of `game/` so that the changed-disc
-step touches no file of the owner's (the task plan's Status says how). Ask
-the owner first, in one question, whether they will watch (in this chat
-they chose to). Phase 3 is the review, the records and P5's exit. The
-review base of slice 3 stays `.superpowers/sdd/p5-slice-2-tree.tar`, since
-the commit holds slice 3's first changes; P6's first review starts from
-the commit that closes P5.
+The checkpoint contains the P5 review fixes, P6 packaging and signing work,
+and this record. It keeps the four emulator scripts at their committed base
+versions. The development Mac's quarantine deletions are local. Build caches,
+ZIPs and user data remain in ignored directories. On the next Mac, use the
+approved build inputs and follow [setup](setup.md#one-time-setup), then run
+`npm ci --prefix server`, `npm run verify --prefix server` and
+`npm run package:macos:zip --prefix server`. The
+[signing instructions](sled-storm-server.md#signing-and-notarization) pick up
+from the ZIP built on that Mac.
 
 **The unattended chain of 2026-11-22 has ended.** It ran until 10:00; P5
 slice 2, phase 2 began at 09:58 and ended after 10:00, so it reported and
@@ -404,9 +354,15 @@ The state that P5 slice 1 leaves, with its records, is the ignored file
 closed (227 files); it was the base of slice 2's review. The state that
 slice 2 leaves, with its records, is the ignored file
 `.superpowers/sdd/p5-slice-2-tree.tar`, made the same way when the slice
-closed (232 files); it is the base of slice 3's review.
-A commit of P3, P4 and P5 so far, if the owner asks for one, replaces it;
-otherwise unpack the archive into a scratch folder and compare with
+closed (232 files). That archive was absent from the checkout used for
+slice 3's review. The reviewer used the task-defined changes and the
+current sources, the working diff from `20c2064` for the memory archive
+fix, and the relevant source and test history from `54a64b3` through the
+combined commit `20c2064`. That commit contains P3, P4 and P5 through
+slice 3 phase 2 Task 4. The comparison cannot isolate every line that
+changed since the slice 2 snapshot. The final P5 tree, including the
+records, is `.superpowers/sdd/p5-slice-3-tree.tar` and is the base for the
+first P6 review. Unpack the archive into a scratch folder and compare with
 `git diff --no-index`.
 
 ## Current launch path at `acc8e35`
@@ -562,10 +518,16 @@ Hard-coded addresses to parameterize in P1:
 | D93 | A chunk is the range `[index × chunkSize, min(size, (index + 1) × chunkSize))` of the archive that the server streams; the whole archive is the same code over `[0, size)`. Each file is read through one handle and compared with its prepared state before and after, and the last piece read from a file waits for the second comparison, so a chunk of two versions never arrives whole. | No archive is written to disk (as since P1). The page's hash check (slice 2) catches a change that keeps a file's size and time. |
 | D94 | One limit runs every `GET` of `/disc.zip` and of a chunk that a guest asks for through the gateway, which marks every request it forwards (`x-sled-gateway`; it forwards no header of the guest's, so a guest cannot take the mark off): 4 at once, 16 more waiting in order, any further one 503 `The server is busy. Try again shortly.` with `Retry-After: 2`. A waiting request whose client goes leaves the queue; an active one frees its place when it ends or its client goes, and its file reads stop; one whose client stopped reading is cut 30 to 60 s later (a socket timeout of 30 s, which Node lets pass once when the socket's write queue moved since the write was dispatched; that also keeps a slow but reading client). The room's emulator, the owner's page and any page on this computer come over loopback without the mark: they are never queued or refused, and keep the idle cut. A `HEAD` reads nothing and stays outside the limit; so do the manifest and the session info. | The brief's limit on the host's active delivery with backpressure, and its §11.1: the server's worker always gets the locally chosen disc. The room's emulator loads `/disc.zip` at every session start (a fresh profile each time) under the relay's 75 s deadline, so it must never wait behind guests (the review of slice 1). With reads of 1 MiB the four active deliveries hold a few MiB. If wrong: on a slow tunnel four guests with two requests each take turns, and four stalled clients hold every guest's place for up to about a minute; deliveries on this computer are unbounded, as every `/disc.zip` was before P5. Constants of `server/src/runtime-http.ts` (`DELIVERY`); P6 measures them. The 30 to 60 s were measured in phase 2's hand check. |
 | D95 | In its shared mode the gateway passes `GET` and `HEAD` of `/game-data/manifest` and of paths matching `^/game-data/[a-f0-9]{64}/chunks/(?:0\|[1-9][0-9]{0,6})$`, compared on the path `new URL` gives (percent-encoding kept), which must also be the path as sent (before `?`), since `new URL` settles dot segments, and forwarded without the query, with the gateway's mark (D94); the listener checks the ID and the bounds. A chunk's `GET` of 200 streams without its `Content-Length`, as `/disc.zip` does; its length is in the manifest. Its local mode refuses them with the 403 of `/disc.zip`. | The gateway stays a list of shapes, not a proxy (brief §11.4); DATA-01 for the new routes. Settled with P5 slice 1's plan; implemented in its phase 2. |
-| D96 | "Download from server" reads `GET /game-data/manifest` (`no-store`). A 404 means the server has no chunk routes (the Python launcher): the page downloads the whole `/disc.zip`. Any other status, a network error or no answer within the answer deadline stops with `Could not download the game disc. Reload the invitation to try again.` A manifest counts only with `version: 1`, the session info's `disc` and `pal`, an archive whose `sha256` and chunk hashes are 64 lowercase hex characters, whose `size` and `chunkSize` are positive safe integers, `chunkSize` at most 64 MiB, and whose chunk count is `ceil(size / chunkSize)`; otherwise `The server's game data changed. Reload the invitation to try again.` Two workers fetch the missing chunks in index order, each read into one buffer of its manifest length; a longer or shorter answer is a failure. Before an answer begins (the host's queue, D94) only an answer deadline of 5 minutes applies; once it has begun, 45 s without a byte is a stall. A 503 with `Retry-After` is a pause of 1 to 30 s; a 503 without it stops with `The host's game files changed. Ask the host to start hosting again, then reload the invitation.` A cut by the answer deadline before the answer began, or a proxy's 504 or 524, is a wait: asked again after 1 s, until the chunk has waited 30 minutes in all. A chunk's 404 reads the manifest again, once for both workers and aborted by a stop: the same archive is a failure of that chunk; another archive of the same disc starts over on it, at most twice, the old archive's parts removed; anything else stops as a changed manifest does. A network error, a stall, a wrong length or hash, or another status is a failure of that chunk, asked again after 1, 2 and 4 s; the fourth in a row stops with `Game data stopped downloading. Reload the invitation to continue.`, keeping every checked part. Pauses and waits neither count as failures nor end a run of them; any other error reaches the player as the last sentence. The whole `/disc.zip` has the same deadlines. | The brief's §11.4 client steps 1 to 3, with the host's queue (D94) in mind. The waits, their budget, the 64 MiB bound and the sentence for storage errors came from the review of slice 2: four waits past Cloudflare's 100 s would have stopped a guest behind a slow tunnel. If wrong: over a Quick Tunnel a waiting request is asked again after about 100 s at the back of the host's queue, and a dead host behind an edge that answers 524 keeps a guest waiting up to 30 minutes per chunk (a host that is gone answers 502 at once, a failure). Constants exported from `web/disc-download.js`; P6 measures them. |
-| D97 | The checked chunks are files `<index>` in `sledstorm-parts/<archiveSha256>` of the origin private file system, each written with `createWritable()` and committed by `close()` before its index is added to the archive's record in IndexedDB (`sledstorm-disc-parts`, store `progress`, key the archive's SHA-256, `{ size, chunkSize, chunks, done }`), written one after another from one in-memory copy. A part on disk that the record does not list does not count; a listed part whose file is missing or of another length is dropped when the store opens; a part of another length than the manifest's is never kept. Opening the store for one archive removes every other archive's parts and record. One page of the origin holds the stored parts at a time (a Web Lock, `sledstorm-disc-parts`, asked with `ifAvailable`, released when the parts are removed or the page unloads); a page without it, or without the private file system or IndexedDB, keeps its parts in memory (`persistent: false`). A part that the private file system refuses to keep (its quota, a full disk) stays in memory for that page, never listed. | The brief's §11.4 step 4 (a part saved and the progress updated atomically) and §11.5. The lock and the parts in memory after a refused write came from the review: two tabs of one invitation removed each other's parts, and a quota smaller than the archive (a private window, a full disk) stopped every download at the same place. If wrong: a second tab of the same invitation downloads into memory and does not survive its own reload; parts in memory cost the browser's memory, as 1.1.0's whole download did. Slice 3 checks the quota before saving and tells the player. |
-| D98 | When every part is counted, the page builds one `File` from the parts in order, refuses it with `Game data stopped downloading. …` unless its size is the archive's, and checks every chunk's SHA-256 over it, one chunk in memory at a time; parts that fail are dropped and fetched again, and a second failed check stops with `The server's game data changed. …`. | The brief's §11.4 step 5. A part changed on disk after it was counted is caught (DATA-06 in the page). Each fetched chunk is hashed twice and each reused chunk once: one more pass over the archive, a few seconds, at the end of each download. |
-| D99 | The parts are a staging area: `sharedDiscFile` in `web/app.js` saves the downloaded `File` where it saved the whole download (the Quick Tunnel's chosen ZIP, D91; the fixed address's Cache Storage copy with "Keep game data") and removes the archive's parts and record once the game has started (`discardGameData`). EmulatorJS reads a `File` whole before it starts and then replaces its game URL by the file's name. | A finished download leaves no second copy in the origin; a Quick Tunnel host name that never comes back leaves at most one unfinished archive in that origin's storage. If wrong: a player who reloads after the start, where no copy was kept, downloads again, and a room that fails just after it starts is when a reload is most likely (the review's note); slice 3 decides whether the parts replace the Cache Storage copy. |
+| D96 | "Download from server" reads `GET /game-data/manifest` (`no-store`). A 404 means the server has no chunk routes (the Python launcher): the page downloads the whole `/disc.zip`. Any other status, a network error or no answer within the answer deadline stops with `Could not download the game disc. Reload the invitation to try again.` A manifest counts only with `version: 1`, the session info's `disc` and `pal`, an archive whose `sha256` and chunk hashes are 64 lowercase hex characters, whose `size` and `chunkSize` are positive safe integers, `chunkSize` at most 64 MiB, and whose chunk count is `ceil(size / chunkSize)`; otherwise `The server's game data changed. Reload the invitation to try again.` Two workers fetch the missing chunks in index order, each read into one buffer of its manifest length; a longer or shorter answer is a failure. Before an answer begins (the host's queue, D94) the answer deadline is 5 minutes, capped at the remaining wait budget. Once it has begun, 45 s without a byte is a stall. A 503 is classified under D102. A cut by the answer deadline before the answer began, or a proxy's 504 or 524, is a wait: asked again after up to 1 s, until the chunk spends its 30-minute budget on those requests and the delays between them. A chunk's 404 reads the manifest again, once for both workers and aborted by a stop: the same archive is a failure of that chunk; another archive of the same disc starts over on it, at most twice, the old archive's parts removed; anything else stops as a changed manifest does. A network error, a stall, a wrong length or hash, or another status is a failure of that chunk, asked again after 1, 2 and 4 s; the fourth in a row stops with D101's message and keeps the saved parts. Pauses and waits neither count as failures nor end a run of them. Other errors without their own message use D101's stop message as well. The whole `/disc.zip` has the same deadlines. | The brief's §11.4 client steps 1 to 3, with the host's queue (D94) in mind. The waits, their budget, the 64 MiB bound and the sentence for storage errors came from the review of slice 2: four waits past Cloudflare's 100 s would have stopped a guest behind a slow tunnel. If wrong: over a Quick Tunnel a waiting request is asked again after about 100 s at the back of the host's queue, and a dead host behind an edge that answers 524 keeps a guest waiting up to 30 minutes per chunk (a host that is gone answers 502 at once, a failure). Constants exported from `web/disc-download.js`; P6 measures them. |
+| D97 | The checked chunks are files `<index>` in `sledstorm-parts/<archiveSha256>` of the origin private file system, each written with `createWritable()` and committed by `close()` before its index is added to the archive's record in IndexedDB (`sledstorm-disc-parts`, store `progress`, key the archive's SHA-256, `{ size, chunkSize, chunks, done }`), written one after another from one in-memory copy. A part on disk that the record does not list does not count; a listed part whose file is missing or of another length is dropped when the store opens; a part of another length than the manifest's is never kept. Opening the store for one archive removes every other archive's parts and record. One page of the origin holds the stored parts at a time (a Web Lock, `sledstorm-disc-parts`, asked with `ifAvailable`, released when the parts are removed or the page unloads); a page without it, or without the private file system or IndexedDB, keeps its parts in memory (`persistent: false`). A part that the private file system cannot write or IndexedDB cannot record stays in memory for that page. A later progress write lists it only after its own record write has succeeded. | The brief's §11.4 step 4 (a part saved and the progress updated atomically) and §11.5. The lock and the parts in memory after a refused write came from the review: two tabs of one invitation removed each other's parts, and a quota smaller than the archive (a private window, a full disk) stopped every download at the same place. If wrong: a second tab of the same invitation downloads into memory and does not survive its own reload; parts in memory cost the browser's memory, as 1.1.0's whole download did. Slice 3 checks the quota before saving and tells the player. |
+| D98 | When every part is counted, the page builds one `File` from the parts in order. If any part was kept in memory, the page streams the archive into one completed blob before creating the `File`. It refuses the file unless its size is the archive's and checks every chunk's SHA-256 over it, one chunk at a time. Parts that fail are dropped and fetched again, and a second failed check stops with `The server's game data changed. …`. | The brief's §11.4 step 5. A part changed on disk after it was counted is caught (DATA-06 in the page). Each fetched chunk is hashed twice and each reused chunk once: one more pass over the archive, a few seconds, at the end of each download. |
+| D99 | The parts are a staging area: `sharedDiscFile` in `web/app.js` saves the downloaded `File` where it saved the whole download (the Quick Tunnel's chosen ZIP, D91; the fixed address's Cache Storage copy with "Keep game data") and removes the archive's parts and record once the game has started (`discardGameData`). EmulatorJS reads a `File` whole before it starts and then replaces its game URL by the file's name. | A finished download leaves no second copy in the origin; a Quick Tunnel host name that never comes back leaves at most one unfinished archive in that origin's storage. If wrong: a player who reloads after the start, where no copy was kept, downloads again, and a room that fails just after it starts is when a reload is most likely (the review's note); slice 3 keeps the Cache Storage copy (D104). |
+| D100 | The part store estimates the storage needed for missing chunks plus 64 MiB. It asks after checking the listed parts and skips the estimate when they are complete. If the estimate is missing or unusable it tries persistent storage. If the estimate is too small it releases the lock and downloads into memory, leaving this archive's parts and record available for a later visit. A refused part write or progress record keeps that part in memory for the current download. | Brief §11.5 and DATA-07. The margin leaves room for the saves library and for error in the estimate. P6 can measure the margin. |
+| D101 | Download progress says why a part cannot be kept: unsupported or unavailable storage, another tab holding the parts, insufficient quota before downloading, or a write refused during the download. A reload starts over when there are no saved parts. If there are saved parts after a refused write it fetches the unsaved parts again. The stop message promises to continue only when a saved part exists. | The explanation follows the current store, even if the last write fails after the transfer reaches 100%. The final check has its own status. |
+| D102 | The loopback listener marks a changed-files 503 with `X-Sled-Game-Files: changed` for chunk and whole ZIP requests, GET and HEAD. The gateway forwards the header. A marked 503 stops with the host's changed-files message. An unmarked chunk 503 with `Retry-After` pauses. A bare chunk 503 is retried as a failure. The whole ZIP reports ordinary download failure for other error statuses. | Distinguishes a real change on the host from capacity and proxy errors. Covers listener, gateway and page. |
+| D103 | On a stable address where the player keeps game data, check `persisted()` and ask `persist()` only when it returns false. The launch continues while the browser decides. A temporary Quick Tunnel origin makes no persistence request. | Refusal leaves ordinary browser storage available for best-effort use. A cached copy and a new download follow the same stable-address rule. |
+| D104 | The Cache Storage copy keyed by disc identity stays compatible with 1.1.0 and the Python launcher, and staging parts are discarded once the game starts. If the browser cache or portable ZIP cannot be saved, the page shows an action notice when the room is ready, or when the emulator starts in the lab or local console. | The cache and staged parts can both occupy storage during a save. A refusal to save the copy leaves the current launch playable and tells the player what happened. |
+| D105 | The portable ZIP contains the checked bytes of the server archive and can be chosen under "Use saved ZIP" on another origin. A new Quick Tunnel hostname starts a new download at zero. A cancelled picker preserves the current source and earlier ZIP choices. | DATA-08. Where the save picker is unavailable, the player can use their own files, select an existing ZIP or download with the storage the browser provides. |
 | D32 | The packaged server runs the shipped browser only. `SLED_SERVER_CHROME` names another browser for a server run from source, and is ignored by the packaged executable. A build without an executable browser fails to start hosting, with the emulator named. | RUNTIME-01. The product has dedicated rooms only; without the browser the relay would accept the old browser-hosted role. |
 
 ## Stage plan
@@ -2174,11 +2136,72 @@ Open after slice 2:
   folder requests of 2026-11-21 in the TCC log and what macOS asks for a
   folder on another Mac.
 
+Slice 3 results, 2026-11-22:
+
+- The store estimates only the missing bytes plus its storage margin. A
+  quota fallback keeps earlier progress for a later visit. A refused write
+  to the private file system or IndexedDB keeps the current chunk in memory
+  without listing it as saved. If the archive includes memory parts, the
+  page streams it into one blob before checking each chunk (D98, D100).
+- Progress explains why the browser could not save the chunks and whether
+  a reload starts over. The final write can update the explanation even
+  after progress reaches 100%. A stop offers to continue only if there are
+  saved chunks. Retry delays from fast 504 and 524 responses count toward
+  the wait budget (D96, D101).
+- The listener's changed-files header survives the gateway. The page
+  recognizes the mark on a 503 and retries an unmarked chunk 503 without
+  `Retry-After` (D102).
+- Stable addresses ask for persistence when the player keeps game data.
+  A failed cache open or write and a failed portable ZIP write give their
+  own notices once the room is ready. The lab and local console show the
+  notice over their normal status for four seconds (D103, D104).
+- The portable ZIP matches the server archive and can be chosen again on
+  a new origin. Cancelling a picker preserves the earlier choice (D105).
+
+P5 exit checks. The packaged loopback gateway, the pinned headed Chromium
+and a clone of the owner's disc were used in phase 2. Quick Tunnel origins
+and system pickers had local stand-ins. The full 11-scenario record is in
+`docs/superpowers/plans/2026-11-22-p5-fallbacks-portable-zip.md`.
+
+| Check | Result |
+|---|---|
+| DATA-05 | After Chromium was killed at about 40%, it reused 34 chunks and downloaded only the remaining 52 on the same origin. The room reached LIVE and the progress record was removed. |
+| DATA-06 | A saved chunk with one changed byte was fetched again and seven other saved chunks were reused. The room reached LIVE. The listener's archive ID and index checks passed in slice 1. |
+| DATA-07 | The low-quota run reached LIVE. Its saves and remembered ZIP handle survived. Missing private storage, a second tab, picker cancellations and refused saves followed their documented fallbacks. |
+| DATA-08 | The portable ZIP matched `/disc.zip`. A different origin downloaded from zero and could start with the saved ZIP without fetching game data after selection. |
+
+The independent review used GPT-6.2 Astra with the comparison recorded
+under "Review base". It found one high-priority, four medium-priority and
+one low-priority issue. The fixes bound the wait budget, stream mixed
+memory and disk parts, preserve a verified chunk when a progress write
+fails, report cache-open refusals, update storage notes at 100%, and limit
+the changed-files mark to 503. Follow-up checks also caught a hidden
+storage notice in the local console and a resume claim when no parts had
+been saved. Six focused Node regressions and four pinned Chromium checks
+with synthetic data failed before their fixes and passed afterwards. The
+Chromium checks reproduced `NotReadableError` with zero and two saved
+parts in an 86-chunk archive, and verified cache-open and cache-write
+refusal notices in the local console with an emulator stand-in.
+
+Open for P6:
+
+- Test the real public tunnel with synthetic game files and measure the
+  delivery limits and wait budget on slower networks. The phase 2 tests
+  used mapped local hostnames.
+- Test native picker behavior, private-window quotas, a physically full
+  disk, interrupted writes during machine shutdown, and Safari and Firefox.
+- Resolve the Documents folder requests in the macOS privacy log and check
+  folder access on another Mac before publishing a package.
+
 ### P6 Qualification and release package
 
 Scope: clean macOS, signing and notarization when certificates exist, real
 races on separate devices and networks, licenses and documentation.
 Exit checks: RELEASE-01 and the manual matrix in the brief.
+
+The [first slice plan](superpowers/plans/2026-11-22-p6-release-package.md)
+records the ZIP inspection required by RELEASE-01 and the manual checks
+from the brief. Release qualification results remain open.
 
 ## Risks and open questions
 
@@ -2494,6 +2517,24 @@ Nothing was checked by hand.
 | `npm test --prefix server`, `npm test --prefix research/network` | 267 passed on Node.js 24.18.0 and on the pinned 26.13.1, and 73 passed, unchanged. |
 | Mutants of `web/disc-download.js` and `web/disc-parts.js`, applied to copies | 26 (ten of the review's survivors on the fixed code, sixteen of the fixes); 24 killed in the first round, the two cleanups of m4 after their pins; 26 of 26 at the end (`review-fixes-mutants.log`). |
 | The page's modules in the pinned Chromium, headless, synthetic bytes (`browser-check.mjs`, `browser-check.log`) | 8 of 8: waits on 524 and on the answer deadline asked again, the parts in the private file system and the record, the lock against a second store and another page, `discard`, a part kept over a reload. |
+
+### P5 slice 3, phase 2, Task 5, 2026-11-22, working tree on top of `20c2064`
+
+| Check | Result |
+|---|---|
+| `node --test web/disc-download.test.mjs web/disc-parts.test.mjs` | 72 of 72 after the memory store fix. |
+| Headed pinned Chromium on the packaged application's loopback gateway | 11 of 11. DATA-05 to DATA-08, the changed-files response, and both saved-copy notices. The low-quota check reproduced `NotReadableError` on the previous build and reached LIVE with the streamed archive. See Task 5 in `docs/superpowers/plans/2026-11-22-p5-fallbacks-portable-zip.md`. |
+| `npm run verify --prefix server` | All 11 checks passed in 184 s after the browser runs. 239 web and panel tests, 267 server tests on each Node.js version, 74 network tests and 30 packaged smoke tests. The process cleanup check passed. |
+
+### P5 slice 3, phase 3, 2026-11-22, working tree on top of `20c2064`
+
+| Check | Result |
+|---|---|
+| Independent review on GPT-6.2 Astra | Six findings fixed. Comparison scope is recorded under "Review base". Two follow-up findings were also fixed. The report is `review.log` in the slice ledger. |
+| `node --test web/disc-download.test.mjs web/disc-parts.test.mjs web/game-data-folder.test.mjs` | 83 of 83. Six regression cases failed first. |
+| Pinned Chromium with synthetic bytes on loopback | Four checks passed after reproducing four failures. Two exercised the large archive fallback with OPFS writes refused. Two exercised storage refusal notices in the local console. See `review-browser.log`. |
+| `npm run verify --prefix server` | All 11 checks passed in 158 s. The 244 web and panel tests, 267 server tests on each of Node.js 24.18.1 and 26.13.1, 74 network tests and 30 packaged smoke tests passed. The process cleanup check passed. See `verify-phase-3.log`. |
+| P6 review baseline | `.superpowers/sdd/p5-slice-3-tree.tar` contains the 233 files of the final P5 tree. Archive paths and contents were checked against the working tree. |
 
 ## Checking a change
 

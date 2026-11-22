@@ -2,11 +2,11 @@
 // panel's page, the pinned tunnel program and the pinned browser, and the
 // emulator files when this checkout has been bootstrapped and built
 // (docs/setup.md). Nothing is compiled here.
-import { access, chmod, constants, cp, mkdir } from 'node:fs/promises';
+import { access, chmod, constants, cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pinnedChromium } from './fetch-chromium.mjs';
 import { pinnedCloudflared } from './fetch-cloudflared.mjs';
-import { readJson, repoRoot, sha256File } from './lib.mjs';
+import { readJson, repoRoot, run, sha256File } from './lib.mjs';
 
 const exists = path => access(path).then(() => true, () => false);
 
@@ -14,7 +14,18 @@ const exists = path => access(path).then(() => true, () => false);
 export const bundleCopy = { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE };
 
 /** The files of the panel's page: the ones that the control listener serves (`PANEL_FILES` in src/host-server.ts). */
-const PANEL_FILES = ['index.html', 'panel.css', 'session.js', 'view.js', 'controller.js', 'panel.js'];
+export const PANEL_FILES = ['index.html', 'panel.css', 'session.js', 'view.js', 'controller.js', 'panel.js'];
+
+export const RELEASE_WEB_FILES = [
+  'app.js', 'controls-ui.js', 'controls.js', 'core-state.js', 'disc-download.js', 'disc-identity.js',
+  'disc-parts.js', 'disc-sheet.js', 'disc-source.js', 'disc-zip.js', 'display.js', 'frame-sync.js',
+  'game-data-folder.js', 'graphics-presets.js', 'hardware-preview.js', 'index.html', 'invitation.js',
+  'lobby-mountains.svg', 'lobby-snow-trail.svg', 'lobby-ui.js', 'local-disc.js', 'netplay-downlink.js',
+  'netplay-wire.js', 'pal-profile.js', 'performance-metrics.js', 'performance-ui.js', 'playstation-controller.svg',
+  'retroarch-netplay.js', 'room-identity.js', 'room-restore.js', 'save-file.js', 'save-manager.js',
+  'save-storage.js', 'session-client.js', 'shaders/crt-lottes.glsl', 'shaders/sharp-bilinear.glsl',
+  'sled-storm-logo.png', 'sled-storm-pal-cover.jpg', 'solo-save.js', 'style.css',
+];
 
 /**
  * Copies the panel's page from `source`, the repository's `admin` folder, into the resource directory
@@ -25,10 +36,17 @@ export async function stagePanel(target, source = join(repoRoot, 'admin')) {
   for (const name of PANEL_FILES) await cp(join(source, name), join(target, 'admin', name));
 }
 
-export async function stageResources(target) {
-  // Tests and their fixtures are not part of the client.
-  await cp(join(repoRoot, 'web'), join(target, 'web'),
-    { recursive: true, filter: source => !source.endsWith('.test.mjs') && !source.endsWith('.fixtures.json') });
+export async function stageResources(target, { candidate = false } = {}) {
+  if (candidate) {
+    await mkdir(join(target, 'web', 'shaders'), { recursive: true });
+    for (const name of RELEASE_WEB_FILES) {
+      await cp(join(repoRoot, 'web', name), join(target, 'web', name), bundleCopy);
+    }
+  } else {
+    // Tests and their fixtures are not part of the client.
+    await cp(join(repoRoot, 'web'), join(target, 'web'),
+      { recursive: true, filter: source => !source.endsWith('.test.mjs') && !source.endsWith('.fixtures.json') });
+  }
   await stagePanel(target);
 
   const program = await pinnedCloudflared();
@@ -43,7 +61,19 @@ export async function stageResources(target) {
   const browser = await pinnedChromium();
   let chromium = null;
   if (browser) {
-    await cp(browser.application, join(target, 'chromium', 'Chromium.app'), bundleCopy);
+    const destination = join(target, 'chromium', 'Chromium.app');
+    if (candidate) {
+      // Use the verified archive so extra files in a local Chromium cache stay out of the package.
+      const staging = await mkdtemp(join(dirname(target), 'chromium-'));
+      try {
+        await run('/usr/bin/ditto', ['-x', '-k', browser.archive, staging]);
+        await cp(join(staging, browser.archiveApplication), destination, bundleCopy);
+      } finally {
+        await rm(staging, { recursive: true, force: true });
+      }
+    } else {
+      await cp(browser.application, destination, bundleCopy);
+    }
     chromium = { version: browser.version, position: browser.position, commit: browser.commit,
       archiveSha256: browser.archiveSha256, executableSha256: browser.executableSha256, frameworkSha256: browser.frameworkSha256 };
   }

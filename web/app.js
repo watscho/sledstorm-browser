@@ -48,6 +48,7 @@ let waitingForRoom = false;
 let roomMessage = status.textContent;
 let actionNotice = '';
 let noticeTimer;
+let noticeOverStatus = false;
 // A browser copy or a ZIP that could not be kept, told once the game runs (D104).
 let gameDataNotice = '';
 const lobby = initLobby(showActionNotice, () => {
@@ -90,7 +91,7 @@ let retroRoom;
 const diagnostics = new URLSearchParams(location.search).has('diagnostics');
 const developerTools = new URLSearchParams(location.search).has('dev');
 function renderStatus() {
-  const message = roomMessage || actionNotice;
+  const message = (noticeOverStatus && actionNotice) || roomMessage || actionNotice;
   const live = roomSynchronized && !message;
   // Until the room is LIVE the status shows its progress, which would hide the notice.
   if (live && gameDataNotice) return tellGameDataNotice();
@@ -107,11 +108,12 @@ function tellGameDataNotice() {
   if (!gameDataNotice) return;
   const text = gameDataNotice;
   gameDataNotice = '';
-  showActionNotice(text);
+  showActionNotice(text, lab || localConsole);
 }
-function showActionNotice(text) {
+function showActionNotice(text, overStatus = false) {
   clearTimeout(noticeTimer);
   actionNotice = text;
+  noticeOverStatus = overStatus;
   renderStatus();
   noticeTimer = setTimeout(() => {
     actionNotice = '';
@@ -382,6 +384,7 @@ async function sharedDiscFile(info, keep) {
   const url = '/disc.zip';
   // Each Quick Tunnel hostname has its own storage that later tunnels cannot clear.
   const cacheAllowed = fingerprint && !quickTunnel;
+  if (keep && cacheAllowed) askToKeepStorage();
   let cache;
   if (cacheAllowed) try {
     cache = await window.caches.open('sledstorm-disc-v1');
@@ -403,9 +406,7 @@ async function sharedDiscFile(info, keep) {
 
   // "Download from server": the server's chunks, each checked before it counts and kept as a part in this origin's
   // private file system, so a reload fetches only what is missing; the whole /disc.zip where the server has no
-  // chunk routes (D96 to D98). Where the download is meant to stay, the browser is asked not to clear it under storage
-  // pressure; never on a Quick Tunnel, whose storage no later address can reach (D103).
-  if (keep && cacheAllowed) askToKeepStorage();
+  // chunk routes (D96 to D98).
   const { file, discard } = await downloadDisc(info, { report: showStatus });
   // The parts are a staging area: they go once the emulator holds the disc, whatever is kept below (D99).
   const earlier = discardGameData;
@@ -425,9 +426,10 @@ async function sharedDiscFile(info, keep) {
       if (!saved) gameDataNotice = unsavedGameDataNotice('zip', error);
     }
   }
-  if (keep && cache) {
+  if (keep && cacheAllowed) {
     showStatus('Saving game data in this browser…');
     try {
+      cache ??= await window.caches.open('sledstorm-disc-v1');
       await cache.put(url, new Response(file, { headers: { 'x-sledstorm-disc': fingerprint } }));
     } catch (error) {
       // The current download is still playable when the browser denies storage; the player is told it was not kept.

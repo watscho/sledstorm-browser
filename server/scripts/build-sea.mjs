@@ -20,7 +20,7 @@ async function sourceRevision() {
   }
 }
 
-export async function buildSea() {
+export async function buildSea({ candidate = false } = {}) {
   const bundle = await buildBundle();
   const node = await pinnedNode();
   const root = join(distRoot, 'sea');
@@ -51,7 +51,7 @@ export async function buildSea() {
     await run('codesign', ['--verify', '--strict', executable]);
   }
 
-  const staged = await stageResources(resources);
+  const staged = await stageResources(resources, { candidate });
   const ws = await readJson(join(serverRoot, 'node_modules', 'ws', 'package.json'));
   const manifest = {
     schema: 1,

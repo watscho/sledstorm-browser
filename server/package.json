@@ -9,6 +9,7 @@
     "build": "node scripts/build.mjs",
     "build:sea": "node scripts/build-sea.mjs",
     "package:macos": "node scripts/package-macos.mjs",
+    "package:macos:zip": "node scripts/macos-release.mjs",
     "smoke": "node --test \"smoke/*.test.mjs\"",
     "verify": "node scripts/verify.mjs"
   },

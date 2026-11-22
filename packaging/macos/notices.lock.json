@@ -1,0 +1,45 @@
+{
+  "texts": {
+    "Node-LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v26.13.1/LICENSE",
+      "sha256": "8e603aa87c70d36e497004f0dec63111511cb61b7d65ace12e10ea791599286c"
+    },
+    "cloudflared-LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/LICENSE",
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    "Go-LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/golang/go/go1.27.3/LICENSE",
+      "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+    },
+    "Chromium-LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/chromium/chromium/88c3ce436c686bd2114720debffedcb893ca464a/LICENSE",
+      "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b"
+    },
+    "RetroArch-COPYING.txt": {
+      "url": "https://raw.githubusercontent.com/EmulatorJS/RetroArch/6dd4353937ef48b6ec0bfbdbb15d1c5992d86927/COPYING",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    "PCSX-ReARMed-COPYING.txt": {
+      "url": "https://raw.githubusercontent.com/EmulatorJS/pcsx_rearmed/f29871dde1742cafb0ab56ba33636a8600bbbd80/COPYING",
+      "sha256": "0efb4db8000c609bd2f06e61fcbc59af05519d122f5b3597b7c493224946c61d"
+    },
+    "Lightrec-COPYING.txt": {
+      "url": "https://raw.githubusercontent.com/EmulatorJS/pcsx_rearmed/f29871dde1742cafb0ab56ba33636a8600bbbd80/deps/lightrec/COPYING",
+      "sha256": "d7bf9d064ac3e5840f9dd02422b7eeec4f1fd03f37fadbd043602be5e882304f"
+    },
+    "libchdr-LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/EmulatorJS/pcsx_rearmed/f29871dde1742cafb0ab56ba33636a8600bbbd80/deps/libchdr/LICENSE.txt",
+      "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+    }
+  },
+  "chromiumCredits": {
+    "chromiumCommit": "88c3ce436c686bd2114720debffedcb893ca464a",
+    "creditSourceCommit": "a0263a621f06c736bb09a3b9eb2d093341d9266c",
+    "archive": "chromium-cft-158.0.8127.0.zip",
+    "url": "https://storage.googleapis.com/chrome-for-testing-public/158.0.8127.0/mac-arm64/chrome-mac-arm64.zip",
+    "archiveSha256": "6ad5e493148894429dd5aad6dfbaa8d0ed6c4fcbf0d4442889af10df34eb117c",
+    "resourceId": 41091,
+    "sha256": "bae942de8c7d2c13a191bf2f63696e06d76ac4e5c0e20bd97123594f93198d64"
+  }
+}

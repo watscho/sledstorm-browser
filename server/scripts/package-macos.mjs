@@ -1,21 +1,19 @@
-// Assemble the draft macOS application bundle around the single executable.
-// The signature is ad-hoc: enough to run on the build machine, not a release.
+// Assemble the macOS application around the single executable and sign it ad hoc.
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSea, bundleIdentifier } from './build-sea.mjs';
 import { applicationName, distRoot, executableName, repoRoot, run } from './lib.mjs';
+import { macosMinimum } from './macos-minimum.mjs';
+import { stageMacosNotices } from './macos-notices.mjs';
 import { bundleCopy } from './stage-resources.mjs';
 
-// The oldest macOS that the pinned Node.js binary declares in its load commands.
-const minimumSystem = '13.5';
-
-export async function packageMacos() {
+export async function packageMacos({ candidate = false } = {}) {
   if (process.platform !== 'darwin') throw new Error('The macOS application bundle is assembled on macOS.');
-  const sea = await buildSea();
-  const declared = /minos (\S+)/.exec(await run('otool', ['-l', sea.executable]))?.[1];
-  if (declared !== minimumSystem)
-    throw new Error(`The executable needs macOS ${declared}; update the minimum system version (${minimumSystem}).`);
+  const sea = await buildSea({ candidate });
+  if (candidate && (!sea.manifest.chromium || !sea.manifest.cloudflared || !sea.manifest.emulator)) {
+    throw new Error('A candidate requires the pinned Chromium, cloudflared and prepared emulator.');
+  }
 
   const application = join(distRoot, 'macos', `${applicationName}.app`);
   await rm(application, { recursive: true, force: true });
@@ -23,7 +21,12 @@ export async function packageMacos() {
   await mkdir(join(contents, 'MacOS'), { recursive: true });
   await cp(sea.executable, join(contents, 'MacOS', executableName));
   // The browser inside the resources is an application bundle of its own; its links must stay relative.
-  await cp(sea.resources, join(contents, 'Resources'), bundleCopy);
+  const resources = join(contents, 'Resources');
+  await cp(sea.resources, resources, bundleCopy);
+  const minimumSystem = await macosMinimum(contents);
+  sea.manifest.macosMinimum = minimumSystem;
+  if (candidate) sea.manifest.notices = await stageMacosNotices(resources, sea.manifest);
+  await writeFile(join(resources, 'runtime-manifest.json'), `${JSON.stringify(sea.manifest, null, 2)}\n`);
   const template = await readFile(join(repoRoot, 'packaging', 'macos', 'Info.plist'), 'utf8');
   const values = { NAME: applicationName, EXECUTABLE: executableName, IDENTIFIER: bundleIdentifier,
     VERSION: sea.manifest.app.version, MINIMUM_SYSTEM: minimumSystem };

@@ -272,7 +272,7 @@ test('without a private file system the parts stay in memory', async () => {
   }
 });
 
-test('a part the private file system refuses to keep stays in memory and is never listed', async () => {
+test('a part the private file system refuses to keep stays in memory and is never listed', async t => {
   const { bytes, archive } = archiveOf('abcdefghij');
   const aborted = [];
   const root = fakeDirectory({
@@ -293,13 +293,32 @@ test('a part the private file system refuses to keep stays in memory and is neve
   };
   for (const index of [0, 1, 2]) await store.put(index, partOf(bytes, archive, index));
   assert.deepEqual(await store.kept(), [0, 1, 2]);
+  const blob = t.mock.method(Response.prototype, 'blob');
   assert.deepEqual(Buffer.from(await (await store.file()).arrayBuffer()), bytes);
+  assert.equal(blob.mock.callCount(), 1, 'memory and disk parts stream into one completed blob');
   assert.deepEqual(records.map.get(archive.sha256).done, [0, 2]);
   assert.deepEqual(listedWithoutFile, []);
   assert.deepEqual(aborted, ['1'], 'the refused writable is given up');
   assert.deepEqual(await (await openPartStore(archive, { root, records })).kept(), [0, 2], 'a reload fetches it again');
   await store.drop(1);
   await assert.rejects(store.file(), /incomplete/);
+});
+
+test('an IndexedDB refusal keeps the part for this page without listing it in later records', async () => {
+  const { bytes, archive } = archiveOf('abcdefghij');
+  const root = fakeDirectory(), records = fakeRecords();
+  const store = await openPartStore(archive, { root, records });
+  const put = records.put;
+  records.put = async (key, value) => {
+    if (value.done.includes(1)) throw new DOMException('The quota was exceeded.', 'QuotaExceededError');
+    await put(key, value);
+  };
+  await Promise.all([1, 0, 2].map(index => store.put(index, partOf(bytes, archive, index))));
+  assert.deepEqual(await store.kept(), [0, 1, 2]);
+  assert.equal(store.reason, 'full');
+  assert.deepEqual(Buffer.from(await (await store.file()).arrayBuffer()), bytes);
+  assert.deepEqual(records.map.get(archive.sha256).done, [0, 2]);
+  assert.deepEqual(await (await openPartStore(archive, { root, records })).kept(), [0, 2]);
 });
 
 test('a part of another length than the manifest says is refused', async () => {

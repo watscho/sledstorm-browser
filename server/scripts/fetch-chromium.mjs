@@ -74,7 +74,7 @@ export async function pinnedChromium() {
     }
   }
   return { application, executable, version: chromium.version, position: archive.position, commit: archive.commit, platform,
-    archive: kept, archiveSha256: archive.sha256, executableSha256: archive.executableSha256,
+    archive: kept, archiveApplication: archive.application, archiveSha256: archive.sha256, executableSha256: archive.executableSha256,
     frameworkSha256: archive.frameworkSha256, archiveFrom, unpacked };
 }
 

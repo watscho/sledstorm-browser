@@ -122,7 +122,9 @@ const HOST_CHANGED = "The host's game files changed. Ask the host to start hosti
 const STOPPED = 'Game data stopped downloading. Reload the invitation to continue.';
 const STOPPED_OVER = 'Game data stopped downloading. Reload the invitation to try again.';
 /** A store that keeps its parts on disk, as the private file system's does, over the memory store's behaviour. */
-const savedStore = (archive, reason = null) => Object.assign(memoryPartStore(archive), { persistent: true, reason });
+const savedStore = (archive, reason = null) => Object.assign(memoryPartStore(archive), {
+  persistent: true, hasSavedParts: true, reason,
+});
 /** The note on the progress lines for each reason of the store (D101). */
 const NOTES = {
   unsupported: ' · this browser does not save it, a reload starts over',
@@ -286,6 +288,15 @@ test('the whole download names the host\'s changed game files', async () => {
   await assert.rejects(downloadDisc(info, options(marked)), { message: HOST_CHANGED });
   const bare = fakeServer({ whole: () => status(503) });
   await assert.rejects(downloadDisc(info, options(bare)),
+    { message: 'Could not download the game disc. Reload the invitation to try again.' });
+});
+
+test('the changed-files header only classifies a 503', async () => {
+  const fixture = archiveOf('abcd');
+  const chunk = archiveServer(fixture, (index, attempt) => attempt === 1 ? status(500, CHANGED_FILES) : undefined);
+  assert.deepEqual(await bytesOf((await downloadDisc(info, options(chunk))).file), fixture.bytes);
+  const whole = fakeServer({ whole: () => status(500, CHANGED_FILES) });
+  await assert.rejects(downloadDisc(info, options(whole)),
     { message: 'Could not download the game disc. Reload the invitation to try again.' });
 });
 
@@ -471,6 +482,21 @@ test('a chunk that has waited the whole wait budget stops the download', async (
   await assert.rejects(downloadDisc(info, run), { message: STOPPED });
   assert.ok(server.requests.filter(url => url.endsWith('/chunks/2')).length > MAX_FAILURES);
   assert.deepEqual(await store.kept(), [0, 1]);
+});
+
+test('retry delays for fast proxy timeouts count toward the wait budget', async t => {
+  const fixture = archiveOf('abcd');
+  const server = archiveServer(fixture, (index, attempt) => attempt < 4 ? status(524) : undefined);
+  let now = 0;
+  t.mock.method(performance, 'now', () => now);
+  const slept = [];
+  const run = options(server, {
+    deadlines: { wait: 2250 },
+    async sleep(ms) { slept.push(ms); now += ms; },
+  });
+  await assert.rejects(downloadDisc(info, run), { message: STOPPED_OVER });
+  assert.deepEqual(slept, [1000, 1000, 250]);
+  assert.equal(server.chunkRequests().length, 3);
 });
 
 test('a pause does not end a run of failures', async () => {
@@ -665,6 +691,18 @@ test('the note follows the store while the download runs', async () => {
   assert.ok(run.reports.includes('Downloading game data · 100%' + NOTES.full), run.reports.join(' | '));
 });
 
+test('a refused final write updates the note even when progress already reads 100%', async () => {
+  const fixture = archiveOf('abcd');
+  const store = savedStore(fixture.archive);
+  const put = store.put;
+  store.put = async (index, bytes) => { await put(index, bytes); store.reason = 'full'; };
+  const run = options(archiveServer(fixture), { openStore: async () => store });
+  await downloadDisc(info, run);
+  assert.deepEqual(run.reports.slice(-3), [
+    'Downloading game data · 100%', 'Downloading game data · 100%' + NOTES.full, 'Checking game data…',
+  ]);
+});
+
 test('the busy server\'s line carries the note', async () => {
   const fixture = archiveOf('abcdefghij');
   const server = archiveServer(fixture, (index, attempt) => index === 0 && attempt === 1 ? status(503, { 'Retry-After': '1' }) : undefined);
@@ -681,6 +719,16 @@ test('a stopped download in memory says to try again, a saved one to continue', 
     const server = archiveServer(fixture, index => index === 2 ? status(500) : undefined);
     await assert.rejects(downloadDisc(info, options(server, { openStore: async archive => store(archive) })), { message: sentence });
   }
+});
+
+test('a storage refusal with no saved parts says a reload starts over', async () => {
+  const fixture = archiveOf('abcd');
+  const store = savedStore(fixture.archive, 'full');
+  store.hasSavedParts = false;
+  store.file = async () => { throw new DOMException('Gone.', 'NotReadableError'); };
+  const run = options(archiveServer(fixture), { openStore: async () => store });
+  await assert.rejects(downloadDisc(info, run), { message: STOPPED_OVER });
+  assert.ok(run.reports.includes('Downloading game data · 100% · browser storage is full, a reload starts over'));
 });
 
 test('a spent wait budget and a storage error in memory say to try again', async () => {

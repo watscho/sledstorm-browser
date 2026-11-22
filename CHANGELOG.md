@@ -20,10 +20,12 @@ semantic versioning for the browser wrapper.
   damaged piece is fetched again. The whole disc is checked once more before
   the game starts, and the pieces are removed once it has started. A busy
   server or a long wait in its queue pauses the download instead of ending
-  it. Where the browser cannot keep the pieces (no storage for the address,
-  a full disk, a second tab of the same invitation), they stay in memory
-  for that page. The Python launcher, which has no pieces, still sends the
-  whole disc.
+  it. If storage is unavailable, full or held by another tab, the parts
+  that cannot be saved stay in memory. The page explains which parts a
+  reload will need again. The Python launcher still sends the whole disc.
+- On a stable address, the browser is asked to keep its storage when the
+  player chooses "Keep game data". If the browser copy or the portable ZIP
+  cannot be saved, the player sees a notice when the game starts.
 - The packaged server sends the game files to at most four invited players
   at once; up to sixteen more wait their turn, and any beyond that are told
   that the server is busy. A download whose player leaves frees its place at
@@ -48,12 +50,17 @@ semantic versioning for the browser wrapper.
 
 ### Changed - 2026-11-22
 
+- If the host's game files change during a download, the page tells the
+  player to ask the host to start hosting again. An unmarked 503 from a
+  proxy can be retried.
 - The Quick Tunnel dialog's "Use existing ZIP" chooses the saved ZIP, which
   may be any ZIP of the host's disc, not only the exact copy saved from that
   host; a ZIP that is not the room's disc is told in the Game files tab.
   "Join game · Ready" and "Join game · ZIP selected" give way to the launch
   summary's "Game data" row, and "Reset settings" no longer forgets the
-  chosen game files.
+  chosen game files. A new Quick Tunnel address starts a fresh download.
+  Selecting a portable ZIP from the previous address can start the game
+  without downloading the disc again.
 
 ### Added - 2026-11-21
 

@@ -9,8 +9,9 @@ It is an internal preview. The Python launchers in the
 [quick start](../README.md#-start-invite-stop) remain the supported way to
 play. What the preview does and does not do yet:
 
-- It is built on your own Mac, for Macs with Apple silicon. It is signed
-  ad hoc, not by a developer identity, and not notarized.
+- It is built for Apple silicon. The bundled `cloudflared` declares macOS
+  15.0, which sets the current package minimum. The preview is signed ad
+  hoc. Developer ID signing, notarization and clean-Mac checks are open.
 - The packaged room was checked with two players, in the lobby and at the
   start of one race. Longer play is checked with the Python launchers.
 - The public address is a temporary one from a Cloudflare quick tunnel. Every
@@ -31,6 +32,56 @@ npm run package:macos --prefix server
 
 The first build downloads and checks the pinned Node.js, `cloudflared` and
 Chromium (about 360 MB). The result is `dist/macos/Sled Storm Server.app`.
+
+To make the internal ZIP with the pinned notices and run RELEASE-01:
+
+```sh
+npm run package:macos:zip --prefix server
+```
+
+The first ZIP build also downloads pinned license inputs, including the
+official archive used to extract Chromium's credits. The ZIP and its SHA-256
+are reported after the package has passed inspection in a fresh extraction.
+
+### Signing and notarization
+
+Run the ZIP build from the exact clean revision to be distributed, with the
+prepared emulator built from its pinned sources. The commands below use the
+ZIPs under `dist/macos/` for the version in `VERSION`.
+
+| Command suffix | Input | Result |
+| --- | --- | --- |
+| `-- --rehearse` | `*-preview.zip` | `*-rehearsal.zip` with ad-hoc hardened signatures for a local signature check. |
+| `-- --sign` | `*-preview.zip` | `*-signed.zip` with Developer ID signatures and secure timestamps. |
+| `-- --notarize` | `*-signed.zip` | `*-notarized.zip` with Apple's ticket attached to the app inside the ZIP. |
+
+Run each suffix after `npm run package:macos:zip --prefix server`. For
+`--sign`, set `SLED_MACOS_SIGNING_IDENTITY` to the SHA-1 fingerprint of an
+unlocked, valid Developer ID Application identity. An ephemeral CI keychain
+can receive the certificate and private key from the CI secret store. Keep
+the certificate export, its password and the keychain password in that
+store.
+
+The signer seals Mach-O leaves, Chromium helper apps, the Chromium framework,
+Chromium and the SEA app in that order. It checks every item's Hardened
+Runtime and signing team. The SEA and Chromium's GPU and renderer helpers
+receive `allow-jit`. The ad-hoc rehearsal checks signature structure and the
+SEA `self-test`. With Hardened Runtime, dyld rejects the Chromium framework
+and reports a Team ID mismatch. Use the Developer ID ZIP for
+the Chromium runtime check and verify a real room on the clean Mac before
+submission.
+
+For `--notarize`, set `SLED_MACOS_NOTARY_PROFILE` to an existing Keychain
+profile provisioned by `xcrun notarytool store-credentials`. Provision it
+with the organization's App Store Connect credentials or Apple ID and
+app-specific password. Only the profile name goes into the command's
+environment. This step submits the verified signed app ZIP to Apple, saves
+the completed notary log under `dist/macos/`, staples an accepted ticket to
+the app and creates a fresh ZIP. The final extraction is checked again by
+RELEASE-01, `stapler validate` and `syspolicy_check distribution`. Review
+any notary log issues alongside the clean-Mac Finder results.
+[Apple's signing instructions](https://developer.apple.com/documentation/xcode/creating-distribution-signed-code-for-the-mac/)
+· [Apple's notarization instructions](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)
 
 You can drag it to Applications or open it where it is: the server reads its
 own parts from inside the bundle and keeps its data in your Library. A bundle

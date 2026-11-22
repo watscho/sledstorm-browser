@@ -25,6 +25,25 @@ function checkLength(archive, index, bytes) {
     || bytes.byteLength !== partLength(archive, index)) throw new Error('The game data part has the wrong length.');
 }
 
+function copyBytes(bytes) {
+  const view = ArrayBuffer.isView(bytes)
+    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength) : new Uint8Array(bytes);
+  return view.slice();
+}
+
+async function streamedArchive(parts) {
+  // Stream one blob to completion. Chromium can fail to read a large File assembled from many pending blobs.
+  const stream = new ReadableStream({
+    async pull(controller) {
+      const part = await parts.next();
+      if (part.done) controller.close();
+      else controller.enqueue(part.value);
+    },
+    async cancel() { await parts.return?.(); },
+  });
+  return new File([await new Response(stream).blob()], 'disc.zip');
+}
+
 /**
  * The parts in memory: checked as on disk, but gone with the page. `reason` says why (D100): 'unsupported' (no private
  * file system, `createWritable` or IndexedDB), 'unavailable' (storage refused when the store opened), 'busy' (another
@@ -34,16 +53,17 @@ export function memoryPartStore(archive, reason = 'unsupported') {
   const parts = new Map();
   return {
     persistent: false,
+    hasSavedParts: false,
     reason,
     async kept() { return [...parts.keys()].sort(ascending); },
     async put(index, bytes) {
       checkLength(archive, index, bytes);
-      parts.set(index, new Blob([bytes]));
+      parts.set(index, copyBytes(bytes));
     },
     async drop(index) { parts.delete(index); },
     async file() {
       if (parts.size !== archive.chunks.length) throw incompleteError();
-      return new File(allIndices(archive).map(index => parts.get(index)), 'disc.zip');
+      return streamedArchive(allIndices(archive).map(index => parts.get(index)).values());
     },
     async remove() { parts.clear(); },
   };
@@ -122,23 +142,38 @@ async function persistentPartStore(archive, root, records, release, storage) {
   // Record writes go one after another, each with the parts listed at its turn, so none is lost.
   let removed = false;
   let writes = Promise.resolve();
-  const record = () => {
-    const write = writes.catch(() => {}).then(() => removed ? undefined : records.put(key, {
-      size: archive.size, chunkSize: archive.chunkSize, chunks: archive.chunks, done: [...done].sort(ascending),
-    }));
+  const record = added => {
+    const write = writes.catch(() => {}).then(async () => {
+      if (removed) return;
+      const indices = [...done];
+      if (added !== undefined && !done.has(added)) indices.push(added);
+      await records.put(key, {
+        size: archive.size, chunkSize: archive.chunkSize, chunks: archive.chunks, done: indices.sort(ascending),
+      });
+      if (!removed && added !== undefined) done.add(added);
+    });
     writes = write;
     return write;
   };
   if (!saved || !sameShape(saved, archive) || saved.done.length !== done.size) await record();
 
-  // A checked part that the private file system refuses to keep (its quota, a full disk) stays in memory for this
-  // page, never listed: the download goes on, and a reload fetches it again.
+  // A checked part that cannot be written or listed stays in memory for this page. A reload fetches it again.
   const held = new Map();
   let full = false;
   const counted = () => new Set([...done, ...held.keys()]);
+  const readPart = async index => (await directory.getFileHandle(String(index))).getFile();
+
+  async function* streamParts() {
+    for (const index of allIndices(archive)) {
+      const bytes = held.get(index);
+      if (bytes) yield bytes;
+      else yield* (await readPart(index)).stream();
+    }
+  }
 
   return {
     persistent: true,
+    get hasSavedParts() { return done.size > 0; },
     get reason() { return full ? 'full' : null; },
     async kept() { return [...counted()].sort(ascending); },
     async put(index, bytes) {
@@ -149,17 +184,17 @@ async function persistentPartStore(archive, root, records, release, storage) {
         writable = await (await directory.getFileHandle(String(index), { create: true })).createWritable();
         await writable.write(bytes);
         await writable.close();
+        writable = undefined;
+        await record(index);
       } catch {
         try { await writable?.abort?.(); } catch { /* The write is given up either way. */ }
         if (removed) throw removedError();
         full = true;
-        held.set(index, new Blob([bytes]));
+        held.set(index, copyBytes(bytes));
         return;
       }
       if (removed) throw removedError();
       held.delete(index);
-      done.add(index);
-      await record();
     },
     async drop(index) {
       if (removed) throw removedError();
@@ -171,10 +206,9 @@ async function persistentPartStore(archive, root, records, release, storage) {
     async file() {
       if (removed) throw removedError();
       if (counted().size !== archive.chunks.length) throw incompleteError();
+      if (held.size) return streamedArchive(streamParts());
       const files = [];
-      for (const index of allIndices(archive)) {
-        files.push(held.get(index) ?? await (await directory.getFileHandle(String(index))).getFile());
-      }
+      for (const index of allIndices(archive)) files.push(await readPart(index));
       return new File(files, 'disc.zip');
     },
     async remove() {

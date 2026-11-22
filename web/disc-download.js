@@ -31,7 +31,7 @@ const UNAVAILABLE = 'Could not download the game disc. Reload the invitation to 
 /** The sentences a stopped download shows; any other error is shown as a stop. */
 const SENTENCES = new Set([CHANGED, HOST_CHANGED, STOPPED, STOPPED_OVER, UNAVAILABLE]);
 /** A stop promises to continue only where the parts are saved (D101). */
-const stopped = store => store?.persistent ? STOPPED : STOPPED_OVER;
+const stopped = store => store?.hasSavedParts ? STOPPED : STOPPED_OVER;
 
 const WONT_SAVE = ' · this browser does not save it, a reload starts over';
 /** What the progress lines add for each reason the part store gives (D100, D101). */
@@ -43,7 +43,8 @@ const NOTES = {
   full: ' · browser storage is full, a reload fetches the unsaved part again',
 };
 /** Read at every line: the persistent store's reason changes when the private file system refuses a write. */
-const noteOf = store => NOTES[store.reason] ?? '';
+const noteOf = store => store.reason === 'full' && !store.hasSavedParts
+  ? ' · browser storage is full, a reload starts over' : NOTES[store.reason] ?? '';
 
 /** A failure of one request that is asked again. */
 class Failure extends Error {}
@@ -126,7 +127,7 @@ async function readManifest(o, signal) {
 
 /** The mark the listener puts on its 503 for game files changed since they were prepared (D92, D102); a proxy's 503
  *  has none. */
-const hostChanged = response => response.headers.get('X-Sled-Game-Files') === 'changed';
+const hostChanged = response => response.status === 503 && response.headers.get('X-Sled-Game-Files') === 'changed';
 
 function retryAfterMs(value) {
   const seconds = /^\d+$/.test(value.trim()) ? Number(value) : 2;
@@ -165,16 +166,17 @@ async function runWorkers(indices, count, work) {
 async function fetchArchive(info, archive, store, o) {
   const received = new Map();
   let doneBytes = 0;
-  let shown = -1;
+  let shown;
   let busy = false;
   const progress = () => {
     let bytes = doneBytes;
     for (const value of received.values()) bytes += value;
     const percent = Math.min(100, Math.floor(bytes * 100 / archive.size));
-    if (percent === shown && !busy) return;
-    shown = percent;
-    o.report((busy ? `The server is busy · waiting to continue · ${percent}%` : `Downloading game data · ${percent}%`)
-      + noteOf(store));
+    const line = (busy ? `The server is busy · waiting to continue · ${percent}%` : `Downloading game data · ${percent}%`)
+      + noteOf(store);
+    if (line === shown && !busy) return;
+    shown = line;
+    o.report(line);
   };
 
   // A chunk's 404 reads the manifest again, once for every worker that meets it at the same time. Both workers share
@@ -188,14 +190,14 @@ async function fetchArchive(info, archive, store, o) {
     throw new ArchiveChanged(next);
   }
 
-  async function requestPart(index, signal) {
+  async function requestPart(index, signal, waitRemaining) {
     if (signal.aborted) throw signal.reason;
     const length = partLength(archive, index);
     const request = new AbortController();
     const abort = () => request.abort();
     signal.addEventListener('abort', abort, { once: true });
     // Until the answer begins, the request may wait in the host's queue: only the long answer deadline applies.
-    let timer = setTimeout(abort, o.deadlines.answer);
+    let timer = setTimeout(abort, Math.min(o.deadlines.answer, waitRemaining));
     const stalling = () => {
       clearTimeout(timer);
       timer = setTimeout(abort, o.deadlines.stall);
@@ -253,9 +255,9 @@ async function fetchArchive(info, archive, store, o) {
     // Pauses and waits neither count as failures nor end a run of them.
     let waited = 0;
     for (let failures = 0; ;) {
-      const asked = Date.now();
+      const asked = performance.now();
       try {
-        const bytes = await requestPart(index, signal);
+        const bytes = await requestPart(index, signal, o.deadlines.wait - waited);
         try { await store.put(index, bytes); }
         catch { throw new Failure('The chunk could not be kept.'); }
         received.delete(index);
@@ -274,9 +276,12 @@ async function fetchArchive(info, archive, store, o) {
           continue;
         }
         if (error instanceof Wait) {
-          waited += Date.now() - asked;
+          const answered = performance.now();
+          waited += answered - asked;
           if (waited >= o.deadlines.wait) throw new Error(stopped(store));
-          await o.sleep(WAIT_RETRY_MS, signal);
+          await o.sleep(Math.min(WAIT_RETRY_MS, o.deadlines.wait - waited), signal);
+          waited += performance.now() - answered;
+          if (waited >= o.deadlines.wait) throw new Error(stopped(store));
           continue;
         }
         if (!(error instanceof Failure)) throw error;

@@ -10,7 +10,7 @@
 
 **Spec:** the owner's brief "Sled Storm Server — Node SEA", sections 11.2, 11.4 (step 5), 11.5 and 15.2 (DATA-05 to DATA-08), outside the repository; `docs/sea-server-plan.md`, "P5 Resumable delivery" ("Open after slice 2") and D91 to D99.
 
-**Review base:** the state that slice 2 left, the ignored file `.superpowers/sdd/p5-slice-2-tree.tar`. On 2026-11-22 at 11:18, before the first change of this slice, all 232 files that Git does not ignore were equal to it. A commit of P3 to P5, if the owner asks for one, replaces it.
+**Review base:** the state that slice 2 left, the ignored file `.superpowers/sdd/p5-slice-2-tree.tar`. On 2026-11-22 at 11:18, before the first change of this slice, all 232 files that Git does not ignore were equal to it. The archive was absent from the checkout used for phase 3. The review scope and substitute comparison are recorded below.
 
 ## Global Constraints
 
@@ -39,18 +39,68 @@ One phase per working session; each ends with `npm run verify --prefix server` p
 | Phase | Tasks | State |
 |---|---|---|
 | 1 | This plan; Tasks 1 to 3: the quota and the reasons, what the player is told, the host's changed game files named | Done 2026-11-22 |
-| 2 | Tasks 4 and 5: the page's persistence and saved-copy notices, checks by hand in the pinned Chromium (DATA-05 to DATA-08 on the owner's disc through a copy of the bundle) | Task 4 done 2026-11-22; Task 5 not started (stopped by the owner at 11:50) |
-| 3 | Tasks 6 and 7: the independent review, the records and P5's exit | Not started |
+| 2 | Tasks 4 and 5: the page's persistence and saved-copy notices, checks by hand in the pinned Chromium (DATA-05 to DATA-08 on the owner's disc through a copy of the bundle) | Done 2026-11-22 |
+| 3 | Tasks 6 and 7: the independent review, the records and P5's exit | Done 2026-11-22 |
 
 ## Status
 
 **Phase 1 is done (2026-11-22, 11:13 to 11:40).** Before the first change the working tree was checked equal to `.superpowers/sdd/p5-slice-2-tree.tar` (232 files). Task 1: `web/disc-parts.js` asks `storage.estimate()` for the missing parts plus `QUOTA_MARGIN` and gives every store a `reason`; `web/disc-parts.test.mjs` 26 tests (was 19). Task 2: `web/disc-download.js` adds the store's note to its progress lines and says "to continue" only for a persistent store; Task 3: the listener's changed-files 503 carries `X-Sled-Game-Files: changed`, the gateway forwards it, the page stops on the mark alone and asks a bare 503 again; `web/disc-download.test.mjs` 46 tests (was 38), new assertions in `server/test/runtime-http.test.ts`, one new test in `research/network/gateway.test.mjs`. New tests failed before the code, except where the ledger says a mutant proves them; 36 mutants, 35 killed and 1 equivalent. `npm run verify --prefix server`: all 11 checks passed in 157 s (web and panel 235 of 235, server 267 of 267 on both Node.js versions, network 74, smoke 30; `verify-phase-1.log` in the ledger folder). `web/app.js` is unchanged; the decisions above hold as written.
 
-**Phase 2, Task 4 is done (2026-11-22, 11:41 to 11:50); Task 5 is not started.** The owner was asked first whether they would watch the hand checks and chose to watch. Task 4: `askToKeepStorage(storage)` and `unsavedGameDataNotice(where, error)` in `web/game-data-folder.js`; `web/game-data-folder.test.mjs` 6 tests (was 2). `web/app.js`: `sharedDiscFile` calls `askToKeepStorage()` when `keep && cacheAllowed`, before `downloadDisc` (D103); a refused Cache Storage put and a ZIP that `saveGameArchive` could not write set `gameDataNotice`, which `renderStatus` shows through `showActionNotice` at the moment the room would show LIVE, and `EJS_onGameStart` shows at once under `?lab` and `?console`, which have no room (D104). A refusal of the browser copy other than `QuotaExceededError` says `Game data was not kept in this browser. It downloads again next time.` (no cause named); a failure of `rememberCopy` after the ZIP was written warns in the console only. 9 mutants of `web/game-data-folder.js`, all killed (`m-keep.json` in the ledger folder). `npm run verify --prefix server`: all 11 checks passed in 156 s (web and panel 239 of 239, server 267 of 267 on both Node.js versions, network 74, smoke 30; `verify-phase-2.log`); `web/` and `admin/` equal the built bundle except their test files. `web/app.js` has no unit test; its two paths are for Task 5 to see.
+**Phase 2, Task 4 is done (2026-11-22, 11:41 to 11:50).** The owner was asked first whether they would watch the hand checks and chose to watch. Task 4: `askToKeepStorage(storage)` and `unsavedGameDataNotice(where, error)` in `web/game-data-folder.js`; `web/game-data-folder.test.mjs` 6 tests (was 2). `web/app.js`: `sharedDiscFile` calls `askToKeepStorage()` when `keep && cacheAllowed`, before `downloadDisc` (D103); a refused Cache Storage put and a ZIP that `saveGameArchive` could not write set `gameDataNotice`, which `renderStatus` shows through `showActionNotice` at the moment the room would show LIVE, and `EJS_onGameStart` shows at once under `?lab` and `?console`, which have no room (D104). A refusal of the browser copy other than `QuotaExceededError` says `Game data was not kept in this browser. It downloads again next time.` (no cause named); a failure of `rememberCopy` after the ZIP was written warns in the console only. 9 mutants of `web/game-data-folder.js`, all killed (`m-keep.json` in the ledger folder). `npm run verify --prefix server`: all 11 checks passed in 156 s (web and panel 239 of 239, server 267 of 267 on both Node.js versions, network 74, smoke 30; `verify-phase-2.log`); `web/` and `admin/` equal the built bundle except their test files.
 
 At 11:50 the owner said to stop by 11:59, record the state as it is, commit and push. Task 5 was being prepared: `player.mjs` and `drive.mjs` are copied into this slice's ledger folder, and `player.mjs` is extended (a visible window with `HEADED=1`; `QUOTA`, `NOOPFS`; a `*.trycloudflare.com` name mapped to 127.0.0.1 and treated as secure, so the page takes its Quick Tunnel path on the gateway's loopback port; `picker cancel|ok`; a save picker stand-in into the private folder `saved`; `saved-check`; `tab2` and `@2 <command>`). It passes `node --check` and has not run yet. Planned for Task 5: host an APFS clone (`cp -cpR`) of `game/` in the scratch folder, so that Step 5 can `touch` a BIN of the clone and the owner's files are never changed; `copy.sh` from slice 2 configures `$repo/game` and needs that change.
 
-Next: phase 2, Task 5 (the hand checks), then phase 3.
+**Phase 2, Task 5 is done (2026-11-22).** This checkout started at `20c2064`,
+the pushed branch tip, and contained the owner's game files. The earlier
+ledger scripts and built bundle were missing. The pinned toolchain, emulator
+and macOS application were rebuilt. The hand-check driver
+(`node .cache/p5-manual-check/check.mjs` from the repository root) ran
+Chromium 158.0.8127.0 in visible windows with separate profiles and the
+bundle's loopback gateway. The temporary host used an APFS clone of the
+disc and a stand-in for `cloudflared`. The owner authorized freeing the
+normal ports from the previous Python launcher. The browser profiles, test
+bundle, disc clone and portable ZIP were removed after each run.
+
+The low-quota run reproduced a `NotReadableError` after 86 successful
+chunk requests, while reading a slice of the assembled file during archive
+verification. `web/disc-parts.js` now stores checked memory parts as byte
+arrays and streams them in archive order into one completed blob before
+returning a `File`. The reread still checks every chunk. The pinned browser
+reports the 256 MiB DevTools override to the page with
+`--disable-features=StaticStorageQuota` on the test profile. That run now
+reaches LIVE. Chromium rejected the real Cache Storage write with
+`QuotaExceededError` and the player saw the expected notice. A separate run
+used a controlled cache refusal with an earlier cache entry, which survived
+alongside the save and the remembered ZIP handle. All 11 browser scenarios
+passed on the rebuilt application. `npm run verify --prefix server` passed
+all 11 checks in 184 s after the browser runs.
+
+**Phase 3 review, 2026-11-22.** GPT-6.2 Astra reviewed Tasks 1 through 5
+in the current sources, the working diff from `20c2064` for the memory
+archive fix, and the relevant source and test history from `54a64b3`
+through `20c2064`. The last commit includes P3, P4 and P5 through Task 4,
+so that history cannot reconstruct the exact slice 2 diff. The reviewed
+paths cover the part store, downloader, cache and portable ZIP paths in
+the web client, plus the changed-files response in the listener and
+gateway. The review report is `review.log` in this slice's ledger folder.
+
+The wait budget now includes the delay after 504 and 524, and the
+remaining budget caps the next answer deadline. The game can use parts
+when either the private file system or IndexedDB refuses a write. Memory
+parts and any saved parts are streamed into one completed blob. The last
+failed write can update the note at 100%. A stop offers to continue only
+when at least one part is saved. The changed-files mark is read on 503.
+Opening and writing the browser cache can both result in the saved-copy
+notice. The local console and lab give it temporary priority over their
+normal status. The persistence request also covers a kept cache hit.
+
+Six Node regression cases and four pinned Chromium checks with synthetic
+bytes failed before the fixes and passed after them. The Chromium driver
+is `.cache/p5-review/browser-check.mjs`; `review-browser.log` records the
+large archive and console checks. The earlier packaged room runs remain
+the evidence for DATA-05 to DATA-08. The complete `npm run verify --prefix
+server` run passed all 11 checks in 158 s. The P5 exit record and the next
+P6 step are in `docs/sea-server-plan.md`.
 
 ## Tasks
 
@@ -130,24 +180,34 @@ Next: phase 2, Task 5 (the hand checks), then phase 3.
 
 ### Task 5: By hand
 
-Headless in the pinned Chromium (ask the owner first, in one question, whether they will watch; with nobody at the screen, what needs eyes is recorded as not verified), on a scratch copy of the built bundle staged with `.superpowers/sdd/2026-11-22-p5-resumable-download/copy.sh` (the tests' tunnel stand-in in `Contents/Resources/bin`, the probe off, `SLED_SERVER_HOME` in the scratch folder, the owner's disc under `shared-allowed`, ports 8000 and 8006), guests through the gateway's loopback port, `player.mjs` and `drive.mjs` from that folder (extended in this slice's ledger folder where needed). Nothing printed names the disc, a hash, a path, a link or a token; the scratch folder is deleted afterwards.
+The hand checks used the pinned Chromium in visible windows at the owner's request. Guests came through the loopback gateway of a scratch copy of the application, with the tests' tunnel stand-in, the probe off, `SLED_SERVER_HOME` in the scratch folder, the cloned disc under `shared-allowed`, and ports 8000 and 8006. The driver read page status and request counts over private DevTools pipes.
 
-- [ ] **Step 1:** DATA-05 after slice 2's review fixes: a guest killed at about 40% resumes on the same origin with only the missing chunks, and the game starts.
-- [ ] **Step 2:** DATA-06 in the page: a changed part is fetched again once; DATA-06 on the server stays as slice 1 checked it.
-- [ ] **Step 3:** DATA-07: a quota held below the need with `Storage.overrideQuotaForOrigin` (the memory note, the game starts, the saves list and the remembered copy as before); no private file system (`navigator.storage.getDirectory` removed by a page script before the download: the memory note); a second tab of the same invitation (the busy note); a cancelled picker in the game data dialog and under "Use saved ZIP" (every earlier choice kept); a stop in memory says "try again".
-- [ ] **Step 4:** DATA-08: a guest saves the portable ZIP on the gateway's first port (equal to `curl` of `/disc.zip`); hosting starts again, so the gateway's port, and the guest's origin, changes; on the new origin the page downloads from 0% with no word of the earlier one, and the saved ZIP chosen under "Use saved ZIP" starts the game without a download.
-- [ ] **Step 5:** A changed disc while a guest downloads: the host's sentence, not a retry loop (D102).
-- [ ] **Step 6:** Record what was seen and what was not verified.
+- [x] **Step 1. DATA-05.** SIGKILL at about 40%. The same profile on the same origin reused 34 saved chunks, requested only the 52 missing chunks, reached LIVE and discarded its progress record.
+- [x] **Step 2. DATA-06 in the page.** Changing one byte of a saved chunk caused one request for that chunk. Seven other saved chunks were reused, and the game reached LIVE. The server part of DATA-06 was checked in slice 1.
+- [x] **Step 3. DATA-07.** A 256 MiB quota showed the low-storage message
+  and reached LIVE after the archive fix. The saves library and remembered
+  ZIP handle survived. With `navigator.storage.getDirectory` disabled, the
+  fallback message appeared, and a run of unmarked 503 responses ended with
+  "try again". With two tabs the second showed the message about the other
+  tab holding the parts. Picker cancellations in the game data dialog and
+  under "Use saved ZIP" preserved the existing choices, including a
+  previously chosen ZIP destination. The browser cache quota refusal and a
+  refused portable ZIP write each showed D104's notice at game start. The
+  stable-address check called `persist()` once with a refusal stand-in. The
+  temporary-address check made zero calls.
+- [x] **Step 4. DATA-08.** The portable ZIP matched the bytes served by `/disc.zip`. Restarting hosting changed the gateway port and the mapped hostname. The new origin started at 0% and the saved ZIP selected under "Use saved ZIP" reached LIVE with zero disc requests after selection.
+- [x] **Step 5. D102.** Changing the timestamp of a track in the APFS clone during the download produced a marked 503 through the gateway and the host's changed-files message. The guest made zero further chunk requests after that message. The original track's timestamp matched its starting value.
+- [x] **Step 6.** The visible windows used local stand-ins for Quick Tunnel and the operating-system pickers. A real public tunnel, native picker dialogs, a physical disk full, and non-Chromium browsers remain unverified in this phase.
 
 ### Task 6: The independent review
 
-- [ ] **Step 1:** The review on the most capable model that takes requests, from a diff against `.superpowers/sdd/p5-slice-2-tree.tar`, with the focus below; its final message is the report.
-- [ ] **Step 2:** Fix critical and important findings test first, and the cheap minor ones; list the rest as open.
+- [x] **Step 1:** GPT-6.2 Astra reviewed the scope above with the focus below. The exact slice 2 archive was unavailable and the substitute comparison is recorded.
+- [x] **Step 2:** Fixed the six review findings and the two follow-up findings. The remaining qualification checks are under P5 in `docs/sea-server-plan.md`.
 
 ### Task 7: Records and P5's exit
 
-- [ ] **Step 1:** `docs/sea-server-plan.md`: the slice's results, hand checks, what was not verified, what stays open, D100 to D105, P5's exit checks (DATA-05 to DATA-08) and its state in the Status table, the verification log, and a new "Where to continue" that names P6; `CHANGELOG.md`.
-- [ ] **Step 2:** Run every check on the final tree and make `.superpowers/sdd/p5-slice-3-tree.tar` the base of P6's first review.
+- [x] **Step 1:** `docs/sea-server-plan.md` records the results, limits, decisions D100 to D105 and the next P6 step. `CHANGELOG.md` records the player-facing changes.
+- [x] **Step 2:** All 11 checks passed. `.superpowers/sdd/p5-slice-3-tree.tar` contains the 233-file final P5 tree for the first P6 review.
 
 ## Review Focus
 
