@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { once } from 'node:events';
-import { appendFile, chmod, mkdir, readdir, readFile, rm, truncate, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, cp, mkdir, readdir, readFile, rm, truncate, writeFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
 import { connect, createServer, type AddressInfo, type Server } from 'node:net';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -9,7 +10,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { writeConfig, type DiscPolicy } from '../src/config-store.ts';
-import { createHostService, type HostService } from '../src/host-service.ts';
+import { createHostControl } from '../src/host-control.ts';
+import { createHostService, roomOptionsFor, type HostService } from '../src/host-service.ts';
 import { roomIdentity, type RoomIdentityInput } from '../src/network.ts';
 import { identityKey } from '../../web/save-file.js';
 import type { RoomTiming } from '../src/room.ts';
@@ -65,7 +67,7 @@ async function service(t: TestContext, { policy = 'shared-allowed' as DiscPolicy
   tunnel = null as TunnelSetup, worker = null as WorkerSetup } = {}) {
   const paths = await scratchPaths(t, 'host');
   const folder = await writeGame(join(paths.root, 'Игра folder'));
-  if (policy) await writeConfig(paths, { version: 1, gameFolder: folder, discPolicy: policy });
+  if (policy) await writeConfig(paths, { version: 1, gameFolder: folder, discPolicy: policy, autoStart: true, roomOptions: { progress: 'all', camera: true } });
   const gamePort = await freePort();
   const netplayPort = await freePort();
   const lines: string[] = [];
@@ -92,8 +94,8 @@ async function service(t: TestContext, { policy = 'shared-allowed' as DiscPolicy
 
 test('an unconfigured server needs setup', async t => {
   const { host, gamePort } = await service(t, { policy: null });
-  assert.deepEqual(host.status(), { state: 'idle', problem: null, game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off' });
-  assert.deepEqual(await host.start(), { state: 'needs_setup', game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off',
+  assert.deepEqual(host.status(), { state: 'idle', problem: null, game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off', players: null, roomOptions: null });
+  assert.deepEqual(await host.start(), { state: 'needs_setup', game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off', players: null, roomOptions: null,
     problem: { component: 'config', message: 'Choose the game folder and the disc policy to start hosting.' } });
   assert.ok(await refused(gamePort), 'nothing listens before setup');
 });
@@ -107,12 +109,83 @@ test('a damaged configuration needs setup', async t => {
   assert.match(String(status.problem?.message), /damaged/);
 });
 
-test('local-only waits for a later stage', async t => {
-  const { host } = await service(t, { policy: 'local-only' });
-  assert.deepEqual((await host.start()).problem, { component: 'config',
-    message: "Rooms that use each player's own game files are not available in this build yet. Choose shared-allowed to host." });
-  assert.equal(host.status().state, 'needs_setup');
-});
+/** Asks the given port for a path exactly as written (fetch would settle dot segments first), with the body's SHA-256. */
+const raw = (port: number, method: string, path: string, headers: Record<string, string> = {}) =>
+  new Promise<{ status: number; sha256: string }>((resolve, reject) => {
+    const asked = httpRequest({ host: '127.0.0.1', port, method, path, headers }, answer => {
+      const hash = createHash('sha256');
+      answer.on('data', (part: Buffer) => hash.update(part));
+      answer.once('end', () => resolve({ status: answer.statusCode ?? 0, sha256: hash.digest('hex') }));
+      answer.once('error', reject);
+    });
+    asked.once('error', reject);
+    asked.end();
+  });
+
+test('local-only hosts: the room\'s emulator and the loopback page get the disc, the public gateway refuses every way to it',
+  { timeout: 20_000 }, async t => {
+    const token = 'c'.repeat(48);
+    const { host, gamePort, browserEvents, folder } = await service(t, { policy: 'local-only', worker: {}, accessToken: token });
+    const status = await host.start();
+    assert.deepEqual({ state: status.state, room: status.room }, { state: 'online', room: 'open' }, JSON.stringify(status.problem));
+    // The room's emulator runs on the loopback origin, which serves the disc under either policy.
+    const navigate = (await browserEvents()).find(entry => entry.event === 'navigate');
+    assert.equal(navigate?.url, `http://127.0.0.1:${gamePort}/`);
+    const info = await (await fetch(`${status.localUrl}session-info`)).json() as Record<string, unknown> & { archive: { sha256: string; size: number; chunks: string[] } };
+    assert.equal(info.discMode, 'shared');
+    const archive = Buffer.from(await (await fetch(`${status.localUrl}disc.zip`)).arrayBuffer());
+    assert.equal(archive.length, info.archive.size);
+    assert.equal(createHash('sha256').update(archive).digest('hex'), info.archive.sha256);
+    // The loopback listener offers the chunks too (D92): the owner's own page may resume a download.
+    const manifest = await fetch(`${status.localUrl}game-data/manifest`);
+    assert.equal(manifest.status, 200);
+    assert.deepEqual((await manifest.json() as { archive: unknown }).archive, info.archive);
+    const firstChunk = Buffer.from(await (await fetch(`${status.localUrl}game-data/${info.archive.sha256}/chunks/0`)).arrayBuffer());
+    assert.equal(createHash('sha256').update(firstChunk).digest('hex'), info.archive.chunks[0]);
+
+    // Through the gateway, with its access cookie: the same session, marked for the player's own files, and no disc.
+    const gateway = `http://127.0.0.1:${status.gatewayPort}`;
+    assert.equal((await fetch(`${gateway}/access/${token}`, { redirect: 'manual' })).status, 302);
+    const headers = { cookie: `sled_access=${token}` };
+    const forwarded = await fetch(`${gateway}/session-info`, { headers });
+    assert.equal(forwarded.status, 200);
+    assert.equal(forwarded.headers.get('x-sled-disc'), 'local');
+    assert.deepEqual(await forwarded.json(), info);
+    const ways = ['/disc.zip', '/disc.zip?download=1', '/disc.zip/', '/./disc.zip', '/emulator/../disc.zip', '//disc.zip',
+      '/%64isc.zip', '/disc%2Ezip', '/DISC.ZIP', '/game-data/manifest', `/game-data/${info.archive.sha256}/chunks/0`];
+    for (const path of ways) {
+      for (const method of ['GET', 'HEAD']) {
+        const answer = await raw(status.gatewayPort!, method, path, headers);
+        assert.notEqual(answer.sha256, info.archive.sha256, `${method} ${path}`);
+        // The gateway parses `//disc.zip` as the address of another host with the path `/`, and serves the page.
+        assert.equal(answer.status, path === '//disc.zip' ? 200 : 403, `${method} ${path}`);
+      }
+    }
+    assert.equal((await raw(status.gatewayPort!, 'GET', '/disc.zip')).status, 401, 'without the cookie');
+
+    // The same request under shared-allowed is the one the gateway lets through.
+    const shared = await service(t, { worker: {}, accessToken: token });
+    // The same game files, times included, so that the two hosts prepare the same archive.
+    await cp(folder, shared.folder, { recursive: true, force: true, preserveTimestamps: true });
+    const sharedStatus = await shared.host.start();
+    assert.deepEqual({ state: sharedStatus.state, room: sharedStatus.room }, { state: 'online', room: 'open' }, JSON.stringify(sharedStatus.problem));
+    const sharedInfo = await fetch(`http://127.0.0.1:${sharedStatus.gatewayPort}/session-info`, { headers });
+    assert.equal(sharedInfo.headers.get('x-sled-disc'), null);
+    const sharedLocal = await (await fetch(`${sharedStatus.localUrl}session-info`)).json() as typeof info;
+    assert.deepEqual(await raw(sharedStatus.gatewayPort!, 'GET', '/disc.zip', headers), { status: 200, sha256: sharedLocal.archive.sha256 });
+
+    // Nothing of the room depends on the policy: the session that its identity is worked out from, and its links
+    // but for the room's own name and token, which every start makes anew.
+    assert.deepEqual(sharedLocal, info);
+    const named = (link: string | null) => {
+      const url = new URL(String(link));
+      const { room, token: roomToken, ...rest } = JSON.parse(Buffer.from(url.hash.slice(1), 'base64').toString('utf8'));
+      assert.match(`${room}:${roomToken}`, /^[a-f0-9]{24}:[a-f0-9]{64}$/);
+      return { path: url.pathname, ...rest };
+    };
+    // Without a tunnel here the public link is null; it is built from the same name and options as this one.
+    assert.deepEqual(named(shared.host.localInvitation()), named(host.localInvitation()));
+  });
 
 test('missing emulator assets fail the emulator component', async t => {
   const { host, paths, gamePort } = await service(t);
@@ -129,6 +202,48 @@ test('a folder without a disc fails game data', async t => {
   await rm(join(folder, 'Game.cue'));
   assert.deepEqual((await host.start()).problem, { component: 'game-data', message: 'Expected exactly one CUE file in the game folder.' });
   assert.equal(host.status().state, 'failed');
+});
+
+test('a saved change of the configuration takes back what the status said about the one before', async t => {
+  const atRest = { state: 'idle', problem: null, game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off', players: null, roomOptions: null };
+
+  // A start found no configuration. Once one is saved, that is no longer true.
+  const unconfigured = await service(t, { policy: null });
+  const asked = await unconfigured.host.start();
+  assert.equal(asked.state, 'needs_setup');
+  // A start that is under way reads the configuration itself and says what it finds.
+  const again = unconfigured.host.start();
+  const underWay = unconfigured.host.status();
+  unconfigured.host.configured();
+  assert.deepEqual(unconfigured.host.status(), underWay);
+  assert.deepEqual(await again, asked);
+  unconfigured.host.configured();
+  assert.deepEqual(unconfigured.host.status(), atRest);
+  unconfigured.host.configured();
+  assert.deepEqual(unconfigured.host.status(), atRest, 'a host that is idle stays idle');
+
+  // The same for a folder whose disc could not be used.
+  const broken = await service(t);
+  await rm(join(broken.folder, 'Game.cue'));
+  assert.deepEqual([(await broken.host.start()).state, broken.host.status().problem?.component], ['failed', 'game-data']);
+  broken.host.configured();
+  assert.deepEqual(broken.host.status(), atRest);
+
+  // What is wrong with the build is not about the configuration, and stays said.
+  const incomplete = await service(t);
+  await rm(join(incomplete.paths.resourceRoot, 'emulator'), { recursive: true });
+  const failed = await incomplete.host.start();
+  assert.deepEqual([failed.state, failed.problem?.component], ['failed', 'emulator']);
+  incomplete.host.configured();
+  assert.deepEqual(incomplete.host.status(), failed);
+
+  // A host that runs is not touched.
+  const running = await service(t);
+  const online = await running.host.start();
+  assert.equal(online.state, 'online', JSON.stringify(online.problem));
+  running.host.configured();
+  assert.deepEqual(running.host.status(), online);
+  assert.equal((await fetch(`${online.localUrl}session-info`)).status, 200);
 });
 
 test('a configured server comes online', async t => {
@@ -174,12 +289,13 @@ test('a changed disc is reported to the host, once, and a new start recovers', a
   const { host, folder, lines } = await service(t);
   const { localUrl } = await host.start();
   await appendFile(join(folder, 'Track 01.bin'), 'x');
-  assert.equal((await fetch(`${localUrl}disc.zip`)).status, 503);
+  const answer = await fetch(`${localUrl}disc.zip`);
+  assert.deepEqual({ status: answer.status, said: await answer.text() }, { status: 503, said: 'The game files changed. Start the server again.' });
   assert.equal((await fetch(`${localUrl}disc.zip`, { method: 'HEAD' })).status, 503);
   assert.equal((await fetch(`${localUrl}disc.zip`)).status, 503);
   assert.equal(host.status().state, 'degraded');
   assert.deepEqual(host.status().problem, { component: 'game-data',
-    message: 'The game files changed after they were prepared. Quit the server and open it again.' });
+    message: 'The game files changed after they were prepared. Start the server again.' });
   assert.equal(lines.filter(line => line.includes('game files changed')).length, 1, 'logged once, not per request');
   assert.equal((await fetch(`${localUrl}session-info`)).status, 200, 'the rest of the game origin keeps working');
 
@@ -187,6 +303,61 @@ test('a changed disc is reported to the host, once, and a new start recovers', a
   assert.equal(recovered.state, 'online');
   assert.equal(recovered.problem, null);
   assert.equal((await fetch(`${localUrl}disc.zip`)).status, 200);
+});
+
+type Manifest = { version: number; disc: string; pal: boolean; archive: { sha256: string; size: number; chunkSize: number; chunks: string[] } };
+const sha256 = (data: Buffer) => createHash('sha256').update(data).digest('hex');
+const body = async (url: string) => Buffer.from(await (await fetch(url)).arrayBuffer());
+
+test('the hosted server offers its archive in the chunks that its manifest names (D92, D93)', async t => {
+  const { host, folder } = await service(t);
+  // More than one chunk of 8 MiB: the first chunk ends inside this track, the second spans it and the next one.
+  await writeFile(join(folder, 'Track 01.bin'), randomBytes(9 * 1024 ** 2));
+  const status = await host.start();
+  assert.equal(status.state, 'online', JSON.stringify(status.problem));
+  const info = await (await fetch(`${status.localUrl}session-info`)).json() as Omit<Manifest, 'version'>;
+  const answer = await fetch(`${status.localUrl}game-data/manifest`);
+  assert.equal(answer.status, 200);
+  assert.deepEqual(await answer.json(), { version: 1, disc: info.disc, pal: info.pal, archive: info.archive });
+  assert.equal(info.archive.chunks.length, 2);
+
+  const chunks = [];
+  for (const [index, expected] of info.archive.chunks.entries()) {
+    const chunk = await body(`${status.localUrl}game-data/${info.archive.sha256}/chunks/${index}`);
+    assert.equal(sha256(chunk), expected, `chunk ${index}`);
+    chunks.push(chunk);
+  }
+  const whole = Buffer.concat(chunks);
+  assert.equal(whole.length, info.archive.size);
+  assert.equal(sha256(whole), info.archive.sha256);
+  assert.ok(whole.equals(await body(`${status.localUrl}disc.zip`)), 'the chunks are the archive that /disc.zip sends');
+  assert.equal((await fetch(`${status.localUrl}game-data/${info.archive.sha256}/chunks/2`)).status, 404);
+});
+
+test('a chunk of a changed disc is refused, and the host is told once', async t => {
+  const { host, folder, lines } = await service(t);
+  const { localUrl } = await host.start();
+  const manifest = await (await fetch(`${localUrl}game-data/manifest`)).json() as Manifest;
+  const chunk = `${localUrl}game-data/${manifest.archive.sha256}/chunks/0`;
+  assert.equal((await fetch(chunk)).status, 200);
+
+  // The change is found by a chunk, before anything asks for the whole archive.
+  await appendFile(join(folder, 'Трек 02.bin'), 'x');
+  const answer = await fetch(chunk);
+  assert.deepEqual({ status: answer.status, said: await answer.text() }, { status: 503, said: 'The game files changed. Start the server again.' });
+  assert.equal(host.status().state, 'degraded');
+  assert.deepEqual(host.status().problem, { component: 'game-data',
+    message: 'The game files changed after they were prepared. Start the server again.' });
+  assert.equal((await fetch(chunk, { method: 'HEAD' })).status, 503);
+  assert.equal((await fetch(`${localUrl}disc.zip`)).status, 503);
+  assert.equal(lines.filter(line => line.includes('game files changed')).length, 1, 'logged once, not per request');
+
+  const recovered = await host.start();
+  assert.equal(recovered.state, 'online');
+  const renewed = await (await fetch(`${localUrl}game-data/manifest`)).json() as Manifest;
+  assert.notEqual(renewed.archive.sha256, manifest.archive.sha256);
+  assert.equal((await fetch(chunk)).status, 404, 'a chunk of the archive that was replaced');
+  assert.equal(sha256(await body(`${localUrl}game-data/${renewed.archive.sha256}/chunks/0`)), renewed.archive.chunks[0]);
 });
 
 test('a busy game port fails the runtime and leaves nothing listening', async t => {
@@ -220,7 +391,7 @@ test('concurrent starts share one stack, stop is idempotent and start works agai
 
   await Promise.all([host.stop(), host.stop()]);
   await host.stop();
-  assert.deepEqual(host.status(), { state: 'idle', problem: null, game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off' });
+  assert.deepEqual(host.status(), { state: 'idle', problem: null, game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off', players: null, roomOptions: null });
   assert.ok(await refused(gamePort));
   assert.ok(await refused(netplayPort));
 
@@ -261,8 +432,8 @@ test('a port that another program holds on all interfaces counts as busy', async
 
 test('stop interrupts a start instead of waiting for it', async t => {
   const { host, folder, gamePort, lines } = await service(t);
-  // Two sparse gibibytes take seconds to hash twice.
-  await truncate(join(folder, 'Track 01.bin'), 2 * 1024 ** 3);
+  // Most of a sparse gibibyte, under the disc's bound (D76), takes a second or more to hash twice.
+  await truncate(join(folder, 'Track 01.bin'), 900 * 1024 ** 2);
   const starting = host.start();
   while (host.status().state !== 'preparing') await delay(5);
   await delay(50);
@@ -294,6 +465,88 @@ test('the last of interleaved start and stop requests wins', async t => {
   const results = await Promise.all([host.start(), host.stop(), host.start()]);
   assert.equal(results[2].state, 'online', 'start, stop, start ends online');
   assert.equal(host.status().state, 'online');
+});
+
+test('a host that was closed for a quit takes no later start', async t => {
+  const { host, gamePort, netplayPort, lines } = await service(t);
+  assert.equal((await host.start()).state, 'online');
+  assert.equal(host.closed(), false);
+
+  // A quit: the stop is under way, and a start is asked for before it has finished. Between two
+  // ordinary requests the later one wins; a quit is the last word.
+  const closing = host.close();
+  assert.equal(host.closed(), true);
+  const late = host.start();
+  await closing;
+  assert.equal((await late).state, 'idle', 'a start that came during the quit changes nothing');
+  assert.equal((await host.start()).state, 'idle', 'nor does one that comes after it');
+  assert.ok(await refused(gamePort));
+  assert.ok(await refused(netplayPort));
+  assert.equal(lines.filter(line => line === 'Preparing the game files.').length, 1, lines.join('\n'));
+});
+
+test('a host says that it is starting from the moment a start is asked for, and no longer once that has settled', async t => {
+  const { host } = await service(t);
+  assert.equal(host.starting(), false);
+  const started = host.start();
+  assert.deepEqual({ starting: host.starting(), state: host.status().state }, { starting: true, state: 'preparing' }, 'the status moves at once');
+  assert.equal((await started).state, 'online');
+  assert.equal(host.starting(), false);
+  await host.start();
+  assert.equal(host.starting(), false, 'a start with nothing to do leaves nothing under way');
+  const stopped = host.stop();
+  assert.equal(host.starting(), false, 'a stop is not a start');
+  await stopped;
+
+  // A start that ends without hosting leaves the host at rest, so that the choice can be made.
+  const unconfigured = await service(t, { policy: null });
+  assert.equal((await unconfigured.host.start()).state, 'needs_setup');
+  assert.equal(unconfigured.host.starting(), false);
+});
+
+test('a start that is accepted at rest says so at once, without what the last one found', async t => {
+  // The page reads the status a moment after its start was taken; it must not read the state before it.
+  const fresh = await service(t);
+  const started = fresh.host.start();
+  assert.deepEqual([fresh.host.status().state, fresh.host.status().problem], ['preparing', null]);
+  assert.equal((await started).state, 'online');
+  // A start that fails says so once it has found out.
+  const broken = await service(t);
+  await rm(join(broken.folder, 'Game.cue'));
+  assert.equal((await broken.host.start()).state, 'failed');
+  const again = broken.host.start();
+  assert.deepEqual([broken.host.status().state, broken.host.status().problem], ['preparing', null]);
+  assert.equal((await again).problem?.component, 'game-data');
+  const unconfigured = await service(t, { policy: null });
+  const asked = unconfigured.host.start();
+  assert.equal(unconfigured.host.status().state, 'preparing');
+  assert.equal((await asked).state, 'needs_setup');
+  // A host that runs tries again what has failed and keeps its room: its state is not touched.
+  const running = await service(t);
+  const online = await running.host.start();
+  const retried = running.host.start();
+  assert.equal(running.host.status().state, online.state);
+  await retried;
+  // After a quit a start changes nothing, the status included.
+  const closed = await service(t);
+  await closed.host.close();
+  void closed.host.start();
+  assert.equal(closed.host.status().state, 'idle');
+});
+
+test('a start that is asked for during a start joins it and tries nothing again', { timeout: 20_000 }, async t => {
+  const scratchRoot = await scratchPaths(t, 'broken browser');
+  const program = join(scratchRoot.root, 'not a program');
+  await writeFile(program, 'This has the executable bit and nothing to execute.\n', { mode: 0o755 });
+  const { host, lines } = await service(t, { worker: { program } });
+  const first = host.start();
+  await until('the first emulator is tried', () => lines.includes('Starting an emulator worker.'));
+  const second = host.start();
+  assert.deepEqual((await Promise.all([first, second])).map(status => status.room), ['failed', 'failed']);
+  assert.equal(lines.filter(line => line === 'Starting an emulator worker.').length, 3, 'one try and two more, for both requests');
+  // Asked again once the room has given up, it is tried again.
+  assert.equal((await host.start()).room, 'failed');
+  assert.equal(lines.filter(line => line === 'Starting an emulator worker.').length, 6);
 });
 
 test('the status handed out is a snapshot', async t => {
@@ -486,7 +739,7 @@ test('a mirror that fails at first comes back', async t => {
 });
 
 const OWN_ROOM = 'This server has one room. Open the game with its invitation link.';
-const roomFailed = (reason: string) => `The room could not be started (${reason}). Quit the server and open it again.`;
+const roomFailed = (reason: string) => `The room could not be started (${reason}). Start the server again.`;
 
 /**
  * One connection to the relay from the game page's origin. `answer` resolves to the first answer, or to
@@ -573,6 +826,65 @@ test('the public invitation carries the same room', { timeout: 20_000 }, async t
   const link = String(host.invitation());
   assert.match(link, /^https:\/\/synthetic-\d+\.trycloudflare\.com\/access\/a{48}#/);
   assert.equal(new URL(link).hash, local.hash);
+});
+
+test('the room\'s options follow the disc', () => {
+  // The verified PAL disc plays as the owner chose, and its separate cameras are its native camera.
+  assert.deepEqual(roomOptionsFor(true, { progress: 'all', camera: true }), { progress: 'all', camera: true, nativeCamera: true });
+  assert.deepEqual(roomOptionsFor(true, { progress: 'original', camera: true }), { progress: 'original', camera: true, nativeCamera: true });
+  assert.deepEqual(roomOptionsFor(true, { progress: 'all', camera: false }), { progress: 'all', camera: false });
+  assert.deepEqual(roomOptionsFor(true, { progress: 'original', camera: false }), { progress: 'original', camera: false });
+  // Any other disc has neither unlocked content nor separate cameras, whatever was chosen.
+  for (const progress of ['all', 'original'] as const)
+    for (const camera of [true, false]) assert.deepEqual(roomOptionsFor(false, { progress, camera }), { progress: 'original', camera: false });
+});
+
+test('a disc other than the verified PAL one plays with the original progression and a shared camera, whatever is saved', async t => {
+  const { host, paths, folder } = await service(t, { worker: {} });
+  await writeConfig(paths, { version: 1, gameFolder: folder, discPolicy: 'shared-allowed', autoStart: true, roomOptions: { progress: 'all', camera: true } });
+  assert.equal(host.status().roomOptions, null, 'no room before the start');
+  const status = await host.start();
+  assert.equal(status.state, 'online', JSON.stringify(status.problem));
+  assert.deepEqual(status.roomOptions, { progress: 'original', camera: false });
+  const invitation = parseInvitation(new URL(String(host.localInvitation())).hash);
+  assert.deepEqual({ progress: invitation.progress, camera: invitation.camera, nativeCamera: invitation.nativeCamera },
+    { progress: 'original', camera: false, nativeCamera: undefined }, 'the link carries the options of the room');
+  await host.stop();
+  assert.equal(host.status().roomOptions, null, 'none after the stop');
+});
+
+test('a host without a room names no room options', async t => {
+  const { host } = await service(t);
+  const status = await host.start();
+  assert.equal(status.state, 'online', JSON.stringify(status.problem));
+  assert.equal(status.roomOptions, null);
+});
+
+test('a new game opens a new session of the same room, and the links stay', { timeout: 20_000 }, async t => {
+  const served = await service(t, { worker: {}, tunnel: {}, accessToken: 'a'.repeat(48) });
+  const { host, lines } = served;
+  const emulators = async () => (await served.browserEvents()).filter(entry => entry.event === 'start');
+  assert.equal(host.newGame(), false, 'no room before the start');
+  assert.equal((await host.start()).state, 'online');
+  const links = { url: host.invitation(), localUrl: host.localInvitation() };
+  assert.ok(links.url && links.localUrl);
+  const player = await joinRoom(t, served);
+  assert.equal((await player.answer).type, 'ready');
+
+  assert.equal(host.newGame(), true);
+  assert.equal(await player.closed, 'The host started a new game. Open the invitation again to join.');
+  await until('a second emulator', async () => (await emulators()).length === 2);
+  // The stand-in writes down the room's setup when its page is opened.
+  await until('its page', async () => (await served.browserEvents()).filter(entry => entry.event === 'navigate').length === 2);
+  const [first, second] = (await served.browserEvents()).filter(entry => entry.event === 'navigate');
+  assert.equal(second!.setup.room, first!.setup.room, 'the same room');
+  await until('the room is open again', () => host.status().room === 'open');
+  assert.deepEqual({ url: host.invitation(), localUrl: host.localInvitation() }, links, 'the links stay');
+  assert.equal((await (await joinRoom(t, served)).answer).type, 'ready', 'the same link joins the new game');
+  assert.ok(lines.includes('The host started a new game.'), lines.join('\n'));
+
+  await host.stop();
+  assert.equal(host.newGame(), false, 'no room after the stop');
 });
 
 test('a player cannot make the server start a room, and one whose game differs is not let in', { timeout: 20_000 }, async t => {
@@ -686,7 +998,7 @@ test('a worker that ignores the stop is killed', { timeout: 20_000 }, async t =>
 
 test('a build without the browser cannot host', async t => {
   const { host, gamePort, netplayPort } = await service(t, { worker: 'shipped' });
-  assert.deepEqual(await host.start(), { state: 'failed', game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off',
+  assert.deepEqual(await host.start(), { state: 'failed', game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off', room: 'off', players: null, roomOptions: null,
     problem: { component: 'emulator', message: 'This build is missing the emulator browser.' } });
   assert.ok(await refused(gamePort) && await refused(netplayPort), 'nothing listens');
 });
@@ -878,4 +1190,133 @@ test('a new start while a save is loading does not wait for the load to end', { 
   const status = await host.start();
   assert.ok(performance.now() - asked < 10_000, 'the retry of the public address is all that is waited for');
   assert.deepEqual({ state: status.state, room: status.room, problem: status.problem }, { state: 'online', room: 'restoring', problem: null });
+});
+
+const fails = { failCommand: 'Page.navigate' };
+
+test('a start request opens a failed room again, with the same links', { timeout: 20_000 }, async t => {
+  // One session and two more fail; the browser that the start request asks for works.
+  const served = await service(t, { worker: { launches: [fails, fails, fails, {}] } });
+  const { host, lines } = served;
+  const starting = host.start();
+  await until('the room has its name', () => host.localInvitation() !== null);
+  const link = host.localInvitation();
+  const failed = await starting;
+  assert.deepEqual({ state: failed.state, room: failed.room, component: failed.problem?.component },
+    { state: 'degraded', room: 'failed', component: 'room' });
+  assert.match(String(failed.problem?.message), /^The room could not be started \(.+\)\. Start the server again\.$/);
+  assert.equal(host.localInvitation(), null, 'a failed room is not handed out');
+
+  const status = await host.start();
+  assert.deepEqual({ state: status.state, room: status.room, problem: status.problem }, { state: 'online', room: 'open', problem: null });
+  assert.equal(host.localInvitation(), link, 'the same room, with the same token');
+  assert.equal(status.gatewayPort, failed.gatewayPort, 'the stack was not built anew');
+  assert.equal(lines.filter(line => line === 'Preparing the game files.').length, 1);
+  assert.equal((await starts(served)).length, 4);
+  assert.equal((await (await joinRoom(t, served)).answer).type, 'ready', 'the room takes a player');
+});
+
+test('a start request retries a failed room and a failed address together', { timeout: 20_000 }, async t => {
+  const served = await service(t, { worker: { launches: [fails, fails, fails, {}] }, accessToken: 'a'.repeat(48),
+    tunnel: { launches: [{ neverReady: true }, {}], timing: { readyMs: 150, restartDelaysMs: [] } } });
+  const { host, launches } = served;
+  const starting = host.start();
+  await until('the room has its name', () => host.localInvitation() !== null);
+  const link = String(host.localInvitation());
+  const failed = await starting;
+  // The room is named first: without it there is nothing to play, whatever the address does.
+  assert.deepEqual({ state: failed.state, room: failed.room, tunnel: failed.tunnel, component: failed.problem?.component },
+    { state: 'degraded', room: 'failed', tunnel: 'failed', component: 'room' });
+
+  const status = await host.start();
+  assert.deepEqual({ state: status.state, room: status.room, tunnel: status.tunnel, problem: status.problem },
+    { state: 'online', room: 'open', tunnel: 'online', problem: null });
+  assert.equal(host.localInvitation(), link);
+  assert.equal(new URL(String(host.invitation())).hash, new URL(link).hash, 'the public link names the same room');
+  assert.equal((await launches()).filter(launch => launch.kind === 'primary').length, 2);
+  assert.equal((await starts(served)).length, 4);
+});
+
+test('a start request leaves a restarting room alone', { timeout: 20_000 }, async t => {
+  // The first emulator is lost soon after it listens, and the pause before the next session is long enough to ask in.
+  const served = await service(t, { worker: { launches: [{ exitAfterMs: 100 }, {}], room: { restartDelaysMs: [700] } } });
+  const { host, lines } = served;
+  assert.equal((await host.start()).room, 'open');
+  const link = host.localInvitation();
+  await until('the room is between two sessions', () => host.status().room === 'restarting');
+  const asked = performance.now();
+  const status = await host.start();
+  assert.deepEqual({ state: status.state, room: status.room, problem: status.problem }, { state: 'online', room: 'open', problem: null });
+  assert.ok(performance.now() - asked > 300, 'the pause was not cut short');
+  assert.equal(host.localInvitation(), link, 'the same room');
+  assert.equal((await starts(served)).length, 2, 'the request started no emulator of its own');
+  assert.equal(lines.filter(line => line === 'Preparing the game files.').length, 1, 'and built no new stack');
+});
+
+test('a start request after the game files changed builds the stack anew', { timeout: 20_000 }, async t => {
+  const served = await service(t, { worker: {} });
+  const { host, folder, lines } = served;
+  const { localUrl } = await host.start();
+  const link = host.localInvitation();
+  await appendFile(join(folder, 'Track 01.bin'), 'x');
+  assert.equal((await fetch(`${localUrl}disc.zip`)).status, 503);
+  assert.deepEqual({ state: host.status().state, room: host.status().room, problem: host.status().problem }, { state: 'degraded', room: 'open',
+    problem: { component: 'game-data', message: 'The game files changed after they were prepared. Start the server again.' } });
+
+  const status = await host.start();
+  assert.deepEqual({ state: status.state, room: status.room, problem: status.problem }, { state: 'online', room: 'open', problem: null });
+  assert.equal(lines.filter(line => line === 'Preparing the game files.').length, 2);
+  assert.notEqual(host.localInvitation(), link, 'a new stack has a new room');
+  assert.equal((await fetch(`${localUrl}disc.zip`)).status, 200);
+});
+
+test('a start after the game files changed is held while a player is in the room, and force ends the room', { timeout: 20_000 }, async t => {
+  const served = await service(t, { worker: {} });
+  const { host, folder, paths } = served;
+  const control = createHostControl({ paths, service: host });
+  const { localUrl } = await host.start();
+  const link = host.localInvitation();
+  const player = await joinRoom(t, served);
+  assert.equal((await player.answer).type, 'ready');
+  const left = once(player.socket, 'close');
+  await appendFile(join(folder, 'Track 01.bin'), 'x');
+  assert.equal((await fetch(`${localUrl}disc.zip`)).status, 503);
+  assert.equal(host.status().problem?.component, 'game-data');
+
+  // The player has the disc already and plays on. The start that the status asks for is not taken as it is.
+  assert.deepEqual(control.start(false), { players: { connected: 1, reserved: 0 } });
+  await delay(100);
+  assert.deepEqual({ link: host.localInvitation(), socket: player.socket.readyState }, { link, socket: WebSocket.OPEN });
+
+  assert.equal(control.start(true), null);
+  await left;
+  await until('the stack is built anew', () => host.status().state === 'online' && host.status().room === 'open');
+  assert.notEqual(host.localInvitation(), link, 'a new stack has a new room');
+});
+
+test('the status counts connected and kept controllers and names nobody', { timeout: 30_000 }, async t => {
+  const served = await service(t, { worker: {} });
+  const { host } = served;
+  assert.equal(host.status().players, null, 'no room, nobody to count');
+  assert.deepEqual((await host.start()).players, { connected: 0, reserved: 0 });
+  // A player whose game is still loading is in the room already.
+  const loading = await joinRoom(t, served);
+  assert.equal((await loading.answer).type, 'ready');
+  assert.deepEqual(host.status().players, { connected: 1, reserved: 0 });
+  loading.socket.close();
+  await until('that player has left', () => host.status().players?.connected === 0);
+
+  const player = await soloPlayer(t, served);
+  assert.deepEqual(host.status().players, { connected: 1, reserved: 0 });
+  // A save that loads takes its player out of the room and keeps the controller until that player is back.
+  const request = await loadSave(t, served, player, validState());
+  assert.equal(await request.closed, 'Saved game loaded');
+  const status = host.status();
+  assert.deepEqual({ room: status.room, players: status.players }, { room: 'restoring', players: { connected: 0, reserved: 1 } });
+  assert.throws(() => { (status.players as { connected: number }).connected = 4; }, 'the count is part of the snapshot');
+  for (const secret of [player.room, player.token, player.ready.seatKey])
+    assert.ok(!JSON.stringify(status).includes(secret), 'the status names no room, no token and no controller key');
+
+  await host.stop();
+  assert.equal(host.status().players, null);
 });

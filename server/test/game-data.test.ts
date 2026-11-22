@@ -222,8 +222,13 @@ test('the archive is refused after a source changes', async t => {
 test('files too large for the archive format are refused before they are read', async t => {
   const f = await fixture(t);
   await truncate(join(f.folder, 'Track 01.bin'), 4 * 1024 ** 3);
+  // The disc's bound refuses them first (D76); the archive keeps its own guard for any other caller.
+  await assert.rejects(findDisc(f.folder), /larger than a CD/);
+  await truncate(join(f.folder, 'Track 01.bin'), 0);
+  const disc = await findDisc(f.folder);
+  disc.files[1]!.size = 4 * 1024 ** 3;
   let read = 0;
-  await assert.rejects(prepare(f, { onProgress: () => { read += 1; } }), /too large for the archive format/);
+  await assert.rejects(prepareGameData(disc, f.cache, { onProgress: () => { read += 1; } }), /too large for the archive format/);
   assert.equal(read, 0);
 });
 
@@ -292,7 +297,7 @@ test('a hand-edited stamp is not trusted', async t => {
 
 test('preparation stops when it is aborted', async t => {
   const f = await fixture(t);
-  await truncate(join(f.folder, 'Track 01.bin'), 1024 * MiB);
+  await truncate(join(f.folder, 'Track 01.bin'), 512 * MiB);
   const controller = new AbortController();
   let calls = 0;
   await assert.rejects(prepareGameData(await findDisc(f.folder), f.cache, {
@@ -301,4 +306,78 @@ test('preparation stops when it is aborted', async t => {
   }), { name: 'AbortError' });
   assert.ok(calls < 20, `reading went on for ${calls} chunks after the abort`);
   await assert.rejects(readFile(join(f.cache, 'game-data', 'archive.json')));
+});
+
+async function collectStream(stream: Readable): Promise<Buffer> {
+  const parts: Buffer[] = [];
+  for await (const part of stream) parts.push(part as Buffer);
+  return Buffer.concat(parts);
+}
+
+test('every chunk is its slice of the archive', async t => {
+  for (const [custom, chunkSize] of [[undefined, 1024], [large(), 3 * MiB]] as const) {
+    const f = await fixture(t, custom ? [...custom] : undefined);
+    const data = await prepare(f, { chunkSize });
+    const whole = await collect(data);
+    const { archive } = data.identity;
+    assert.ok(archive.chunks.length >= 3, 'the fixture spans several chunks');
+    const pieces: Buffer[] = [];
+    for (const [index, expected] of archive.chunks.entries()) {
+      const chunk = await collectStream(await data.openChunk(index));
+      assert.deepEqual(chunk, whole.subarray(index * chunkSize, (index + 1) * chunkSize), `chunk ${index}`);
+      assert.equal(sha256(chunk), expected, `chunk ${index}`);
+      pieces.push(chunk);
+    }
+    assert.deepEqual(Buffer.concat(pieces), whole);
+  }
+});
+
+test('a chunk outside the archive is refused before any file is opened', async t => {
+  const f = await fixture(t);
+  const data = await prepare(f);
+  const count = data.identity.archive.chunks.length;
+  // With a track gone, a bad index that looked at the files first would be refused as a change instead.
+  await rm(join(f.folder, 'Track 01.bin'));
+  for (const index of [-1, count, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1, Infinity])
+    await assert.rejects(data.openChunk(index), RangeError, String(index));
+  await assert.rejects(data.openChunk(0), GameFilesChangedError, 'a good index sees the change');
+});
+
+test('a chunk after a source changed is refused', async t => {
+  const f = await fixture(t, large());
+  const data = await prepareGameData(await findDisc(f.folder), f.cache, { chunkSize: MiB });
+  await writeFile(join(f.folder, 'C.bin'), randomBytes(300_001));
+  // The last chunk holds the end of C.bin and the directory.
+  await assert.rejects(data.openChunk(data.identity.archive.chunks.length - 1), GameFilesChangedError);
+});
+
+test('a track rewritten in place while its chunk is sent cuts the chunk short', async t => {
+  const f = await fixture(t, large());
+  const data = await prepareGameData(await findDisc(f.folder), f.cache, { chunkSize: 4 * MiB });
+  // Chunk 1 covers 4 to 8 MiB of the archive, inside B.bin, which starts after 2 MiB.
+  let received = 0;
+  let changed = false;
+  await assert.rejects(async () => {
+    for await (const part of await data.openChunk(1)) {
+      received += (part as Buffer).length;
+      if (changed) continue;
+      changed = true;
+      const handle = await open(join(f.folder, 'B.bin'), 'r+');
+      await handle.write(Buffer.from([1]), 0, 1, 0);
+      await handle.close();
+    }
+  }, GameFilesChangedError);
+  assert.ok(received < 4 * MiB, 'the chunk never arrives whole');
+});
+
+test('an abandoned chunk closes its files', async t => {
+  const f = await fixture(t, large());
+  const data = await prepareGameData(await findDisc(f.folder), f.cache);
+  const descriptors = () => readdirSync('/dev/fd').length;
+  const before = descriptors();
+  for (let round = 0; round < 5; round++) {
+    for await (const part of await data.openChunk(0)) if ((part as Buffer).length > 0) break;
+  }
+  for (let attempt = 0; descriptors() !== before && attempt < 50; attempt++) await delay(10);
+  assert.equal(descriptors(), before);
 });

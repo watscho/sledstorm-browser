@@ -226,6 +226,11 @@ ordered delivery. The clients ran on one M5 Pro. See the
 | Play locally in a dedicated room, without a tunnel | `python3 server.py` |
 | Play locally with the room hosted in the creator's browser | `python3 server.py --browser-hosted` |
 
+A packaged host, **Sled Storm Server**, runs the room from one macOS
+application and a page in your browser, without Python or a terminal. It is an
+internal preview; see [Sled Storm Server](docs/sled-storm-server.md) for what
+it does today, how to build it and how to remove it.
+
 Run only one hosting command at a time. Stop it with **Ctrl+C** before changing
 modes. Use the localhost address for local-only play. To invite another
 computer, including one on the same Wi-Fi, use the online launcher and copy
@@ -301,6 +306,7 @@ Netplay.
 - [Installation and troubleshooting](docs/setup.md)
 - [Playing with friends and hosting](docs/multiplayer.md)
 - [Launcher settings](docs/browser-lobby.md)
+- [Sled Storm Server, the packaged host (preview)](docs/sled-storm-server.md)
 - [All-content preset](docs/unlocked-profile.md)
 - [Emulator architecture and source pins](docs/browser-emulator.md)
 - [Verification and known limits](docs/verification.md)

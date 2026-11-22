@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sled Storm Server</title>
+<link rel="stylesheet" href="/panel.css">
+<script type="module" src="/panel.js"></script>
+</head>
+<body>
+<main>
+<header>
+<h1 id="application">Sled Storm Server</h1>
+<p id="headline"></p>
+<p id="sentence" role="status">Connecting to the server…</p>
+</header>
+<section id="setup" hidden>
+<h2>Game</h2>
+<p id="no-folder" hidden>No game folder is chosen.</p>
+<p id="folder" class="path" hidden></p>
+<p id="game" class="note" hidden></p>
+<button type="button" id="choose-folder">Choose game folder</button>
+<fieldset>
+<legend>Disc policy</legend>
+<label><input type="radio" name="policy" id="policy-shared-allowed" value="shared-allowed"> Players may download the game files from this server</label>
+<label><input type="radio" name="policy" id="policy-local-only" value="local-only" aria-describedby="local-only-note"> Players use only their own game files</label>
+<p id="local-only-note" class="note">Invited players choose their own game files or a saved ZIP: a copy of your CUE and BIN files under the same names, or one ZIP of them. The room and the game on this computer still load the disc from this server.</p>
+</fieldset>
+<p id="setup-unfinished" class="note" hidden>The server can be started once the game folder and the disc policy are chosen.</p>
+</section>
+<section id="room-options" hidden>
+<h2>Room options</h2>
+<fieldset>
+<legend>Progress</legend>
+<label><input type="radio" name="progress" id="progress-all" value="all"> All content unlocked</label>
+<label><input type="radio" name="progress" id="progress-original" value="original"> Original progression</label>
+</fieldset>
+<label><input type="checkbox" id="camera"> Separate cameras</label>
+<p id="room-options-note" class="note"></p>
+</section>
+<section id="hosting" class="buttons" hidden>
+<button type="button" id="start" hidden>Start server</button>
+<button type="button" id="stop" hidden>Stop room</button>
+<button type="button" id="new-game" hidden>New game</button>
+</section>
+<section id="room" hidden>
+<h2>Room</h2>
+<p id="players-line" hidden>Players: <span id="players"></span></p>
+<p id="invite-note" class="note" hidden></p>
+<p id="invite" class="invite" hidden>
+<label for="invite-url">Invite link</label>
+<input type="text" id="invite-url" readonly>
+<button type="button" id="copy-invite">Copy invite link</button>
+</p>
+<a id="open-game" class="button" target="_blank" rel="noopener noreferrer" hidden>Open game</a>
+</section>
+<section id="options" hidden>
+<label><input type="checkbox" id="auto-start"> Start the room when Sled Storm Server opens</label>
+</section>
+<details id="details" hidden>
+<summary>Details</summary>
+<dl id="details-list"></dl>
+</details>
+<footer id="closing" class="buttons" hidden>
+<button type="button" id="save-diagnostics">Save diagnostics</button>
+<button type="button" id="quit">Quit server</button>
+<a id="diagnostics-file" download hidden></a>
+</footer>
+</main>
+</body>
+</html>

@@ -202,7 +202,8 @@ export function createTunnel(options: TunnelOptions): Tunnel {
     state: () => state,
     origin: () => origin,
     start() {
-      if (run) return;
+      // A tunnel that has failed is supervised by nobody, even while the run that gave it up is still returning.
+      if (run && state !== 'failed') return;
       const abort = new AbortController();
       const done = (async () => {
         try {

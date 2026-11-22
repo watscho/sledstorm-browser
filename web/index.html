@@ -92,7 +92,30 @@
       <div class="settings-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" tabindex="0" hidden>
         <div class="section-title"><h2>Game files</h2><span>04 / 04</span></div>
         <div class="disc-state"><i class="status-dot" aria-hidden="true"></i><div><strong id="disc-title">Checking game files…</strong><p id="disc-description">Reading the host settings.</p></div></div>
-        <div id="disc-settings" hidden><label for="disc-files" class="file-label">Local disc files</label><input id="disc-files" type="file" multiple accept=".cue,.bin" aria-describedby="disc-help"><p class="field-help" id="disc-help">Select your CUE and all eleven BIN tracks together. Files are read in your browser.</p><p class="file-selection" id="disc-selection" role="status"></p></div>
+        <fieldset id="disc-source" class="disc-source" hidden>
+          <legend>Where the disc comes from</legend>
+          <div class="source-option">
+            <label class="source-choice"><input type="radio" name="disc-source" value="files"><span><strong>Use my game files</strong><small id="source-files-help">Your CUE and all its BIN tracks together. They are read in this browser.</small></span></label>
+            <div class="source-detail"><button type="button" class="secondary-button" id="choose-disc-files" aria-describedby="source-files-help">Choose files</button><input id="disc-files" type="file" multiple accept=".cue,.bin" hidden aria-label="Your CUE and BIN files"></div>
+          </div>
+          <div class="source-option">
+            <label class="source-choice"><input type="radio" name="disc-source" value="zip"><span><strong>Use saved ZIP</strong><small id="source-zip-help">One ZIP of your CUE and BIN files, such as game data saved from a host.</small></span></label>
+            <div class="source-detail"><button type="button" class="secondary-button" id="choose-disc-zip" aria-describedby="source-zip-help">Choose ZIP</button><input id="disc-zip" type="file" accept=".zip" hidden aria-label="A ZIP of your game files"></div>
+          </div>
+          <div class="source-option" id="source-download">
+            <label class="source-choice"><input type="radio" name="disc-source" value="download"><span><strong>Download from server</strong><small id="source-download-help">The complete disc, music included, loads from the host when the game starts.</small></span></label>
+            <div class="source-detail" id="game-data-settings" hidden>
+              <div class="game-data-choice">
+                <label class="keep-game-data"><input id="keep-game-data" type="checkbox" checked aria-describedby="game-data-help"><span id="keep-game-data-label">Keep or choose game data</span></label>
+                <span id="game-data-state" role="status" hidden></span>
+              </div>
+              <p id="game-data-help" aria-live="polite"></p>
+              <button class="text-button" id="change-game-data" type="button" aria-describedby="game-data-help" hidden>Change game data</button>
+            </div>
+          </div>
+          <p class="file-selection" id="disc-selection" role="status"></p>
+          <p class="field-help" id="disc-held" aria-live="polite" hidden></p>
+        </fieldset>
         <div class="field"><label for="bios">Optional PlayStation BIOS</label><input id="bios" type="file" accept=".bin,.rom" aria-describedby="bios-help"><p class="field-help" id="bios-help">Leave empty for HLE, or choose your own BIOS. All players must use the same BIOS choice.</p></div>
       </div>
     </section>
@@ -100,19 +123,11 @@
       <div class="preview-image"><img src="/sled-storm-pal-cover.jpg" alt="Sled Storm PlayStation PAL cover: a rider racing a snowmobile" width="1475" height="1478"></div>
       <div class="launch-summary">
         <div class="preview-title"><h2>Launch summary</h2><span aria-hidden="true">↗</span></div>
-        <dl><div><dt>Session</dt><dd id="summary-session">New · up to 4 players</dd></div><div><dt>Camera</dt><dd id="summary-camera">Personal view</dd></div><div><dt>Progress</dt><dd id="summary-progress">All content unlocked</dd></div><div><dt>Graphics</dt><dd id="summary-graphics">Quality</dd></div><div><dt>Aspect ratio</dt><dd id="summary-aspect">4:3 · Original</dd></div><div><dt>Image</dt><dd id="summary-image">Clean · Sharp Bilinear</dd></div></dl>
+        <dl><div><dt>Session</dt><dd id="summary-session">New · up to 4 players</dd></div><div><dt>Game data</dt><dd id="summary-disc">Checking…</dd></div><div><dt>Camera</dt><dd id="summary-camera">Personal view</dd></div><div><dt>Progress</dt><dd id="summary-progress">All content unlocked</dd></div><div><dt>Graphics</dt><dd id="summary-graphics">Quality</dd></div><div><dt>Aspect ratio</dt><dd id="summary-aspect">4:3 · Original</dd></div><div><dt>Image</dt><dd id="summary-image">Clean · Sharp Bilinear</dd></div></dl>
         <div class="launch-actions">
           <div class="launch-button-row">
           <button class="primary-button" id="launch" type="button" disabled><span id="launch-label">Start game</span><span aria-hidden="true">↗</span></button>
           <button class="icon-button saves-library-link" id="saved-games" type="button" aria-label="Saved games" data-tooltip="Saved games" aria-haspopup="dialog" aria-controls="save-manager" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l4 4v14H3V3h1zm3 0v6h9V3M7 21v-8h10v8"/></svg></button>
-          </div>
-          <div id="game-data-settings" hidden>
-            <div class="game-data-choice">
-              <label class="keep-game-data"><input id="keep-game-data" type="checkbox" checked aria-describedby="game-data-help"><span id="keep-game-data-label">Keep or choose game data</span></label>
-              <span id="game-data-state" role="status" hidden></span>
-            </div>
-            <p id="game-data-help" aria-live="polite"></p>
-            <button class="text-button" id="change-game-data" type="button" aria-describedby="game-data-help" hidden>Change game data</button>
           </div>
         </div>
         <p class="launch-hint" id="launch-hint">First launch loads the full disc, including music.</p>

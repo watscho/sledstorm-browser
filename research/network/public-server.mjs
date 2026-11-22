@@ -10,6 +10,8 @@ export function createPublicGateway({ port = 8005, upstream = 8000, relay = 8004
   if (discMode === 'shared' && !/^[a-f0-9]{48}$/.test(accessToken || ''))
     throw new Error('Shared disc mode requires a private access token');
   const accessPath = accessToken ? `/access/${accessToken}` : null;
+  // The game data routes (D92) pass in shared mode only, as shapes: the listener checks the archive and the index.
+  const gameDataRoute = /^\/game-data\/(?:manifest|[a-f0-9]{64}\/chunks\/(?:0|[1-9][0-9]{0,6}))$/;
   const authorized = (request) => {
     if (!accessToken) return true;
     const value = /(?:^|;\s*)sled_access=([a-f0-9]+)/.exec(request.headers.cookie || '')?.[1];
@@ -27,22 +29,30 @@ export function createPublicGateway({ port = 8005, upstream = 8000, relay = 8004
       return;
     }
     if (!authorized(request)) { response.writeHead(401).end('Open the private access link supplied by the host.'); return; }
-    if (!['GET', 'HEAD'].includes(request.method) || !assetPaths.has(path)) {
+    // Only in the spelling that URL parsing leaves as it is: a dotted form is refused, not settled (D95).
+    const sent = request.url.split('?')[0];
+    const gameData = discMode === 'shared' && gameDataRoute.test(path) && sent === path;
+    if (!['GET', 'HEAD'].includes(request.method) || !(assetPaths.has(path) || gameData)) {
       response.writeHead(403).end(discMode === 'local'
         ? 'This gateway requires local CUE and BIN files.'
         : 'This gateway only permits runtime assets and the shared disc archive.'); return;
     }
+    // The mark tells the listener that a guest asks, so its limit on disc deliveries holds guests only (D94); no
+    // header of the guest's is forwarded, so a guest cannot take it off.
     const remote = http.request({ hostname: '127.0.0.1', port: upstream, path,
-      method: request.method, headers: { host: `127.0.0.1:${upstream}` } }, (incoming) => {
+      method: request.method, headers: { host: `127.0.0.1:${upstream}`, 'x-sled-gateway': '1' } }, (incoming) => {
       const headers = { ...incoming.headers, 'cross-origin-opener-policy': 'same-origin',
         'cross-origin-embedder-policy': 'require-corp', 'cache-control': 'no-store' };
-      if (path === '/disc.zip' && request.method === 'GET' && incoming.statusCode === 200 &&
-          headers['content-length'] !== undefined) {
-        // Stream archive bytes through the tunnel while keeping the size for download validation.
-        headers['x-sledstorm-disc-size'] = headers['content-length'];
+      if ((path === '/disc.zip' || gameData && path !== '/game-data/manifest') && request.method === 'GET' &&
+          incoming.statusCode === 200 && headers['content-length'] !== undefined) {
+        // Stream archive bytes through the tunnel while keeping the size for download validation. A chunk's size
+        // is in the manifest; a fixed length would only make a Quick Tunnel buffer it (docs/verification.md).
+        if (path === '/disc.zip') headers['x-sledstorm-disc-size'] = headers['content-length'];
         delete headers['content-length'];
       }
       if (path === '/session-info' && accessPath) headers['x-invite-path'] = accessPath;
+      // This gateway refuses the disc, so the page it serves must use the player's own files.
+      if (path === '/session-info' && discMode === 'local') headers['x-sled-disc'] = 'local';
       if (path === '/session-info' && netplay) {
         headers['x-sled-netplay-delivery'] = 'mirror-v2';
         const mirrorOrigin = getMirrorOrigin?.();

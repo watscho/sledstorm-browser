@@ -1,0 +1,982 @@
+{
+  "about": "Shared by the page's tests (web/disc-identity.test.mjs, web/disc-zip.test.mjs) and the server's (server/test/disc-identity.test.ts). Written by server/scripts/disc-fixtures.py, whose identities follow the Python launcher's algorithm. files[0] is the CUE; a track's file may be named otherwise than the CUE spells it. Each archive gives the identity of the disc it was made from, or names the page's refusal (DiscZipError.code). Synthetic bytes only; no fixture has the PAL flag, which needs the real first data track.",
+  "discs": [
+    {
+      "name": "ASCII names, the tracks listed in another order than their names",
+      "files": [
+        {
+          "name": "Game.cue",
+          "base64": "RklMRSAiVHJhY2sgMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMSBNT0RFMi8yMzUyCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJUcmFjayAwMS5iaW4iIEJJTkFSWQogIFRSQUNLIDAyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMAo="
+        },
+        {
+          "name": "Track 01.bin",
+          "base64": "HyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZA="
+        },
+        {
+          "name": "Track 02.bin",
+          "base64": "PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRr"
+        }
+      ],
+      "disc": "bf71cd28fb7ec8ee0c839361ec9dcaba8e779e3c68127e8850fc1bd9a3c9a204",
+      "pal": false
+    },
+    {
+      "name": "Unicode names, CRLF line ends and a byte order mark",
+      "files": [
+        {
+          "name": "Sled Storm (\u0415\u0432\u0440\u043e\u043f\u0430).cue",
+          "base64": "77u/RklMRSAi0KLRgNC10LogMDEuYmluIiBCSU5BUlkNCiAgVFJBQ0sgMDEgTU9ERTIvMjM1Mg0KICAgIElOREVYIDAxIDAwOjAwOjAwDQpGSUxFICJQaXN0ZSAwMiDigJMgw6l0w6kuYmluIiBCSU5BUlkNCiAgVFJBQ0sgMDIgQVVESU8NCiAgICBJTkRFWCAwMSAwMDowMDowMA0K"
+        },
+        {
+          "name": "\u0422\u0440\u0435\u043a 01.bin",
+          "base64": "XWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl0="
+        },
+        {
+          "name": "Piste 02 \u2013 \u00e9t\u00e9.bin",
+          "base64": "fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNQ=="
+        }
+      ],
+      "disc": "f3aacd5dd663e29d0737b3d9c736eddbb5303ede718b8b6daa5ac0dc981cd8f8",
+      "pal": false
+    },
+    {
+      "name": "a track named in the CUE in NFC and lower case, its file in NFD and capitals",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiZGF0YS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIsOpdMOpIDAyLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCg=="
+        },
+        {
+          "name": "data.bin",
+          "base64": "m6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQ="
+        },
+        {
+          "name": "E\u0301TE\u0301 02.BIN",
+          "base64": "usHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxT"
+        }
+      ],
+      "disc": "788f4e99f3524f483f9ad0a82a9fc65fb1141a7044d7207027e91695603e85ae",
+      "pal": false,
+      "foldedNames": true
+    },
+    {
+      "name": "an empty track",
+      "files": [
+        {
+          "name": "Empty.cue",
+          "base64": "RklMRSAiZGF0YS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInNpbGVuY2UuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAK"
+        },
+        {
+          "name": "data.bin",
+          "base64": "2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjg=="
+        },
+        {
+          "name": "silence.bin",
+          "base64": ""
+        }
+      ],
+      "disc": "577895518660fef6a57598d5e9d4438b63f1bc801c80e508e1f2f460f86c0691",
+      "pal": false
+    }
+  ],
+  "refused": [
+    {
+      "name": "a CUE without a BINARY track",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS53YXYiIFdBVkUKICBUUkFDSyAwMSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAK"
+        },
+        {
+          "name": "a.wav",
+          "base64": "+P8GDRQbIikwNw=="
+        }
+      ],
+      "error": "The CUE file lists no BINARY tracks."
+    },
+    {
+      "name": "a track listed twice, once in another case",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgImIuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAiQS5CSU4iIEJJTkFSWQogIFRSQUNLIDAzIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMAo="
+        },
+        {
+          "name": "a.bin",
+          "base64": "Fx4lLDM6QUhPVg=="
+        },
+        {
+          "name": "b.bin",
+          "base64": "Nj1ES1JZYGdudQ=="
+        }
+      ],
+      "error": "The CUE file lists a track twice: A.BIN"
+    },
+    {
+      "name": "a track in the folder above",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIi4uL2IuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAK"
+        },
+        {
+          "name": "a.bin",
+          "base64": "VVxjanF4f4aNlA=="
+        }
+      ],
+      "error": "The CUE file refers to a file outside its folder: ../b.bin"
+    },
+    {
+      "name": "a track in a folder below",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInN1Yi9iLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCg=="
+        },
+        {
+          "name": "a.bin",
+          "base64": "dHuCiZCXnqWssw=="
+        }
+      ],
+      "error": "The CUE file refers to a file outside its folder: sub/b.bin"
+    },
+    {
+      "name": "a track behind a backslash",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInN1YlxiLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCg=="
+        },
+        {
+          "name": "a.bin",
+          "base64": "k5qhqK+2vcTL0g=="
+        }
+      ],
+      "error": "The CUE file refers to a file outside its folder: sub\\b.bin"
+    },
+    {
+      "name": "a hundred tracks",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAidDAwMS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAwMy5iaW4iIEJJTkFSWQogIFRSQUNLIDAzIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDA0LmJpbiIgQklOQVJZCiAgVFJBQ0sgMDQgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMDUuYmluIiBCSU5BUlkKICBUUkFDSyAwNSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAwNi5iaW4iIEJJTkFSWQogIFRSQUNLIDA2IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDA3LmJpbiIgQklOQVJZCiAgVFJBQ0sgMDcgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMDguYmluIiBCSU5BUlkKICBUUkFDSyAwOCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAwOS5iaW4iIEJJTkFSWQogIFRSQUNLIDA5IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDEwLmJpbiIgQklOQVJZCiAgVFJBQ0sgMTAgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMTEuYmluIiBCSU5BUlkKICBUUkFDSyAxMSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAxMi5iaW4iIEJJTkFSWQogIFRSQUNLIDEyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDEzLmJpbiIgQklOQVJZCiAgVFJBQ0sgMTMgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMTQuYmluIiBCSU5BUlkKICBUUkFDSyAxNCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAxNS5iaW4iIEJJTkFSWQogIFRSQUNLIDE1IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDE2LmJpbiIgQklOQVJZCiAgVFJBQ0sgMTYgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMTcuYmluIiBCSU5BUlkKICBUUkFDSyAxNyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAxOC5iaW4iIEJJTkFSWQogIFRSQUNLIDE4IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDE5LmJpbiIgQklOQVJZCiAgVFJBQ0sgMTkgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMjAuYmluIiBCSU5BUlkKICBUUkFDSyAyMCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAyMS5iaW4iIEJJTkFSWQogIFRSQUNLIDIxIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDIyLmJpbiIgQklOQVJZCiAgVFJBQ0sgMjIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMjMuYmluIiBCSU5BUlkKICBUUkFDSyAyMyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAyNC5iaW4iIEJJTkFSWQogIFRSQUNLIDI0IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDI1LmJpbiIgQklOQVJZCiAgVFJBQ0sgMjUgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMjYuYmluIiBCSU5BUlkKICBUUkFDSyAyNiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAyNy5iaW4iIEJJTkFSWQogIFRSQUNLIDI3IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDI4LmJpbiIgQklOQVJZCiAgVFJBQ0sgMjggQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMjkuYmluIiBCSU5BUlkKICBUUkFDSyAyOSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAzMC5iaW4iIEJJTkFSWQogIFRSQUNLIDMwIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDMxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMzEgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMzIuYmluIiBCSU5BUlkKICBUUkFDSyAzMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAzMy5iaW4iIEJJTkFSWQogIFRSQUNLIDMzIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDM0LmJpbiIgQklOQVJZCiAgVFJBQ0sgMzQgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMzUuYmluIiBCSU5BUlkKICBUUkFDSyAzNSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAzNi5iaW4iIEJJTkFSWQogIFRSQUNLIDM2IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDM3LmJpbiIgQklOQVJZCiAgVFJBQ0sgMzcgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwMzguYmluIiBCSU5BUlkKICBUUkFDSyAzOCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDAzOS5iaW4iIEJJTkFSWQogIFRSQUNLIDM5IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDQwLmJpbiIgQklOQVJZCiAgVFJBQ0sgNDAgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNDEuYmluIiBCSU5BUlkKICBUUkFDSyA0MSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA0Mi5iaW4iIEJJTkFSWQogIFRSQUNLIDQyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDQzLmJpbiIgQklOQVJZCiAgVFJBQ0sgNDMgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNDQuYmluIiBCSU5BUlkKICBUUkFDSyA0NCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA0NS5iaW4iIEJJTkFSWQogIFRSQUNLIDQ1IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDQ2LmJpbiIgQklOQVJZCiAgVFJBQ0sgNDYgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNDcuYmluIiBCSU5BUlkKICBUUkFDSyA0NyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA0OC5iaW4iIEJJTkFSWQogIFRSQUNLIDQ4IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDQ5LmJpbiIgQklOQVJZCiAgVFJBQ0sgNDkgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNTAuYmluIiBCSU5BUlkKICBUUkFDSyA1MCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA1MS5iaW4iIEJJTkFSWQogIFRSQUNLIDUxIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDUyLmJpbiIgQklOQVJZCiAgVFJBQ0sgNTIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNTMuYmluIiBCSU5BUlkKICBUUkFDSyA1MyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA1NC5iaW4iIEJJTkFSWQogIFRSQUNLIDU0IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDU1LmJpbiIgQklOQVJZCiAgVFJBQ0sgNTUgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNTYuYmluIiBCSU5BUlkKICBUUkFDSyA1NiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA1Ny5iaW4iIEJJTkFSWQogIFRSQUNLIDU3IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDU4LmJpbiIgQklOQVJZCiAgVFJBQ0sgNTggQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNTkuYmluIiBCSU5BUlkKICBUUkFDSyA1OSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA2MC5iaW4iIEJJTkFSWQogIFRSQUNLIDYwIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDYxLmJpbiIgQklOQVJZCiAgVFJBQ0sgNjEgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNjIuYmluIiBCSU5BUlkKICBUUkFDSyA2MiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA2My5iaW4iIEJJTkFSWQogIFRSQUNLIDYzIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDY0LmJpbiIgQklOQVJZCiAgVFJBQ0sgNjQgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNjUuYmluIiBCSU5BUlkKICBUUkFDSyA2NSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA2Ni5iaW4iIEJJTkFSWQogIFRSQUNLIDY2IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDY3LmJpbiIgQklOQVJZCiAgVFJBQ0sgNjcgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNjguYmluIiBCSU5BUlkKICBUUkFDSyA2OCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA2OS5iaW4iIEJJTkFSWQogIFRSQUNLIDY5IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDcwLmJpbiIgQklOQVJZCiAgVFJBQ0sgNzAgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNzEuYmluIiBCSU5BUlkKICBUUkFDSyA3MSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA3Mi5iaW4iIEJJTkFSWQogIFRSQUNLIDcyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDczLmJpbiIgQklOQVJZCiAgVFJBQ0sgNzMgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNzQuYmluIiBCSU5BUlkKICBUUkFDSyA3NCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA3NS5iaW4iIEJJTkFSWQogIFRSQUNLIDc1IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDc2LmJpbiIgQklOQVJZCiAgVFJBQ0sgNzYgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwNzcuYmluIiBCSU5BUlkKICBUUkFDSyA3NyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA3OC5iaW4iIEJJTkFSWQogIFRSQUNLIDc4IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDc5LmJpbiIgQklOQVJZCiAgVFJBQ0sgNzkgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwODAuYmluIiBCSU5BUlkKICBUUkFDSyA4MCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA4MS5iaW4iIEJJTkFSWQogIFRSQUNLIDgxIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDgyLmJpbiIgQklOQVJZCiAgVFJBQ0sgODIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwODMuYmluIiBCSU5BUlkKICBUUkFDSyA4MyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA4NC5iaW4iIEJJTkFSWQogIFRSQUNLIDg0IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDg1LmJpbiIgQklOQVJZCiAgVFJBQ0sgODUgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwODYuYmluIiBCSU5BUlkKICBUUkFDSyA4NiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA4Ny5iaW4iIEJJTkFSWQogIFRSQUNLIDg3IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDg4LmJpbiIgQklOQVJZCiAgVFJBQ0sgODggQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwODkuYmluIiBCSU5BUlkKICBUUkFDSyA4OSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA5MC5iaW4iIEJJTkFSWQogIFRSQUNLIDkwIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDkxLmJpbiIgQklOQVJZCiAgVFJBQ0sgOTEgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwOTIuYmluIiBCSU5BUlkKICBUUkFDSyA5MiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA5My5iaW4iIEJJTkFSWQogIFRSQUNLIDkzIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDk0LmJpbiIgQklOQVJZCiAgVFJBQ0sgOTQgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwOTUuYmluIiBCSU5BUlkKICBUUkFDSyA5NSBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA5Ni5iaW4iIEJJTkFSWQogIFRSQUNLIDk2IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MDk3LmJpbiIgQklOQVJZCiAgVFJBQ0sgOTcgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInQwOTguYmluIiBCSU5BUlkKICBUUkFDSyA5OCBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAidDA5OS5iaW4iIEJJTkFSWQogIFRSQUNLIDk5IEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJ0MTAwLmJpbiIgQklOQVJZCiAgVFJBQ0sgMTAwIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMAo="
+        },
+        {
+          "name": "t001.bin",
+          "base64": "AA=="
+        },
+        {
+          "name": "t002.bin",
+          "base64": "AQ=="
+        },
+        {
+          "name": "t003.bin",
+          "base64": "Ag=="
+        },
+        {
+          "name": "t004.bin",
+          "base64": "Aw=="
+        },
+        {
+          "name": "t005.bin",
+          "base64": "BA=="
+        },
+        {
+          "name": "t006.bin",
+          "base64": "BQ=="
+        },
+        {
+          "name": "t007.bin",
+          "base64": "Bg=="
+        },
+        {
+          "name": "t008.bin",
+          "base64": "Bw=="
+        },
+        {
+          "name": "t009.bin",
+          "base64": "CA=="
+        },
+        {
+          "name": "t010.bin",
+          "base64": "CQ=="
+        },
+        {
+          "name": "t011.bin",
+          "base64": "Cg=="
+        },
+        {
+          "name": "t012.bin",
+          "base64": "Cw=="
+        },
+        {
+          "name": "t013.bin",
+          "base64": "DA=="
+        },
+        {
+          "name": "t014.bin",
+          "base64": "DQ=="
+        },
+        {
+          "name": "t015.bin",
+          "base64": "Dg=="
+        },
+        {
+          "name": "t016.bin",
+          "base64": "Dw=="
+        },
+        {
+          "name": "t017.bin",
+          "base64": "EA=="
+        },
+        {
+          "name": "t018.bin",
+          "base64": "EQ=="
+        },
+        {
+          "name": "t019.bin",
+          "base64": "Eg=="
+        },
+        {
+          "name": "t020.bin",
+          "base64": "Ew=="
+        },
+        {
+          "name": "t021.bin",
+          "base64": "FA=="
+        },
+        {
+          "name": "t022.bin",
+          "base64": "FQ=="
+        },
+        {
+          "name": "t023.bin",
+          "base64": "Fg=="
+        },
+        {
+          "name": "t024.bin",
+          "base64": "Fw=="
+        },
+        {
+          "name": "t025.bin",
+          "base64": "GA=="
+        },
+        {
+          "name": "t026.bin",
+          "base64": "GQ=="
+        },
+        {
+          "name": "t027.bin",
+          "base64": "Gg=="
+        },
+        {
+          "name": "t028.bin",
+          "base64": "Gw=="
+        },
+        {
+          "name": "t029.bin",
+          "base64": "HA=="
+        },
+        {
+          "name": "t030.bin",
+          "base64": "HQ=="
+        },
+        {
+          "name": "t031.bin",
+          "base64": "Hg=="
+        },
+        {
+          "name": "t032.bin",
+          "base64": "Hw=="
+        },
+        {
+          "name": "t033.bin",
+          "base64": "IA=="
+        },
+        {
+          "name": "t034.bin",
+          "base64": "IQ=="
+        },
+        {
+          "name": "t035.bin",
+          "base64": "Ig=="
+        },
+        {
+          "name": "t036.bin",
+          "base64": "Iw=="
+        },
+        {
+          "name": "t037.bin",
+          "base64": "JA=="
+        },
+        {
+          "name": "t038.bin",
+          "base64": "JQ=="
+        },
+        {
+          "name": "t039.bin",
+          "base64": "Jg=="
+        },
+        {
+          "name": "t040.bin",
+          "base64": "Jw=="
+        },
+        {
+          "name": "t041.bin",
+          "base64": "KA=="
+        },
+        {
+          "name": "t042.bin",
+          "base64": "KQ=="
+        },
+        {
+          "name": "t043.bin",
+          "base64": "Kg=="
+        },
+        {
+          "name": "t044.bin",
+          "base64": "Kw=="
+        },
+        {
+          "name": "t045.bin",
+          "base64": "LA=="
+        },
+        {
+          "name": "t046.bin",
+          "base64": "LQ=="
+        },
+        {
+          "name": "t047.bin",
+          "base64": "Lg=="
+        },
+        {
+          "name": "t048.bin",
+          "base64": "Lw=="
+        },
+        {
+          "name": "t049.bin",
+          "base64": "MA=="
+        },
+        {
+          "name": "t050.bin",
+          "base64": "MQ=="
+        },
+        {
+          "name": "t051.bin",
+          "base64": "Mg=="
+        },
+        {
+          "name": "t052.bin",
+          "base64": "Mw=="
+        },
+        {
+          "name": "t053.bin",
+          "base64": "NA=="
+        },
+        {
+          "name": "t054.bin",
+          "base64": "NQ=="
+        },
+        {
+          "name": "t055.bin",
+          "base64": "Ng=="
+        },
+        {
+          "name": "t056.bin",
+          "base64": "Nw=="
+        },
+        {
+          "name": "t057.bin",
+          "base64": "OA=="
+        },
+        {
+          "name": "t058.bin",
+          "base64": "OQ=="
+        },
+        {
+          "name": "t059.bin",
+          "base64": "Og=="
+        },
+        {
+          "name": "t060.bin",
+          "base64": "Ow=="
+        },
+        {
+          "name": "t061.bin",
+          "base64": "PA=="
+        },
+        {
+          "name": "t062.bin",
+          "base64": "PQ=="
+        },
+        {
+          "name": "t063.bin",
+          "base64": "Pg=="
+        },
+        {
+          "name": "t064.bin",
+          "base64": "Pw=="
+        },
+        {
+          "name": "t065.bin",
+          "base64": "QA=="
+        },
+        {
+          "name": "t066.bin",
+          "base64": "QQ=="
+        },
+        {
+          "name": "t067.bin",
+          "base64": "Qg=="
+        },
+        {
+          "name": "t068.bin",
+          "base64": "Qw=="
+        },
+        {
+          "name": "t069.bin",
+          "base64": "RA=="
+        },
+        {
+          "name": "t070.bin",
+          "base64": "RQ=="
+        },
+        {
+          "name": "t071.bin",
+          "base64": "Rg=="
+        },
+        {
+          "name": "t072.bin",
+          "base64": "Rw=="
+        },
+        {
+          "name": "t073.bin",
+          "base64": "SA=="
+        },
+        {
+          "name": "t074.bin",
+          "base64": "SQ=="
+        },
+        {
+          "name": "t075.bin",
+          "base64": "Sg=="
+        },
+        {
+          "name": "t076.bin",
+          "base64": "Sw=="
+        },
+        {
+          "name": "t077.bin",
+          "base64": "TA=="
+        },
+        {
+          "name": "t078.bin",
+          "base64": "TQ=="
+        },
+        {
+          "name": "t079.bin",
+          "base64": "Tg=="
+        },
+        {
+          "name": "t080.bin",
+          "base64": "Tw=="
+        },
+        {
+          "name": "t081.bin",
+          "base64": "UA=="
+        },
+        {
+          "name": "t082.bin",
+          "base64": "UQ=="
+        },
+        {
+          "name": "t083.bin",
+          "base64": "Ug=="
+        },
+        {
+          "name": "t084.bin",
+          "base64": "Uw=="
+        },
+        {
+          "name": "t085.bin",
+          "base64": "VA=="
+        },
+        {
+          "name": "t086.bin",
+          "base64": "VQ=="
+        },
+        {
+          "name": "t087.bin",
+          "base64": "Vg=="
+        },
+        {
+          "name": "t088.bin",
+          "base64": "Vw=="
+        },
+        {
+          "name": "t089.bin",
+          "base64": "WA=="
+        },
+        {
+          "name": "t090.bin",
+          "base64": "WQ=="
+        },
+        {
+          "name": "t091.bin",
+          "base64": "Wg=="
+        },
+        {
+          "name": "t092.bin",
+          "base64": "Ww=="
+        },
+        {
+          "name": "t093.bin",
+          "base64": "XA=="
+        },
+        {
+          "name": "t094.bin",
+          "base64": "XQ=="
+        },
+        {
+          "name": "t095.bin",
+          "base64": "Xg=="
+        },
+        {
+          "name": "t096.bin",
+          "base64": "Xw=="
+        },
+        {
+          "name": "t097.bin",
+          "base64": "YA=="
+        },
+        {
+          "name": "t098.bin",
+          "base64": "YQ=="
+        },
+        {
+          "name": "t099.bin",
+          "base64": "Yg=="
+        },
+        {
+          "name": "t100.bin",
+          "base64": "Yw=="
+        }
+      ],
+      "error": "The CUE file lists more than 99 tracks."
+    },
+    {
+      "name": "a CUE that begins as a ZIP archive",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "UEsDBEZJTEUgImEuYmluIiBCSU5BUlkKICBUUkFDSyAwMSBNT0RFMi8yMzUyCiAgICBJTkRFWCAwMSAwMDowMDowMAo="
+        },
+        {
+          "name": "a.bin",
+          "base64": "srnAx87V3OPq8Q=="
+        }
+      ],
+      "error": "The CUE file is not a text file."
+    },
+    {
+      "name": "a CUE that lists itself as a track",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIkRpc2MuY3VlIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAK"
+        },
+        {
+          "name": "a.bin",
+          "base64": "0djf5u30+wIJEA=="
+        }
+      ],
+      "error": "The CUE file lists itself as a track: Disc.cue"
+    },
+    {
+      "name": "a track whose name holds a tab",
+      "files": [
+        {
+          "name": "Disc.cue",
+          "base64": "RklMRSAiYS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgImIJYy5iaW4iIEJJTkFSWQogIFRSQUNLIDAyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMAo="
+        },
+        {
+          "name": "a.bin",
+          "base64": "8Pf+BQwTGiEoLw=="
+        },
+        {
+          "name": "b\tc.bin",
+          "base64": "DxYdJCsyOUBHTg=="
+        }
+      ],
+      "error": "The CUE file names a track with a control character in its name."
+    }
+  ],
+  "archives": [
+    {
+      "name": "zip -0 -r: stored, the CUE in a folder",
+      "tool": "This is Zip 3.0 (July 5th 2008), by Info-ZIP, with modifications by Apple Inc.; zip -q -X -0 -r",
+      "from": "ASCII names, the tracks listed in another order than their names",
+      "base64": "UEsDBAoAAAAAAAAAISgAAAAAAAAAAAAAAAAFAAAAR2FtZS9QSwMECgAAAAAAAAAhKPMhzzYsAQAALAEAABEAAABHYW1lL1RyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQKAAAAAAAAACEoezbCAMgAAADIAAAAEQAAAEdhbWUvVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwMECgAAAAAAAAAhKBAzmrOJAAAAiQAAAA0AAABHYW1lL0dhbWUuY3VlRklMRSAiVHJhY2sgMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMSBNT0RFMi8yMzUyCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJUcmFjayAwMS5iaW4iIEJJTkFSWQogIFRSQUNLIDAyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApQSwECHgMKAAAAAAAAACEoAAAAAAAAAAAAAAAABQAAAAAAAAAAABAA7UEAAAAAR2FtZS9QSwECHgMKAAAAAAAAACEo8yHPNiwBAAAsAQAAEQAAAAAAAAAAAAAApIEjAAAAR2FtZS9UcmFjayAwMi5iaW5QSwECHgMKAAAAAAAAACEoezbCAMgAAADIAAAAEQAAAAAAAAAAAAAApIF+AQAAR2FtZS9UcmFjayAwMS5iaW5QSwECHgMKAAAAAAAAACEoEDOas4kAAACJAAAADQAAAAAAAAAAAAAApIF1AgAAR2FtZS9HYW1lLmN1ZVBLBQYAAAAABAAEAOwAAAApAwAAAAA=",
+      "disc": "bf71cd28fb7ec8ee0c839361ec9dcaba8e779e3c68127e8850fc1bd9a3c9a204",
+      "pal": false
+    },
+    {
+      "name": "zip -r: deflated, names in UTF-8 without the flag, the CUE in a folder",
+      "tool": "This is Zip 3.0 (July 5th 2008), by Info-ZIP, with modifications by Apple Inc.; zip -q -X -r",
+      "from": "Unicode names, CRLF line ends and a byte order mark",
+      "base64": "UEsDBAoAAAAAAAAAISgAAAAAAAAAAAAAAAALAAAAU2xlZCBTdG9ybS9QSwMECgAAAAAAAAAhKFlz12kBAQAAAQEAABoAAABTbGVkIFN0b3JtL9Ci0YDQtdC6IDAxLmJpbl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdUEsDBAoAAAAAAAAAISjYFGwJQAAAAEAAAAAhAAAAU2xlZCBTdG9ybS9QaXN0ZSAwMiDigJMgw6l0w6kuYmlufIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNVBLAwQUAAAACAAAACEoIvt72GsAAACfAAAAKAAAAFNsZWQgU3Rvcm0vU2xlZCBTdG9ybSAo0JXQstGA0L7Qv9CwKS5jdWV7v3u/m6ePq4LShUUXGy5svbBLwcBQLykzT0nBydPPMSiSl0tBISTI0dkbKK7g6+/iaqRvZGxqBBJWUPD0c3GNAEkYGFiBES8XxLCAzOKSVAUDI4VHDZMVDq8sObwSh5lGCo6hLp7+OI0DAFBLAQIeAwoAAAAAAAAAISgAAAAAAAAAAAAAAAALAAAAAAAAAAAAEADtQQAAAABTbGVkIFN0b3JtL1BLAQIeAwoAAAAAAAAAIShZc9dpAQEAAAEBAAAaAAAAAAAAAAAAAACkgSkAAABTbGVkIFN0b3JtL9Ci0YDQtdC6IDAxLmJpblBLAQIeAwoAAAAAAAAAISjYFGwJQAAAAEAAAAAhAAAAAAAAAAAAAACkgWIBAABTbGVkIFN0b3JtL1Bpc3RlIDAyIOKAkyDDqXTDqS5iaW5QSwECHgMUAAAACAAAACEoIvt72GsAAACfAAAAKAAAAAAAAAABAAAApIHhAQAAU2xlZCBTdG9ybS9TbGVkIFN0b3JtICjQldCy0YDQvtC/0LApLmN1ZVBLBQYAAAAABAAEACYBAACSAgAAAAA=",
+      "disc": "f3aacd5dd663e29d0737b3d9c736eddbb5303ede718b8b6daa5ac0dc981cd8f8",
+      "pal": false
+    },
+    {
+      "name": "Finder's Compress: a name in NFD and capitals, __MACOSX, data descriptors",
+      "tool": "ditto on macOS 27.2.1; ditto -c -k --sequesterRsrc --keepParent",
+      "from": "a track named in the CUE in NFC and lower case, its file in NFD and capitals",
+      "base64": "UEsDBAoAAAAAAAAAISgAAAAAAAAAAAAAAAAFABAARGlzYy9VWAwAgENtOIBDbTgi5JYPUEsDBBQACAAIAAAAISgAAAAAAAAAAAAAAAANABAARGlzYy9EaXNjLmN1ZVVYDACAQ204gENtOCLklg9z8/RxVVBKSSxJ1EvKzFNScPL0cwyK5FJQCAlydPZWMDBU8PV3cTXSNzI2NQKKKih4+rm4RoDEDQyswIjLDWzE4ZUlh1cqGBhhN8ZIwTHUxdMfhwkAUEsHCETXb9JVAAAAhQAAAFBLAwQKAAAAAAARoXVdAAAAAAAAAAAAAAAACQAQAF9fTUFDT1NYL1VYDABB+gFrQfoBayLklg9QSwMECgAAAAAAEaF1XQAAAAAAAAAAAAAAAA4AEABfX01BQ09TWC9EaXNjL1VYDABB+gFrQfoBayLklg9QSwMEFAAIAAgAAAAhKAAAAAAAAAAAAAAAABgAEABfX01BQ09TWC9EaXNjLy5fRGlzYy5jdWVVWAwAgENtOIBDbTgi5JYPY2AVY2dgYmDwTUxW8A9WiFCAApAYAycQGwFxIRCD+IsZiAKOISFBUCZIxwwg5kZTwogQF03Oz9VLLCjISdUrKMovS81LzEtOZWBkYvA4vOs8DwvrbQBQSwcIew9dUFYAAACjAAAAUEsDBBQACAAIAAAAISgAAAAAAAAAAAAAAAATABAARGlzYy9FzIFURcyBIDAyLkJJTlVYDACAQ204gENtOCLklg8BYACf/7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1BLBwjlO+pvZQAAAGAAAABQSwMEFAAIAAgAAAAhKAAAAAAAAAAAAAAAAB4AEABfX01BQ09TWC9EaXNjLy5fRcyBVEXMgSAwMi5CSU5VWAwAgENtOIBDbTgi5JYPY2AVY2dgYmDwTUxW8A9WiFCAApAYAycQGwFxIRCD+IsZiAKOISFBUCZIxwwg5kZTwogQF03Oz9VLLCjISdUrKMovS81LzEtOZWBkYvA4vOs8DwvrbQBQSwcIew9dUFYAAACjAAAAUEsDBBQACAAIAAAAISgAAAAAAAAAAAAAAAANABAARGlzYy9kYXRhLmJpblVYDACAQ204gENtOCLklg8BgAB//5uiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UUEsHCL677MeFAAAAgAAAAFBLAwQUAAgACAAAACEoAAAAAAAAAAAAAAAAGAAQAF9fTUFDT1NYL0Rpc2MvLl9kYXRhLmJpblVYDACAQ204gENtOCLklg9jYBVjZ2BiYPBNTFbwD1aIUIACkBgDJxAbAXEhEIP4ixmIAo4hIUFQJkjHDCDmRlPCiBAXTc7P1UssKMhJ1Ssoyi9LzUvMS05lYGRi8Di86zwPC+ttAFBLBwh7D11QVgAAAKMAAABQSwECFQMKAAAAAAAAACEoAAAAAAAAAAAAAAAABQAMAAAAAAAAAABA7UEAAAAARGlzYy9VWAgAgENtOIBDbThQSwECFQMUAAgACAAAACEoRNdv0lUAAACFAAAADQAMAAAAAAAAAABApIEzAAAARGlzYy9EaXNjLmN1ZVVYCACAQ204gENtOFBLAQIVAwoAAAAAABGhdV0AAAAAAAAAAAAAAAAJAAwAAAAAAAAAAED9QdMAAABfX01BQ09TWC9VWAgAQfoBa0H6AWtQSwECFQMKAAAAAAARoXVdAAAAAAAAAAAAAAAADgAMAAAAAAAAAABA/UEKAQAAX19NQUNPU1gvRGlzYy9VWAgAQfoBa0H6AWtQSwECFQMUAAgACAAAACEoew9dUFYAAACjAAAAGAAMAAAAAAAAAABApIFGAQAAX19NQUNPU1gvRGlzYy8uX0Rpc2MuY3VlVVgIAIBDbTiAQ204UEsBAhUDFAAIAAgAAAAhKOU76m9lAAAAYAAAABMADAAAAAAAAAAAQKSB8gEAAERpc2MvRcyBVEXMgSAwMi5CSU5VWAgAgENtOIBDbThQSwECFQMUAAgACAAAACEoew9dUFYAAACjAAAAHgAMAAAAAAAAAABApIGoAgAAX19NQUNPU1gvRGlzYy8uX0XMgVRFzIEgMDIuQklOVVgIAIBDbTiAQ204UEsBAhUDFAAIAAgAAAAhKL677MeFAAAAgAAAAA0ADAAAAAAAAAAAQKSBWgMAAERpc2MvZGF0YS5iaW5VWAgAgENtOIBDbThQSwECFQMUAAgACAAAACEoew9dUFYAAACjAAAAGAAMAAAAAAAAAABApIEqBAAAX19NQUNPU1gvRGlzYy8uX2RhdGEuYmluVVgIAIBDbTiAQ204UEsFBgAAAAAJAAkAoQIAANYEAAAAAA==",
+      "disc": "788f4e99f3524f483f9ad0a82a9fc65fb1141a7044d7207027e91695603e85ae",
+      "pal": false
+    },
+    {
+      "name": "Python's zipfile: the UTF-8 flag, folders, a comment and a file the disc does not use",
+      "tool": "Python 3.9.6 zipfile",
+      "from": "Unicode names, CRLF line ends and a byte order mark",
+      "base64": "UEsDBBQAAAAAAAAAISgAAAAAAAAAAAAAAAAGAAAAR2FtZXMvUEsDBBQAAAAAAAAAISgAAAAAAAAAAAAAAAALAAAAR2FtZXMvU2xlZC9QSwMEFAAACAgAAAAhKCL7e9hrAAAAnwAAACgAAABHYW1lcy9TbGVkL1NsZWQgU3Rvcm0gKNCV0LLRgNC+0L/QsCkuY3Vle797v5unj6uC0oVFFxsubL2wS8HAUC8pM09JwcnTzzEokpdLQSEkyNHZGyiu4Ovv4mqkb2RsagQSVlDw9HNxjQBJGBhYgREvF8SwgMziklQFAyOFRw2TFQ6vLDm8EoeZRgqOoS6e/jiNAwBQSwMEFAAACAgAAAAhKFlz12kGAQAAAQEAABoAAABHYW1lcy9TbGVkL9Ci0YDQtdC6IDAxLmJpbgEBAf7+XWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1QSwMEFAAACAgAAAAhKNgUbAlFAAAAQAAAACEAAABHYW1lcy9TbGVkL1Bpc3RlIDAyIOKAkyDDqXTDqS5iaW4BQAC//3yDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjVQSwMEFAAAAAgAAAAhKGpnQ2sOAAAADAAAABUAAABHYW1lcy9TbGVkL3JlYWRtZS50eHTLyy9RSFQoKUpMzuYCAFBLAQIUAxQAAAAAAAAAISgAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAACAAQAAAABHYW1lcy9QSwECFAMUAAAAAAAAACEoAAAAAAAAAAAAAAAACwAAAAAAAAAAAAAAgAEkAAAAR2FtZXMvU2xlZC9QSwECFAMUAAAICAAAACEoIvt72GsAAACfAAAAKAAAAAAAAAAAAAAAgAFNAAAAR2FtZXMvU2xlZC9TbGVkIFN0b3JtICjQldCy0YDQvtC/0LApLmN1ZVBLAQIUAxQAAAgIAAAAIShZc9dpBgEAAAEBAAAaAAAAAAAAAAAAAACAAf4AAABHYW1lcy9TbGVkL9Ci0YDQtdC6IDAxLmJpblBLAQIUAxQAAAgIAAAAISjYFGwJRQAAAEAAAAAhAAAAAAAAAAAAAACAATwCAABHYW1lcy9TbGVkL1Bpc3RlIDAyIOKAkyDDqXTDqS5iaW5QSwECFAMUAAAACAAAACEoamdDaw4AAAAMAAAAFQAAAAAAAAAAAAAAgAHAAgAAR2FtZXMvU2xlZC9yZWFkbWUudHh0UEsFBgAAAAAGAAYAnQEAAAEDAAAPAG1hZGUgZm9yIGEgdGVzdA==",
+      "disc": "f3aacd5dd663e29d0737b3d9c736eddbb5303ede718b8b6daa5ac0dc981cd8f8",
+      "pal": false
+    },
+    {
+      "name": "Python's zipfile: an empty track",
+      "tool": "Python 3.9.6 zipfile",
+      "from": "an empty track",
+      "base64": "UEsDBBQAAAAAAAAAISgAAAAAAAAAAAAAAAAGAAAARW1wdHkvUEsDBBQAAAAIAAAAISg9M3yLVAAAAIQAAAAPAAAARW1wdHkvRW1wdHkuY3Vlc/P0cVVQSkksSdRLysxTUnDy9HMMiuRSUAgJcnT2VjAwVPD1d3E10jcyNjUCiiooePq5uEaAxA0MrMCIyw1sRHFmTmpecip2U4wUHENdPP1xGAAAUEsDBBQAAAAIAAAAIShwo4axaQAAAGQAAAAOAAAARW1wdHkvZGF0YS5iaW4BZACb/9ng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh45QSwMEFAAAAAgAAAAhKAAAAAACAAAAAAAAABEAAABFbXB0eS9zaWxlbmNlLmJpbgMAUEsBAhQDFAAAAAAAAAAhKAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAIABAAAAAEVtcHR5L1BLAQIUAxQAAAAIAAAAISg9M3yLVAAAAIQAAAAPAAAAAAAAAAAAAACAASQAAABFbXB0eS9FbXB0eS5jdWVQSwECFAMUAAAACAAAACEocKOGsWkAAABkAAAADgAAAAAAAAAAAAAAgAGlAAAARW1wdHkvZGF0YS5iaW5QSwECFAMUAAAACAAAACEoAAAAAAIAAAAAAAAAEQAAAAAAAAAAAAAAgAE6AQAARW1wdHkvc2lsZW5jZS5iaW5QSwUGAAAAAAQABADsAAAAawEAAAAA",
+      "disc": "577895518660fef6a57598d5e9d4438b63f1bc801c80e508e1f2f460f86c0691",
+      "pal": false
+    },
+    {
+      "name": "the server's canonical archive: ASCII names, the tracks listed in another order than their names",
+      "tool": "server/src/game-data.ts stored-v2, rebuilt here",
+      "from": "ASCII names, the tracks listed in another order than their names",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "disc": "bf71cd28fb7ec8ee0c839361ec9dcaba8e779e3c68127e8850fc1bd9a3c9a204",
+      "pal": false,
+      "canonical": true
+    },
+    {
+      "name": "the server's canonical archive: Unicode names, CRLF line ends and a byte order mark",
+      "tool": "server/src/game-data.ts stored-v2, rebuilt here",
+      "from": "Unicode names, CRLF line ends and a byte order mark",
+      "base64": "UEsDBBQAAAgAAAAAIQAi+3vYnwAAAJ8AAAAdAAAAU2xlZCBTdG9ybSAo0JXQstGA0L7Qv9CwKS5jdWXvu79GSUxFICLQotGA0LXQuiAwMS5iaW4iIEJJTkFSWQ0KICBUUkFDSyAwMSBNT0RFMi8yMzUyDQogICAgSU5ERVggMDEgMDA6MDA6MDANCkZJTEUgIlBpc3RlIDAyIOKAkyDDqXTDqS5iaW4iIEJJTkFSWQ0KICBUUkFDSyAwMiBBVURJTw0KICAgIElOREVYIDAxIDAwOjAwOjAwDQpQSwMEFAAACAAAAAAhAFlz12kBAQAAAQEAAA8AAADQotGA0LXQuiAwMS5iaW5dZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXVBLAwQUAAAIAAAAACEA2BRsCUAAAABAAAAAFgAAAFBpc3RlIDAyIOKAkyDDqXTDqS5iaW58g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41UEsBAhQDFAAACAAAAAAhACL7e9ifAAAAnwAAAB0AAAAAAAAAAAAAAKSBAAAAAFNsZWQgU3Rvcm0gKNCV0LLRgNC+0L/QsCkuY3VlUEsBAhQDFAAACAAAAAAhAFlz12kBAQAAAQEAAA8AAAAAAAAAAAAAAKSB2gAAANCi0YDQtdC6IDAxLmJpblBLAQIUAxQAAAgAAAAAIQDYFGwJQAAAAEAAAAAWAAAAAAAAAAAAAACkgQgCAABQaXN0ZSAwMiDigJMgw6l0w6kuYmluUEsFBgAAAAADAAMAzAAAAHwCAAAAAA==",
+      "disc": "f3aacd5dd663e29d0737b3d9c736eddbb5303ede718b8b6daa5ac0dc981cd8f8",
+      "pal": false,
+      "canonical": true
+    },
+    {
+      "name": "the server's canonical archive: a track named in the CUE in NFC and lower case, its file in NFD and capitals",
+      "tool": "server/src/game-data.ts stored-v2, rebuilt here",
+      "from": "a track named in the CUE in NFC and lower case, its file in NFD and capitals",
+      "base64": "UEsDBBQAAAAAAAAAIQBE12/ShQAAAIUAAAAIAAAARGlzYy5jdWVGSUxFICJkYXRhLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDEgTU9ERTIvMjM1MgogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAiw6l0w6kgMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKUEsDBBQAAAAAAAAAIQC+u+zHgAAAAIAAAAAIAAAAZGF0YS5iaW6boqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFFBLAwQUAAAIAAAAACEA5Tvqb2AAAABgAAAADAAAAMOpdMOpIDAyLmJpbrrByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1BLAQIUAxQAAAAAAAAAIQBE12/ShQAAAIUAAAAIAAAAAAAAAAAAAACkgQAAAABEaXNjLmN1ZVBLAQIUAxQAAAAAAAAAIQC+u+zHgAAAAIAAAAAIAAAAAAAAAAAAAACkgasAAABkYXRhLmJpblBLAQIUAxQAAAgAAAAAIQDlO+pvYAAAAGAAAAAMAAAAAAAAAAAAAACkgVEBAADDqXTDqSAwMi5iaW5QSwUGAAAAAAMAAwCmAAAA2wEAAAAA",
+      "disc": "788f4e99f3524f483f9ad0a82a9fc65fb1141a7044d7207027e91695603e85ae",
+      "pal": false,
+      "canonical": true
+    },
+    {
+      "name": "the server's canonical archive: an empty track",
+      "tool": "server/src/game-data.ts stored-v2, rebuilt here",
+      "from": "an empty track",
+      "base64": "UEsDBBQAAAAAAAAAIQA9M3yLhAAAAIQAAAAJAAAARW1wdHkuY3VlRklMRSAiZGF0YS5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgInNpbGVuY2UuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKUEsDBBQAAAAAAAAAIQBwo4axZAAAAGQAAAAIAAAAZGF0YS5iaW7Z4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOUEsDBBQAAAAAAAAAIQAAAAAAAAAAAAAAAAALAAAAc2lsZW5jZS5iaW5QSwECFAMUAAAAAAAAACEAPTN8i4QAAACEAAAACQAAAAAAAAAAAAAApIEAAAAARW1wdHkuY3VlUEsBAhQDFAAAAAAAAAAhAHCjhrFkAAAAZAAAAAgAAAAAAAAAAAAAAKSBqwAAAGRhdGEuYmluUEsBAhQDFAAAAAAAAAAhAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAKSBNQEAAHNpbGVuY2UuYmluUEsFBgAAAAADAAMApgAAAF4BAAAAAA==",
+      "disc": "577895518660fef6a57598d5e9d4438b63f1bc801c80e508e1f2f460f86c0691",
+      "pal": false,
+      "canonical": true
+    },
+    {
+      "name": "a __MACOSX folder that holds a copy of the CUE",
+      "tool": "built byte by byte here",
+      "from": "ASCII names, the tracks listed in another order than their names",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAARAAAAX19NQUNPU1gvR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEFAgAAVHJhY2sgMDEuYmluUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAABEAAAAAAAAAAAAAAKSB9wIAAF9fTUFDT1NYL0dhbWUuY3VlUEsFBgAAAAAEAAQA6QAAAK8DAAAAAA==",
+      "disc": "bf71cd28fb7ec8ee0c839361ec9dcaba8e779e3c68127e8850fc1bd9a3c9a204",
+      "pal": false
+    },
+    {
+      "name": "a wrong CRC",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAejbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB6NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "corrupt"
+    },
+    {
+      "name": "a cut file",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAA=",
+      "error": "damaged"
+    },
+    {
+      "name": "bytes after the end record",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAAAAAAAAAAAA==",
+      "error": "damaged"
+    },
+    {
+      "name": "data before the archive",
+      "tool": "built byte by byte here",
+      "base64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFBLAwQUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAEdhbWUuY3VlRklMRSAiVHJhY2sgMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMSBNT0RFMi8yMzUyCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJUcmFjayAwMS5iaW4iIEJJTkFSWQogIFRSQUNLIDAyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApQSwMEFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAABUcmFjayAwMi5iaW4+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtQSwMEFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAABUcmFjayAwMS5iaW4fJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkFBLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEFAgAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMAqgAAAPcCAAAAAA==",
+      "error": "damaged"
+    },
+    {
+      "name": "entry counts that disagree with the directory",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAQABACqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a directory size that disagrees with its place",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCpAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a local record that names another file",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAzLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "an entry inside the data of another",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEAxd9Xch4CAAAeAgAADAAAAFRyYWNrIDAyLmJpblBLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAMXfV3IeAgAAHgIAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgdkAAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "an entry whose data runs into the directory",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAux/xNtIAAADSAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQC7H/E20gAAANIAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a stored entry whose two sizes differ",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADNAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAM0AAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "bytes left in the directory after its last record",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW4AAAAAAAAAAAAAAABQSwUGAAAAAAMAAwC2AAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a central record whose name runs past the directory",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAgAAAAAIQAAAAAAAAAAAAAAAAAIAAAAVHJhY2sgMMNQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLAQIUAxQAAAgAAAAAIQAAAAAAAAAAAAAAAAAJAAAAAAAAAAAAAACkgfcCAABUcmFjayAww1BLBQYAAAAABAAEAOAAAAAdAwAAAAA=",
+      "error": "damaged"
+    },
+    {
+      "name": "an entry that starts within 30 bytes of the end of the file",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIG7AgAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMAqgAAAAUCAAAAAA==",
+      "error": "damaged"
+    },
+    {
+      "name": "a local record of another method",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAACAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a local record that says the entry is encrypted",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAEAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a local record with another CRC-32",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAejbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a local record with another size",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADJAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a local record with another compressed size",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMkAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "damaged"
+    },
+    {
+      "name": "a CUE declared larger than 1 MiB",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAIAAAAIQAQM5qzUgAAAAAAIAAIAAAAR2FtZS5jdWVz8/RxVVAKKUpMzlYwMNJLysxTUnDy9HMMiuRSUAgJcnT2VjAwVPD1d3E10jcyNjUCiiooePq5uEaAxA0MrMCIyw3ZGEPsxhgpOIa6ePrjMAEAUEsDBBQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAVHJhY2sgMDIuYmluPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAACAAAACEAEDOas1IAAAAAACAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIF4AAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBzgEAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKoAAADAAgAAAAA=",
+      "error": "too-large"
+    },
+    {
+      "name": "tracks declared larger than a CD",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAACAAAACEA8yHPNhMBAAAARsMjDAAAAFRyYWNrIDAyLmJpbrNz9QmOSszIL6tt6Z40c8HydVv3HD518cb9Z2+//GbiFBCXU9UxtnL08A+LTckuqmxo75s6Z/GqjTv2Hzt75fajlx++/2PlEZZS1NA3s3XxDopMSM8rrWnumjhj/rK1W3YfOnnh+r2nbz7/YuTgF5NV0TaydHD3C41JziqsqG/rnTJ70coN2/cdPXP51sMX77/9ZeEWklRQ1zO1cfYKjIhPyy2pbuqcMH3e0jWbdx08cf7a3SevP/1kYOcTlVHWMrSwd/MNiU7KLCiva+2ZPGvhivXb9h45fenmg+fvvv5h5hKUkFfTNbF28gwIj0vNKa5q7OifNnfJ6k07Dxw/d/XO41cff/xn4xWRVtI0MLcjwf8AUEsDBBQAAAAIAAAAIQB7NsIAzQAAAABGwyMMAAAAVHJhY2sgMDEuYmluAcgAN/8fJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkFBLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAIAAAAIQDzIc82EwEAAABGwyMMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAACAAAACEAezbCAM0AAAAARsMjDAAAAAAAAAAAAAAApIHsAQAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMAqgAAAOMCAAAAAA==",
+      "error": "too-large"
+    },
+    {
+      "name": "an entry that inflates beyond its declared size",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAACAAAACEAezbCAM0AAACWAAAADAAAAFRyYWNrIDAxLmJpbgHIADf/HyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAgAAAAhAHs2wgDNAAAAlgAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKoAAAD8AgAAAAA=",
+      "error": "corrupt"
+    },
+    {
+      "name": "a small entry that inflates to megabytes",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAACAAAACEAezbCAPAPAADIAAAADAAAAFRyYWNrIDAxLmJpbu3BAQEAAACCIP+vbkhAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8G1BLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAACAAAACEAezbCAPAPAADIAAAADAAAAAAAAAAAAAAApIEFAgAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMAqgAAAB8SAAAAAA==",
+      "error": "corrupt"
+    },
+    {
+      "name": "an entry shorter than declared",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAACAAAACEAezbCAM0AAAD6AAAADAAAAFRyYWNrIDAxLmJpbgHIADf/HyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAgAAAAhAHs2wgDNAAAA+gAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKoAAAD8AgAAAAA=",
+      "error": "corrupt"
+    },
+    {
+      "name": "damaged deflated data",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAACAAAACEAezbCAM0AAADIAAAADAAAAFRyYWNrIDAxLmJpbv/IADf/HyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAgAAAAhAHs2wgDNAAAAyAAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKoAAAD8AgAAAAA=",
+      "error": "corrupt"
+    },
+    {
+      "name": "a name in the folder above",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAALAAAALi4vR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAsAAAAAAAAAAAAAAKSBAAAAAC4uL0dhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBsgAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQgCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCtAAAA+gIAAAAA",
+      "error": "unsafe-name"
+    },
+    {
+      "name": "a name from the root",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAJAAAAL0dhbWUuY3VlRklMRSAiVHJhY2sgMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMSBNT0RFMi8yMzUyCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJUcmFjayAwMS5iaW4iIEJJTkFSWQogIFRSQUNLIDAyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApQSwMEFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAABUcmFjayAwMi5iaW4+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtQSwMEFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAABUcmFjayAwMS5iaW4fJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkFBLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAJAAAAAAAAAAAAAACkgQAAAAAvR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGwAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBBgIAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKsAAAD4AgAAAAA=",
+      "error": "unsafe-name"
+    },
+    {
+      "name": "a name with a drive letter",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAKAAAAQzpHYW1lLmN1ZUZJTEUgIlRyYWNrIDAyLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDEgTU9ERTIvMjM1MgogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAiVHJhY2sgMDEuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKUEsDBBQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAVHJhY2sgMDIuYmluPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACgAAAAAAAAAAAAAApIEAAAAAQzpHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkgbEAAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEHAgAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMArAAAAPkCAAAAAA==",
+      "error": "unsafe-name"
+    },
+    {
+      "name": "a name with a backslash",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAAEQAAAEdhbWVcVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAABEAAAAAAAAAAAAAAKSBBQIAAEdhbWVcVHJhY2sgMDEuYmluUEsFBgAAAAADAAMArwAAAPwCAAAAAA==",
+      "error": "unsafe-name"
+    },
+    {
+      "name": "a name with a NUL",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQAAAAAAAAAAAAAAAAARAAAAVHJhY2sgMDEuYmluAC50eHRQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLAQIUAxQAAAAAAAAAIQAAAAAAAAAAAAAAAAARAAAAAAAAAAAAAACkgfcCAABUcmFjayAwMS5iaW4ALnR4dFBLBQYAAAAABAAEAOkAAAAmAwAAAAA=",
+      "error": "unsafe-name"
+    },
+    {
+      "name": "an ignored entry that leaves the archive",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQAAAAAAAAAAAAAAAAATAAAAX19NQUNPU1gvLi4vLi4vZXZpbFBLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEFAgAAVHJhY2sgMDEuYmluUEsBAhQDFAAAAAAAAAAhAAAAAAAAAAAAAAAAABMAAAAAAAAAAAAAAKSB9wIAAF9fTUFDT1NYLy4uLy4uL2V2aWxQSwUGAAAAAAQABADrAAAAKAMAAAAA",
+      "error": "unsafe-name"
+    },
+    {
+      "name": "a name flagged UTF-8 that is not",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAgAAAAAIQAAAAAAAAAAAAAAAAALAAAAVHJhY2sg/y5iaW5QSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLAQIUAxQAAAgAAAAAIQAAAAAAAAAAAAAAAAALAAAAAAAAAAAAAACkgfcCAABUcmFjayD/LmJpblBLBQYAAAAABAAEAOMAAAAgAwAAAAA=",
+      "error": "bad-name"
+    },
+    {
+      "name": "a name in a legacy code page",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQAAAAAAAAAAAAAAAAAMAAAAUGlzdGUggnQuYmluUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwECFAMUAAAAAAAAACEAAAAAAAAAAAAAAAAADAAAAAAAAAAAAAAApIH3AgAAUGlzdGUggnQuYmluUEsFBgAAAAAEAAQA5AAAACEDAAAAAA==",
+      "error": "bad-name"
+    },
+    {
+      "name": "two entries of one name",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgfcCAABUcmFjayAwMS5iaW5QSwUGAAAAAAQABADkAAAA6QMAAAAA",
+      "error": "duplicate-name"
+    },
+    {
+      "name": "two entries whose names differ in case",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVFJBQ0sgMDEuQklOHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIGvAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBBQIAAFRyYWNrIDAxLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgfcCAABUUkFDSyAwMS5CSU5QSwUGAAAAAAQABADkAAAA6QMAAAAA",
+      "error": "duplicate-name"
+    },
+    {
+      "name": "no CUE",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAVHJhY2sgMDIuYmluPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIEAAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBVgEAAFRyYWNrIDAxLmJpblBLBQYAAAAAAgACAHQAAABIAgAAAAA=",
+      "error": "no-cue"
+    },
+    {
+      "name": "two CUEs",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAOAAAAT3RoZXIvR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAQIUAxQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkga8AAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEFAgAAVHJhY2sgMDEuYmluUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAA4AAAAAAAAAAAAAAKSB9wIAAE90aGVyL0dhbWUuY3VlUEsFBgAAAAAEAAQA5gAAAKwDAAAAAA==",
+      "error": "cue-count"
+    },
+    {
+      "name": "a CUE without a BINARY track",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQDYkiwgEgAAABIAAAAIAAAAR2FtZS5jdWVGSUxFICJhLndhdiIgV0FWRQpQSwMEFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAABUcmFjayAwMi5iaW4+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtQSwMEFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAABUcmFjayAwMS5iaW4fJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkFBLAQIUAxQAAAAAAAAAIQDYkiwgEgAAABIAAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkgTgAAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIGOAQAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMAqgAAAIACAAAAAA==",
+      "error": "sheet"
+    },
+    {
+      "name": "a CUE that is itself an archive",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAM9j1WjQAAAI0AAAAIAAAAR2FtZS5jdWVQSwMERklMRSAiVHJhY2sgMDIuYmluIiBCSU5BUlkKICBUUkFDSyAwMSBNT0RFMi8yMzUyCiAgICBJTkRFWCAwMSAwMDowMDowMApGSUxFICJUcmFjayAwMS5iaW4iIEJJTkFSWQogIFRSQUNLIDAyIEFVRElPCiAgICBJTkRFWCAwMSAwMDowMDowMApQSwMEFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAABUcmFjayAwMi5iaW4+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtQSwMEFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAABUcmFjayAwMS5iaW4fJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkFBLAQIUAxQAAAAAAAAAIQAM9j1WjQAAAI0AAAAIAAAAAAAAAAAAAACkgQAAAABHYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkgbMAAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEJAgAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMAqgAAAPsCAAAAAA==",
+      "error": "sheet"
+    },
+    {
+      "name": "a CUE that lists itself as a track",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQCRbx8mxwAAAMcAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIkdhbWUuY3VlIiBCSU5BUlkKICBUUkFDSyAwMyBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKUEsDBBQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAVHJhY2sgMDIuYmluPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAkW8fJscAAADHAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIHtAAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBQwIAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKoAAAA1AwAAAAA=",
+      "error": "sheet"
+    },
+    {
+      "name": "a CUE that names a track with a tab",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQBHaaXBiQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrCTAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhAEdppcGJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "sheet"
+    },
+    {
+      "name": "a missing track",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQDE7Vb5ywAAAMsAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAzLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDMgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhAMTtVvnLAAAAywAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSB8QAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgUcCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAAOQMAAAAA",
+      "error": "missing-track"
+    },
+    {
+      "name": "the tracks outside the CUE's folder",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAANAAAAR2FtZS9HYW1lLmN1ZUZJTEUgIlRyYWNrIDAyLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDEgTU9ERTIvMjM1MgogICAgSU5ERVggMDEgMDA6MDA6MDAKRklMRSAiVHJhY2sgMDEuYmluIiBCSU5BUlkKICBUUkFDSyAwMiBBVURJTwogICAgSU5ERVggMDEgMDA6MDA6MDAKUEsDBBQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAVHJhY2sgMDIuYmluPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAAAAAAACEAEDOas4kAAACJAAAADQAAAAAAAAAAAAAApIEAAAAAR2FtZS9HYW1lLmN1ZVBLAQIUAxQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAAAAAAAAAAACkgbQAAABUcmFjayAwMi5iaW5QSwECFAMUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAAAAAAAAAAAApIEKAgAAVHJhY2sgMDEuYmluUEsFBgAAAAADAAMArwAAAPwCAAAAAA==",
+      "error": "missing-track"
+    },
+    {
+      "name": "an encrypted track",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAEAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAQAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAAAAAAMAAwCqAAAA9wIAAAAA",
+      "error": "unsupported"
+    },
+    {
+      "name": "an unknown method",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAOAAAAIQAQM5qzUgAAAIkAAAAIAAAAR2FtZS5jdWVz8/RxVVAKKUpMzlYwMNJLysxTUnDy9HMMiuRSUAgJcnT2VjAwVPD1d3E10jcyNjUCiiooePq5uEaAxA0MrMCIyw3ZGEPsxhgpOIa6ePrjMAEAUEsDBBQAAAAAAAAAIQDzIc82LAEAACwBAAAMAAAAVHJhY2sgMDIuYmluPkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrUEsDBBQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAVHJhY2sgMDEuYmluHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZBQSwECFAMUAAAADgAAACEAEDOas1IAAACJAAAACAAAAAAAAAAAAAAApIEAAAAAR2FtZS5jdWVQSwECFAMUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAAAAAAAAAAAApIF4AAAAVHJhY2sgMDIuYmluUEsBAhQDFAAAAAAAAAAhAHs2wgDIAAAAyAAAAAwAAAAAAAAAAAAAAKSBzgEAAFRyYWNrIDAxLmJpblBLBQYAAAAAAwADAKoAAADAAgAAAAA=",
+      "error": "unsupported"
+    },
+    {
+      "name": "ZIP64",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwYGLAAAAAAAAAAtAC0AAAAAAAAAAAADAAAAAAAAAAMAAAAAAAAAqgAAAAAAAAD3AgAAAAAAAFBLBgcAAAAAoQMAAAAAAAABAAAAUEsFBgAAAAD///////////////8AAA==",
+      "error": "unsupported"
+    },
+    {
+      "name": "a ZIP64 locator before a plain end record",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwYGLAAAAAAAAAAtAC0AAAAAAAAAAAADAAAAAAAAAAMAAAAAAAAAqgAAAAAAAAD3AgAAAAAAAFBLBgcAAAAAoQMAAAAAAAABAAAAUEsFBgAAAAADAAMAqgAAAPcCAAAAAA==",
+      "error": "unsupported"
+    },
+    {
+      "name": "one part of several",
+      "tool": "built byte by byte here",
+      "base64": "UEsDBBQAAAAAAAAAIQAQM5qziQAAAIkAAAAIAAAAR2FtZS5jdWVGSUxFICJUcmFjayAwMi5iaW4iIEJJTkFSWQogIFRSQUNLIDAxIE1PREUyLzIzNTIKICAgIElOREVYIDAxIDAwOjAwOjAwCkZJTEUgIlRyYWNrIDAxLmJpbiIgQklOQVJZCiAgVFJBQ0sgMDIgQVVESU8KICAgIElOREVYIDAxIDAwOjAwOjAwClBLAwQUAAAAAAAAACEA8yHPNiwBAAAsAQAADAAAAFRyYWNrIDAyLmJpbj5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka1BLAwQUAAAAAAAAACEAezbCAMgAAADIAAAADAAAAFRyYWNrIDAxLmJpbh8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQUEsBAhQDFAAAAAAAAAAhABAzmrOJAAAAiQAAAAgAAAAAAAAAAAAAAKSBAAAAAEdhbWUuY3VlUEsBAhQDFAAAAAAAAAAhAPMhzzYsAQAALAEAAAwAAAAAAAAAAAAAAKSBrwAAAFRyYWNrIDAyLmJpblBLAQIUAxQAAAAAAAAAIQB7NsIAyAAAAMgAAAAMAAAAAAAAAAAAAACkgQUCAABUcmFjayAwMS5iaW5QSwUGAQABAAMAAwCqAAAA9wIAAAAA",
+      "error": "unsupported"
+    }
+  ]
+}

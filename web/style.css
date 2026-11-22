@@ -451,7 +451,6 @@ dd {
   margin:12px 0 0
 }
 #game-data-settings {
-  margin-top:10px;
   font-size:11px;
   color:var(--muted);
 }
@@ -470,7 +469,6 @@ dd {
   cursor:pointer;
 }
 .keep-game-data input { margin:0; accent-color:var(--accent); }
-#game-data-state.is-ready { color:#a9e7bf; font-weight:600; }
 #launch.is-ready { background:#a9e7bf; border-color:#a9e7bf; color:#102c1b; }
 #launch.is-ready:hover:not(:disabled) { background:#c8f4d8; border-color:#c8f4d8; }
 #game-data-help { margin:2px 0 0; line-height:1.45; overflow-wrap:anywhere; }
@@ -778,6 +776,50 @@ input[type=file]::file-selector-button {
   font-size:11px;
   overflow-wrap:anywhere;
   color:var(--accent)
+}
+.disc-source {
+  border:0;
+  margin:0 0 24px;
+  padding:0;
+  min-width:0
+}
+.disc-source legend {
+  font-size:11px;
+  font-weight:500;
+  padding:0;
+  margin-bottom:8px
+}
+.source-option {
+  border-bottom:1px solid var(--line);
+  padding:12px 0
+}
+.source-choice {
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  cursor:pointer
+}
+.source-choice input {
+  margin:2px 0 0;
+  accent-color:var(--accent)
+}
+.source-choice strong {
+  display:block;
+  font-size:12px;
+  font-weight:500
+}
+.source-choice small {
+  display:block;
+  margin-top:5px;
+  font-size:11px;
+  line-height:1.6;
+  color:var(--muted)
+}
+.source-detail {
+  margin:10px 0 0 25px
+}
+#disc-held {
+  color:var(--text)
 }
 .diagnostics {
   margin-top:48px;

@@ -1,7 +1,7 @@
 // Copy the runtime into a resource directory: always the web client, the
-// pinned tunnel program and the pinned browser, and the emulator files when
-// this checkout has been bootstrapped and built (docs/setup.md). Nothing is
-// compiled here.
+// panel's page, the pinned tunnel program and the pinned browser, and the
+// emulator files when this checkout has been bootstrapped and built
+// (docs/setup.md). Nothing is compiled here.
 import { access, chmod, constants, cp, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pinnedChromium } from './fetch-chromium.mjs';
@@ -13,10 +13,23 @@ const exists = path => access(path).then(() => true, () => false);
 /** How an application bundle is copied: its relative links stay as they are, and unchanged files share their blocks. */
 export const bundleCopy = { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE };
 
+/** The files of the panel's page: the ones that the control listener serves (`PANEL_FILES` in src/host-server.ts). */
+const PANEL_FILES = ['index.html', 'panel.css', 'session.js', 'view.js', 'controller.js', 'panel.js'];
+
+/**
+ * Copies the panel's page from `source`, the repository's `admin` folder, into the resource directory
+ * `target`: the files of the page by name, so that its tests and whatever else lies in the folder stay out.
+ */
+export async function stagePanel(target, source = join(repoRoot, 'admin')) {
+  await mkdir(join(target, 'admin'), { recursive: true });
+  for (const name of PANEL_FILES) await cp(join(source, name), join(target, 'admin', name));
+}
+
 export async function stageResources(target) {
   // Tests and their fixtures are not part of the client.
   await cp(join(repoRoot, 'web'), join(target, 'web'),
     { recursive: true, filter: source => !source.endsWith('.test.mjs') && !source.endsWith('.fixtures.json') });
+  await stagePanel(target);
 
   const program = await pinnedCloudflared();
   let cloudflared = null;

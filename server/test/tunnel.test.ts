@@ -127,6 +127,22 @@ test('restarts are bounded and a new start tries again', async t => {
   await until('failed again', () => instance.state() === 'failed');
 });
 
+test('a failed tunnel can be started again from the very report of its failure', async t => {
+  let asked = false;
+  const made = await tunnel(t, [{ neverReady: true }, { readyAfterMs: 50 }], {
+    timing: { readyMs: 150, restartDelaysMs: [] } as TunnelOptions['timing'],
+    onChange() {
+      if (made.instance.state() !== 'failed' || asked) return;
+      asked = true;
+      made.instance.start();
+    },
+  });
+  made.instance.start();
+  await made.until('online', () => made.instance.state() === 'online');
+  assert.equal(asked, true);
+  assert.equal((await made.started()).length, 2);
+});
+
 test('a tunnel that stayed online gets its restart budget back', async t => {
   const { instance, until, started } = await tunnel(t, [{ exitAfterMs: 350 }, { exitAfterMs: 350 }, { exitAfterMs: 350 }, {}],
     { timing: { restartDelaysMs: [20], stableMs: 150 } });

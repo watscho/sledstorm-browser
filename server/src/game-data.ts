@@ -33,6 +33,11 @@ export interface GameData {
   reused: boolean;
   /** Streams the canonical archive; rejects with GameFilesChangedError when a source differs from the stamp. */
   openArchive(): Promise<Readable>;
+  /**
+   * Streams chunk `index` of the canonical archive (D93); rejects with RangeError for an index outside it and with
+   * GameFilesChangedError when a source differs from the stamp.
+   */
+  openChunk(index: number): Promise<Readable>;
 }
 
 export class GameFilesChangedError extends Error {}
@@ -126,35 +131,60 @@ async function expectSame(handle: FileHandle, file: DiscFile): Promise<void> {
 }
 
 /**
- * The archive, piece by piece. Each file is read through one open handle and
- * compared with its prepared state before and after: a file that is replaced
- * or rewritten while a slow download is under way ends the stream early, so a
- * mix of two versions never arrives as a complete archive.
+ * The bytes `[start, end)` of the archive, piece by piece. Each file is read
+ * through one open handle and compared with its prepared state before and
+ * after, and the last piece read from a file waits for the second comparison:
+ * a file that is replaced or rewritten while a slow download is under way
+ * ends the stream early, so a mix of two versions never arrives as a complete
+ * archive or a complete chunk (D93).
  */
-async function* archiveParts(files: DiscFile[], entries: Entry[], signal?: AbortSignal): AsyncGenerator<Buffer> {
+async function* rangeParts(files: DiscFile[], entries: Entry[], start: number, end: number,
+  signal?: AbortSignal): AsyncGenerator<Buffer> {
+  let offset = 0;
+  // The part of a piece made in memory, which begins at `offset`, that lies inside the range.
+  const inRange = (piece: Buffer) => piece.subarray(Math.max(0, start - offset), Math.max(0, Math.min(piece.length, end - offset)));
   for (const [index, entry] of entries.entries()) {
-    yield localHeader(entry);
-    const file = files[index]!;
-    const handle = await open(file.path, 'r').catch(() => { throw new GameFilesChangedError(CHANGED); });
-    try {
-      await expectSame(handle, file);
-      let sent = 0;
-      if (entry.size > 0) {
-        const source = handle.createReadStream({ start: 0, end: entry.size - 1, highWaterMark: READ_SIZE, autoClose: false });
-        for await (const part of source as AsyncIterable<Buffer>) {
-          signal?.throwIfAborted();
-          sent += part.length;
-          yield part;
+    if (offset >= end) return;
+    const header = localHeader(entry);
+    const headerPart = inRange(header);
+    if (headerPart.length > 0) yield headerPart;
+    offset += header.length;
+    const from = Math.max(start, offset);
+    const to = Math.min(end, offset + entry.size);
+    // An empty file is still checked when the range passes its place.
+    if (entry.size === 0 ? start <= offset && offset < end : from < to) {
+      const file = files[index]!;
+      const handle = await open(file.path, 'r').catch(() => { throw new GameFilesChangedError(CHANGED); });
+      try {
+        await expectSame(handle, file);
+        let sent = 0;
+        let held: Buffer | null = null;
+        if (from < to) {
+          const source = handle.createReadStream({ start: from - offset, end: to - offset - 1, highWaterMark: READ_SIZE, autoClose: false });
+          for await (const part of source as AsyncIterable<Buffer>) {
+            signal?.throwIfAborted();
+            if (held) yield held;
+            held = part;
+            sent += part.length;
+          }
         }
+        if (sent !== to - from) throw new GameFilesChangedError(CHANGED);
+        await expectSame(handle, file);
+        if (held) yield held;
+      } finally {
+        await handle.close();
       }
-      if (sent !== entry.size) throw new GameFilesChangedError(CHANGED);
-      await expectSame(handle, file);
-    } finally {
-      await handle.close();
     }
+    offset += entry.size;
   }
-  yield directory(entries);
+  if (offset < end) {
+    const part = inRange(directory(entries));
+    if (part.length > 0) yield part;
+  }
 }
+
+const archiveParts = (files: DiscFile[], entries: Entry[], size: number, signal?: AbortSignal) =>
+  rangeParts(files, entries, 0, size, signal);
 
 async function expectUnchanged(files: DiscFile[], message: string): Promise<void> {
   for (const file of files) {
@@ -227,7 +257,7 @@ async function build(files: DiscFile[], sources: Source[], chunkSize: number, si
   let chunk = createHash('sha256');
   let filled = 0;
   let produced = 0;
-  for await (const part of archiveParts(files, entries, signal)) {
+  for await (const part of archiveParts(files, entries, size, signal)) {
     whole.update(part);
     for (let offset = 0; offset < part.length;) {
       const take = Math.min(chunkSize - filled, part.length - offset);
@@ -289,7 +319,14 @@ export async function prepareGameData(disc: DiscFolder, cacheRoot: string, optio
     reused,
     async openArchive() {
       await expectUnchanged(files, CHANGED);
-      return Readable.from(archiveParts(files, entries), { objectMode: false });
+      return Readable.from(archiveParts(files, entries, size), { objectMode: false });
+    },
+    async openChunk(index) {
+      const { chunks } = identity.archive;
+      if (!Number.isSafeInteger(index) || index < 0 || index >= chunks.length) throw new RangeError('No such chunk.');
+      await expectUnchanged(files, CHANGED);
+      const start = index * chunkSize;
+      return Readable.from(rangeParts(files, entries, start, Math.min(size, start + chunkSize)), { objectMode: false });
     },
   };
 }

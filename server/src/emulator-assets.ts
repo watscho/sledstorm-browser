@@ -10,8 +10,8 @@ export interface EmulatorAssets {
   emulatorRoot: string;
   coreData: string;
   hardwareRenderer: boolean;
-  /** Paths the public gateway may serve. */
-  assetPaths: Set<string>;
+  /** Paths the public gateway may serve: in its `shared` mode the archive is one of them, in its `local` mode it is not. */
+  assetPaths(mode: 'local' | 'shared'): Set<string>;
   identity: { core: string; adapter: 'pcsx-frame-gate-v3'; native: Record<string, string> };
 }
 
@@ -53,7 +53,7 @@ export async function loadEmulatorAssets(resourceRoot: string): Promise<Emulator
     emulatorRoot: join(resourceRoot, 'emulator', 'emulatorjs'),
     coreData: join(resourceRoot, 'emulator', 'network-core.data'),
     hardwareRenderer: await exists(join(webRoot, 'generated', 'enge-hardware.js')),
-    assetPaths: emulatorAssetPaths({ files: files as Record<string, string> }, 'shared'),
+    assetPaths: mode => emulatorAssetPaths({ files: files as Record<string, string> }, mode),
     identity: { core, adapter: 'pcsx-frame-gate-v3', native: native as Record<string, string> },
   };
 }

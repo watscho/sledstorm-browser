@@ -1,6 +1,7 @@
 // The first four tests are the cases of tools/test-emulator-server.py, ported
 // to the TypeScript runtime. Synthetic files only, never game data.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdir, mkdtemp, realpath, rm, symlink, utimes, writeFile } from 'node:fs/promises';
 import { request, type IncomingHttpHeaders } from 'node:http';
@@ -57,7 +58,18 @@ async function site(t: TestContext, overrides: Partial<RuntimeHttpOptions> = {})
   return { root, web, server, port: server.port, call };
 }
 
-const disc = (text: string) => ({ size: Buffer.byteLength(text), open: async () => Readable.from([Buffer.from(text)], { objectMode: false }) });
+const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+const stream = (bytes: Buffer) => Readable.from([bytes], { objectMode: false });
+
+/** A stand-in archive of synthetic text in chunks of `chunkSize` bytes, with its manifest. */
+function disc(text: string, chunkSize = 4) {
+  const bytes = Buffer.from(text);
+  const chunks: string[] = [];
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) chunks.push(sha256(bytes.subarray(offset, offset + chunkSize)));
+  const manifest = { disc: 'd'.repeat(64), pal: false, archive: { sha256: sha256(bytes), size: bytes.length, chunkSize, chunks } };
+  const chunk = (index: number) => bytes.subarray(index * chunkSize, (index + 1) * chunkSize);
+  return { size: bytes.length, manifest, chunk, open: async () => stream(bytes), openChunk: async (index: number) => stream(chunk(index)) };
+}
 
 test('the public invitation appears only when it is well formed', async t => {
   const published = { origin: 'https://synthetic-test.trycloudflare.com', path: `/access/${'a'.repeat(48)}` };
@@ -227,7 +239,7 @@ test('the archive stops when the client goes away', async t => {
     read() { setTimeout(() => this.push(Buffer.alloc(64 * 1024, 1)), 5); },
     destroy(error, done) { destroyed = true; done(error); },
   });
-  const { call, port } = await site(t, { archive: { size: 1024 ** 3, open: async () => endless() } });
+  const { call, port } = await site(t, { archive: { ...disc('synthetic disc'), size: 1024 ** 3, open: async () => endless() } });
   const socket = connect(port, '127.0.0.1');
   socket.write(`GET /disc.zip HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\n\r\n`);
   await once(socket, 'data');
@@ -238,11 +250,15 @@ test('the archive stops when the client goes away', async t => {
 });
 
 test('a changed disc gives 503', async t => {
-  const { call } = await site(t, { archive: { size: 14, open: () => Promise.reject(new Error('changed')) } });
+  const { call } = await site(t, { archive: { ...disc('synthetic disc'), open: () => Promise.reject(new Error('changed')) } });
   const reply = await call('/disc.zip');
   assert.equal(reply.status, 503);
   assert.notEqual(reply.headers['content-type'], 'application/zip');
-  assert.equal((await call('/disc.zip', { method: 'HEAD' })).status, 503, 'HEAD must not promise an archive that GET refuses');
+  // The page tells the host's changed game files from a proxy's 503 by this mark (D102).
+  assert.equal(reply.headers['x-sled-game-files'], 'changed');
+  const head = await call('/disc.zip', { method: 'HEAD' });
+  assert.equal(head.status, 503, 'HEAD must not promise an archive that GET refuses');
+  assert.equal(head.headers['x-sled-game-files'], 'changed', 'HEAD');
 });
 
 test('a closed server stops answering', async t => {
@@ -250,4 +266,194 @@ test('a closed server stops answering', async t => {
   assert.equal((await call('/')).status, 200);
   await server.close();
   await assert.rejects(call('/'));
+});
+
+const chunkPath = (archive: ReturnType<typeof disc>, index: number | string) =>
+  `/game-data/${archive.manifest.archive.sha256}/chunks/${index}`;
+
+/** Whether the promise settles within `ms`. */
+const settlesWithin = (promise: Promise<unknown>, ms: number) =>
+  Promise.race([promise.then(() => true, () => true), delay(ms).then(() => false)]);
+
+/** What the gateway adds to every request it forwards: the limit is for guests (D94). */
+const GUEST = { 'x-sled-gateway': '1' };
+const guestRequest = (port: number, path: string) =>
+  `GET ${path} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nX-Sled-Gateway: 1\r\n\r\n`;
+
+/** A raw client that asks for `path` through the gateway and has its first bytes. */
+async function holder(port: number, path: string) {
+  const socket = connect(port, '127.0.0.1');
+  socket.write(guestRequest(port, path));
+  await once(socket, 'data');
+  socket.on('data', () => {});
+  return socket;
+}
+
+function endlessStream(onDestroy: () => void, size = 64 * 1024) {
+  return new Readable({
+    read() { setImmediate(() => this.push(Buffer.alloc(size, 1))); },
+    destroy(error, done) { onDestroy(); done(error); },
+  });
+}
+
+test('the manifest names the archive and its chunks', async t => {
+  const archive = disc('synthetic disc');
+  const { call } = await site(t, { archive });
+  const reply = await call('/game-data/manifest');
+  assert.equal(reply.status, 200);
+  assert.equal(reply.headers['content-type'], 'application/json');
+  assert.equal(reply.headers['cache-control'], 'no-store');
+  assert.deepEqual(JSON.parse(reply.body.toString()), { version: 1, ...archive.manifest });
+  assert.equal(archive.manifest.archive.chunks.length, 4);
+  const head = await call('/game-data/manifest', { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(head.headers['content-length'], String(reply.body.length));
+  assert.equal(head.body.length, 0);
+  assert.equal((await (await site(t)).call('/game-data/manifest')).status, 404, 'a private disc has no manifest');
+});
+
+test('a chunk is its bytes', async t => {
+  const archive = disc('synthetic disc');
+  const { call } = await site(t, { archive });
+  for (const index of [0, 1, 2, 3]) {
+    const reply = await call(chunkPath(archive, index));
+    assert.equal(reply.status, 200, String(index));
+    assert.equal(reply.headers['content-type'], 'application/octet-stream');
+    assert.equal(reply.headers['cache-control'], 'no-store');
+    assert.equal(reply.headers['content-length'], String(archive.chunk(index).length));
+    assert.deepEqual(reply.body, archive.chunk(index));
+  }
+  assert.equal((await call(chunkPath(archive, 3))).body.toString(), 'sc', 'the last chunk is shorter');
+  const head = await call(chunkPath(archive, 1), { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(head.headers['content-length'], '4');
+  assert.equal(head.body.length, 0);
+  assert.equal((await call(`${chunkPath(archive, 2)}?x=1`)).body.toString(), 'c di', 'the query is ignored');
+});
+
+test('a chunk of another archive or a bad index reads nothing', async t => {
+  const archive = disc('synthetic disc');
+  let opened = 0;
+  const { call } = await site(t, { archive: { ...archive, openChunk: async index => { opened += 1; return archive.openChunk(index); } } });
+  const { sha256: id } = archive.manifest.archive;
+  for (const path of [`/game-data/${'e'.repeat(64)}/chunks/0`, `/game-data/${id.toUpperCase()}/chunks/0`,
+    `/game-data/${id}/chunks/4`, `/game-data/${id}/chunks/01`, `/game-data/${id}/chunks/-1`, `/game-data/${id}/chunks/1.0`,
+    `/game-data/${id}/chunks/1e1`, `/game-data/${id}/chunks/x`, `/game-data/${id}/chunks/`, `/game-data/${id}/chunks/0/`,
+    `/game-data/${id}/chunks/%30`, `/game-data/${id}/chunks/${'9'.repeat(400)}`, `/game-data/${id}/./chunks/0`,
+    `/game-data/${id.slice(1)}/chunks/0`, '/game-data/', '/game-data/manifest/x', '/game-data/manifest/', '/%67ame-data/manifest',
+    `/%67ame-data/${id}/chunks/0`]) {
+    const reply = await call(path);
+    assert.equal(reply.status, 404, path);
+  }
+  assert.equal(opened, 0, 'no chunk was opened');
+  assert.equal((await (await site(t)).call(chunkPath(archive, 0))).status, 404, 'a private disc has no chunks');
+});
+
+test('a changed disc gives 503 for a chunk', async t => {
+  const archive = disc('synthetic disc');
+  const { call } = await site(t, { archive: { ...archive, openChunk: () => Promise.reject(new Error('changed')) } });
+  for (const method of ['GET', 'HEAD']) {
+    const reply = await call(chunkPath(archive, 0), { method });
+    assert.equal(reply.status, 503, method);
+    assert.notEqual(reply.headers['content-type'], 'application/octet-stream');
+    assert.equal(reply.headers['x-sled-game-files'], 'changed', method);
+  }
+});
+
+test('deliveries beyond the limit wait, and beyond the queue are refused', async t => {
+  const archive = disc('synthetic disc');
+  let destroyed = 0;
+  const { call, port } = await site(t, { delivery: { active: 1, waiting: 1, idleMs: 30_000 }, archive: { ...archive,
+    openChunk: async index => index === 0 ? endlessStream(() => { destroyed += 1; }) : archive.openChunk(index) } });
+  const first = await holder(port, chunkPath(archive, 0));
+  const waiting = call(chunkPath(archive, 1), { headers: GUEST });
+  assert.equal(await settlesWithin(waiting, 200), false, 'the second waits for the first');
+  for (const path of [chunkPath(archive, 2), '/disc.zip']) {
+    const refused = await call(path, { headers: GUEST });
+    assert.equal(refused.status, 503, path);
+    assert.equal(refused.headers['retry-after'], '2', path);
+    assert.equal(refused.headers['x-sled-game-files'], undefined, `the limit's 503 is not the changed files' ${path}`);
+    assert.equal(refused.body.toString(), 'The server is busy. Try again shortly.', path);
+  }
+  assert.equal((await call('/game-data/manifest')).status, 200, 'the manifest is outside the limit');
+  assert.equal((await call('/session-info')).status, 200);
+  first.destroy();
+  const served = await waiting;
+  assert.equal(served.status, 200);
+  assert.deepEqual(served.body, archive.chunk(1));
+  for (let attempt = 0; destroyed === 0 && attempt < 100; attempt++) await delay(20);
+  assert.equal(destroyed, 1, 'the first stream stopped with its client');
+});
+
+test('a waiting client that goes leaves the queue', async t => {
+  const archive = disc('synthetic disc');
+  const { call, port } = await site(t, { delivery: { active: 1, waiting: 1, idleMs: 30_000 }, archive: { ...archive,
+    openChunk: async index => index === 0 ? endlessStream(() => {}) : archive.openChunk(index) } });
+  const first = await holder(port, chunkPath(archive, 0));
+  const leaving = connect(port, '127.0.0.1');
+  leaving.write(guestRequest(port, chunkPath(archive, 1)));
+  await delay(100);
+  leaving.destroy();
+  await delay(100);
+  const next = call(chunkPath(archive, 2), { headers: GUEST });
+  assert.equal(await settlesWithin(next, 200), false, 'the next one waits instead of being refused');
+  first.destroy();
+  const served = await next;
+  assert.equal(served.status, 200);
+  assert.deepEqual(served.body, archive.chunk(2));
+});
+
+test('a delivery on this computer is outside the guests\' limit, and so is a HEAD (D94)', async t => {
+  const archive = disc('synthetic disc');
+  let reads = 0;
+  let closed = 0;
+  // A source that counts what is read from it.
+  const counted = (bytes: Buffer) => new Readable({
+    read() { reads += 1; this.push(bytes); this.push(null); },
+    destroy(error, done) { closed += 1; done(error); },
+  });
+  const { call, port } = await site(t, { delivery: { active: 1, waiting: 1, idleMs: 30_000 }, archive: { ...archive,
+    open: async () => counted(Buffer.from('synthetic disc')),
+    openChunk: async index => index === 0 ? endlessStream(() => {}) : counted(archive.chunk(index)) } });
+  const first = await holder(port, chunkPath(archive, 0));
+  t.after(() => first.destroy());
+  const waiting = call(chunkPath(archive, 1), { headers: GUEST });
+  assert.equal(await settlesWithin(waiting, 200), false, 'the place and the queue are taken');
+  for (const path of [chunkPath(archive, 2), '/disc.zip']) {
+    reads = 0;
+    closed = 0;
+    const head = await call(path, { method: 'HEAD', headers: GUEST });
+    assert.equal(head.status, 200, `HEAD ${path} does not wait`);
+    assert.ok(Number(head.headers['content-length']) > 0, `HEAD ${path}`);
+    assert.equal(reads, 0, `HEAD ${path} reads nothing`);
+    assert.equal(closed, 1, `HEAD ${path} closes its source`);
+  }
+  assert.equal((await call(chunkPath(archive, 2), { headers: GUEST })).status, 503, 'a guest is still refused');
+  // The room's emulator and the owner's page come over loopback, not through the gateway.
+  const local = await call('/disc.zip');
+  assert.equal(local.status, 200, 'the disc on this computer does not wait for guests');
+  assert.equal(local.body.toString(), 'synthetic disc');
+  const chunk = await call(chunkPath(archive, 2));
+  assert.equal(chunk.status, 200);
+  assert.deepEqual(chunk.body, archive.chunk(2));
+  first.destroy();
+  assert.equal((await waiting).status, 200);
+});
+
+test('a client that stops reading loses its place', async t => {
+  const archive = disc('synthetic disc');
+  let destroyed = 0;
+  const { call, port } = await site(t, { delivery: { active: 1, waiting: 1, idleMs: 300 }, archive: { ...archive,
+    openChunk: async index => index === 0 ? endlessStream(() => { destroyed += 1; }, 1024 * 1024) : archive.openChunk(index) } });
+  const stalled = connect(port, '127.0.0.1');
+  t.after(() => stalled.destroy());
+  stalled.pause();
+  stalled.write(guestRequest(port, chunkPath(archive, 0)));
+  await delay(100);
+  const next = call(chunkPath(archive, 1), { headers: GUEST });
+  assert.equal(await settlesWithin(next, 5000), true, 'the place is freed');
+  const served = await next;
+  assert.equal(served.status, 200);
+  assert.deepEqual(served.body, archive.chunk(1));
+  assert.equal(destroyed, 1, 'the stalled stream was stopped');
 });

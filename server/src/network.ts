@@ -8,6 +8,10 @@ import { launchDedicatedRuntime as dedicatedRuntime } from '../../research/netwo
 import { emulatorAssetPaths as assetPaths } from '../../research/network/emulator-assets.mjs';
 import { createPublicGateway as publicGateway } from '../../research/network/public-server.mjs';
 import { createRetroArchRelay as retroArchRelay } from '../../research/network/retroarch-relay.mjs';
+import {
+  CUE_LIMIT as webCueLimit, DISC_LIMIT as webDiscLimit, DiscSheetError as WebDiscSheetError,
+  checkDiscSize as webCheckDiscSize, cueTrackNames as webCueTrackNames,
+} from '../../web/disc-sheet.js';
 import { invitationUrl as webInvitationUrl } from '../../web/invitation.js';
 import { identityKey as saveIdentityKey } from '../../web/save-file.js';
 import { invitationVersion as webInvitationVersion, roomIdentity as identityOfRoom } from '../../web/room-identity.js';
@@ -151,3 +155,12 @@ export const invitationVersion = webInvitationVersion as unknown as number;
 /** The link to a room, in the form that the players' pages read. `publicOrigin` replaces the origin of `href`. */
 export const invitationUrl = webInvitationUrl as unknown as
   (href: string, accessPath: string, room: { v: number; room: string; token: string }, options: RoomOptions, publicOrigin?: string) => string;
+
+/** The rules of a disc, by the module that the players' pages use too (D75 to D77). */
+export const CUE_LIMIT = webCueLimit as unknown as number;
+export const DISC_LIMIT = webDiscLimit as unknown as number;
+export const DiscSheetError = WebDiscSheetError as unknown as typeof Error;
+/** The names of a CUE sheet's tracks in its order; throws a `DiscSheetError` for a sheet that no source may take. */
+export const cueTrackNames = webCueTrackNames as unknown as (text: string, cueName?: string) => string[];
+/** `sizes`: the CUE's, then its tracks'. Throws a `DiscSheetError` over a bound. */
+export const checkDiscSize = webCheckDiscSize as unknown as (sizes: number[]) => void;

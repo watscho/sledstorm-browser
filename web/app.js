@@ -2,8 +2,8 @@ import { BrowserSession } from '/session-client.js';
 import { FrameSync } from './frame-sync.js';
 import { canonicalStateDigest, encodeState, decodeState, captureState, restoreCoreState } from './core-state.js';
 import { unlockPal } from './pal-profile.js';
-import { selectedDisc } from '/local-disc.js';
-import { identifyDisc } from './disc-identity.js';
+import { sessionDiscMode } from '/local-disc.js';
+import { offeredSources, initialSource, copyDisc, rememberCopy, restoreCopy, reopenCopy } from './disc-source.js';
 import { parseInvitation, invitationUrl, onlineInvitationUrl } from './invitation.js';
 import { invitationVersion, roomIdentity } from './room-identity.js';
 import { loadInRoom, takeRejoin } from './room-restore.js';
@@ -13,13 +13,14 @@ import { openSoloSave, takeLoadRequest, trackSoloSave } from './solo-save.js';
 import { initLobby } from './lobby-ui.js';
 import { createSaveManager } from './save-manager.js';
 import { enablePerformanceDiagnostics } from './performance-ui.js';
+import { downloadDisc } from './disc-download.js';
 import {
-  canChooseGameArchive, openGameArchive, chooseGameArchiveDestination, matchingGameArchive, saveGameArchive,
-  rememberGameArchive, restoreGameArchive, reopenGameArchive,
+  canChooseGameArchive, chooseGameArchiveDestination, saveGameArchive, gameDataStore, canKeepCopies, pickCopy,
+  askToKeepStorage, unsavedGameDataNotice,
 } from './game-data-folder.js';
 
 const launch = document.querySelector('#launch');
-const discInput = document.querySelector('#disc-files');
+const discInputs = { files: document.querySelector('#disc-files'), zip: document.querySelector('#disc-zip') };
 const biosInput = document.querySelector('#bios');
 const status = document.querySelector('#status');
 const game = document.querySelector('#game');
@@ -34,7 +35,8 @@ const gameDataDialogStatus = document.querySelector('#game-data-dialog-status');
 const gameDataDialogActions = [...gameDataDialog.querySelectorAll('button[data-source]')];
 const quickTunnel = location.hostname.endsWith('.trycloudflare.com');
 let discardGameData;
-let archiveSelection;
+// Where a Quick Tunnel's download is saved as a ZIP, chosen in the game data dialog (D91).
+let zipDestination;
 let biosUrl;
 let session, sync;
 let sharedRoom;
@@ -46,6 +48,8 @@ let waitingForRoom = false;
 let roomMessage = status.textContent;
 let actionNotice = '';
 let noticeTimer;
+// A browser copy or a ZIP that could not be kept, told once the game runs (D104).
+let gameDataNotice = '';
 const lobby = initLobby(showActionNotice, () => {
   location.reload();
 });
@@ -88,6 +92,8 @@ const developerTools = new URLSearchParams(location.search).has('dev');
 function renderStatus() {
   const message = roomMessage || actionNotice;
   const live = roomSynchronized && !message;
+  // Until the room is LIVE the status shows its progress, which would hide the notice.
+  if (live && gameDataNotice) return tellGameDataNotice();
   const label = live ? 'LIVE' : message;
   if (status.textContent !== label) status.textContent = label;
   status.classList.toggle('is-live', live);
@@ -96,6 +102,12 @@ function showStatus(text) {
   roomMessage = text;
   renderStatus();
   if (game.classList.contains('joining-room')) game.dataset.joinProgress = text;
+}
+function tellGameDataNotice() {
+  if (!gameDataNotice) return;
+  const text = gameDataNotice;
+  gameDataNotice = '';
+  showActionNotice(text);
 }
 function showActionNotice(text) {
   clearTimeout(noticeTimer);
@@ -113,13 +125,9 @@ function describeGameData() {
     help = keepGameData.checked
       ? 'The first download is kept in this browser for future rooms at this address.'
       : 'Play without saving. An existing browser copy is used once, then cleared.';
-  } else if (archiveSelection) {
-    state = archiveSelection.file ? 'Game data ready' : archiveSelection.handle ? 'ZIP selected' : 'Save location selected';
-    help = archiveSelection.file
-      ? `“${archiveSelection.file.name}” is ready to use.`
-      : archiveSelection.handle
-        ? `“${archiveSelection.handle.name}” is selected. Press Join game to allow file access again.`
-        : `Game data will be saved as “${archiveSelection.destination.name}”.`;
+  } else if (zipDestination) {
+    state = 'Save location selected';
+    help = `Game data will be saved as “${zipDestination.name}”.`;
   } else {
     help = keepGameData.checked
       ? 'Use a saved ZIP or save a new copy when you join.'
@@ -127,13 +135,8 @@ function describeGameData() {
   }
   gameDataState.textContent = state;
   gameDataState.hidden = !state;
-  gameDataState.classList.toggle('is-ready', Boolean(archiveSelection?.file));
-  const selected = Boolean(archiveSelection?.file || archiveSelection?.handle);
-  launch.classList.toggle('is-ready', selected);
-  if (invitation) document.querySelector('#launch-label').textContent = archiveSelection?.file
-    ? 'Join game · Ready' : selected ? 'Join game · ZIP selected' : 'Join game';
   gameDataHelp.textContent = help;
-  changeGameData.hidden = !archiveSelection;
+  changeGameData.hidden = !zipDestination;
 }
 
 keepGameData.addEventListener('change', () => describeGameData());
@@ -147,25 +150,22 @@ gameDataDialog.addEventListener('close', () => {
   if (gameDataDialog.returnValue !== 'session') return;
   keepGameData.checked = false;
   keepGameData.dispatchEvent(new Event('change', { bubbles: true }));
+  // The dialog belongs to the download: its joins start from it, whatever was chosen meanwhile.
+  lobby.selectDiscSource('download');
   launch.click();
 });
 for (const button of gameDataDialogActions) {
   button.addEventListener('click', async () => {
     const source = button.dataset.source;
-    let startAfterSelection = false;
+    let startAfterSelection = false, picked;
     for (const action of gameDataDialogActions) action.disabled = true;
     gameDataDialogStatus.textContent = '';
     try {
       // Start the native picker in the click handler to preserve user activation.
-      if (source === 'open') {
-        const selection = await openGameArchive();
-        gameDataDialogStatus.textContent = 'Verifying the selected ZIP…';
-        if (!await matchingGameArchive(selection.file, availableArchive))
-          throw new Error('This ZIP does not match the room. Choose a different ZIP or save a new copy.');
-        archiveSelection = selection;
-        await rememberGameArchive(availableArchive, selection.handle);
-      } else {
-        archiveSelection = { destination: await chooseGameArchiveDestination(availableArchive) };
+      // "Use existing ZIP" chooses the saved ZIP source, which takes any copy of the room's disc (D91).
+      if (source === 'open') picked = await pickCopy('zip');
+      else {
+        zipDestination = await chooseGameArchiveDestination(availableArchive);
         keepGameData.checked = true;
         keepGameData.dispatchEvent(new Event('change', { bubbles: true }));
         startAfterSelection = true;
@@ -178,7 +178,98 @@ for (const button of gameDataDialogActions) {
     } finally {
       for (const action of gameDataDialogActions) action.disabled = false;
     }
-    if (startAfterSelection) launch.click();
+    // The dialog is closed by then: a ZIP that is not the room's disc is told where the choice is made.
+    if (picked && !await chooseCopy('zip', picked)) lobby.showDiscChoice();
+    if (startAfterSelection) {
+      lobby.selectDiscSource('download');
+      launch.click();
+    }
+  });
+}
+
+// The copies of the disc a player chose on this visit, one per source (D87, D88): the files read so far
+// (`files`, absent while the browser must ask for access again), the picker's handles where there are
+// any, and the check against the room's disc (`check`, then `disc` or `refused`). A refusal is final for
+// that copy: the player chooses again, and no other source is tried.
+const copies = { files: null, zip: null };
+const launchWord = () => invitation ? 'Join game' : 'Start game';
+const chosenName = files => files.length === 1 ? `“${files[0].name}”` : `${files.length} files`;
+function describeCopy(kind) {
+  const copy = copies[kind];
+  const what = kind === 'zip' ? 'the saved ZIP' : 'your game files';
+  let state = {};
+  if (copy?.refused) state = { text: copy.refused };
+  else if (copy && !copy.files) state = { status: 'access', text: `Press ${launchWord()} to allow access to ${what} again.` };
+  else if (copy?.disc) state = {
+    status: 'ready', text: `${chosenName(copy.files)} · checked.`,
+    // A deflated ZIP keeps the disc's size in the browser's blob store while the game runs (D86, D90).
+    note: copy.disc.held > 0 ? `This ZIP is compressed: the browser keeps about ${Math.ceil(copy.disc.held / 1e6)} MB of it in memory while the game runs. Your CUE and BIN files, or an uncompressed ZIP such as the game data saved from a host, avoid that.` : '',
+  };
+  else if (copy?.check) state = { status: 'checking', text: `Checking ${what}…` };
+  else if (copy) state = { status: 'ready', text: `${chosenName(copy.files)} from your last game.` };
+  lobby.describeDisc(kind, state);
+}
+/** Whether `copy` is still what the player chose: a check of a copy left behind speaks no more. */
+const isChosen = (kind, copy) => copies[kind] === copy && lobby.discSource() === kind;
+/** Checks a copy against the room's disc once (D89); a copy chosen through the picker is then remembered (D88). */
+function checkCopy(kind, copy, info) {
+  copy.check ??= copyDisc(copy.files, info, text => { if (isChosen(kind, copy)) showStatus(text); }).then(async disc => {
+    copy.disc = disc;
+    // The address keeps one copy: the one chosen when its check ends, never one the player left since.
+    if (copy.handles && isChosen(kind, copy)) await rememberCopy(gameDataStore, { kind, handles: copy.handles, disc: disc.disc });
+    return disc;
+  }, error => {
+    copy.refused = error.message;
+    throw error;
+  }).finally(() => { if (copies[kind] === copy) describeCopy(kind); });
+  describeCopy(kind);
+  return copy.check;
+}
+/**
+ * A copy the player just chose: it is chosen as the source and checked at once, so a wrong disc is told
+ * before Join. True when the copy is the room's disc. The status line is left alone once a start began
+ * (the launch button is then disabled) or the player chose something else.
+ */
+async function chooseCopy(kind, { files, handles }) {
+  const copy = { files, handles };
+  copies[kind] = copy;
+  lobby.selectDiscSource(kind);
+  try {
+    await checkCopy(kind, copy, await launcherInfo);
+    if (isChosen(kind, copy) && !launch.disabled) showStatus('');
+    return true;
+  } catch (error) {
+    if (isChosen(kind, copy) && !launch.disabled) showStatus(error.message);
+    return false;
+  }
+}
+/**
+ * Asks the browser again for a remembered copy's files; call it before any other await of a click (D88).
+ * A copy whose file is gone is refused, so the player chooses again; a refused access may be retried.
+ */
+async function renewCopy(kind, button) {
+  const copy = copies[kind];
+  if (!copy || copy.files || copy.refused) return;
+  try { copy.files = await reopenCopy({ kind, handles: copy.handles }, button); }
+  catch (error) {
+    if (error.gone) copy.refused = error.message;
+    throw error;
+  } finally { describeCopy(kind); }
+}
+// A new choice of source clears what the status line still says about the last one.
+document.querySelector('#disc-source').addEventListener('change', event => {
+  if (event.target.name === 'disc-source' && !launch.disabled) showStatus('');
+});
+for (const [kind, input] of Object.entries(discInputs)) {
+  document.querySelector(`#choose-disc-${kind}`).addEventListener('click', async () => {
+    if (!canKeepCopies) { input.click(); return; }
+    try { chooseCopy(kind, await pickCopy(kind)); }
+    catch (error) { if (error.name !== 'AbortError') showStatus(error.message); }
+  });
+  input.addEventListener('change', () => {
+    const files = [...input.files];
+    input.value = '';
+    if (files.length) chooseCopy(kind, { files });
   });
 }
 let availableArchive;
@@ -191,16 +282,20 @@ const launcherInfo = fetch('/session-info').then(async response => {
   netplayDelivery = quickTunnel && response.headers.get('X-Sled-Netplay-Delivery');
   netplayMirrorOrigin = response.headers.get('X-Sled-Netplay-Mirror-Origin');
   const info = await response.json();
-  lobby.discMode(info.discMode);
+  info.discMode = sessionDiscMode(info, response.headers.get('X-Sled-Disc'));
+  // The dedicated worker, and the lab and the console where the server gives its disc, load the server's disc.
+  const fixedDisc = dedicatedWorker || ((lab || localConsole) && info.discMode === 'shared');
+  const offered = fixedDisc ? [] : offeredSources(info);
+  const restored = !fixedDisc && canKeepCopies ? await restoreCopy(gameDataStore, info) : null;
+  if (restored) copies[restored.kind] = { files: restored.files, handles: restored.handles };
+  lobby.discSources(offered, initialSource(offered, lobby.lastDiscSource(), restored?.kind), canKeepCopies);
+  for (const kind of Object.keys(copies)) describeCopy(kind);
   const nativeCamera = retroArch &&
     (invitation ? invitation.nativeCamera : new URLSearchParams(location.search).get('nativeCamera') !== '0');
   lobby.widescreenAvailable(lab || (invitation ? Boolean(nativeCamera) : info.pal || info.discMode === 'local'));
-  if (invitation && info.discMode === 'shared' &&
+  if (invitation && offered.includes('download') &&
       (quickTunnel ? canChooseGameArchive && info.archive : Boolean(window.caches))) {
-    if (quickTunnel) {
-      availableArchive = info.archive;
-      archiveSelection = await restoreGameArchive(availableArchive);
-    }
+    availableArchive = info.archive;
     describeGameData();
     gameDataSettings.hidden = false;
     if (!quickTunnel) document.querySelector('#keep-game-data-label').textContent = 'Keep game data';
@@ -220,12 +315,19 @@ document.querySelector('#saved-games').addEventListener('click', async event => 
   button.disabled = true;
   let storage;
   try {
+    // The saves of the disc that the chosen source gives (D87); the server's download is the session's disc.
+    const source = lobby.discSource();
+    await renewCopy(source, 'Saved games');
     const info = { ...await launcherInfo };
-    const files = [...discInput.files];
-    if (info.discMode === 'local') {
-      const selected = await selectedDisc(files);
-      if (!selected) throw new Error('Choose your CUE and all eleven BIN tracks in Game files first.');
-      Object.assign(info, await identifyDisc(selected, showStatus));
+    const copy = copies[source];
+    if ((source === 'files' || source === 'zip') && !copy) {
+      lobby.showDiscChoice();
+      throw new Error('Choose your game files or a saved ZIP in Game files first.');
+    }
+    const files = copy?.files ?? [];
+    if (copy) {
+      const disc = await checkCopy(source, copy, info);
+      Object.assign(info, { disc: disc.disc, pal: disc.pal });
     }
     storage = await openSoloSave(info, biosInput.files[0]);
     await saveManager.open({
@@ -275,19 +377,12 @@ if (pendingLoadId) {
     }
   }).catch(() => {});
 }
-async function sharedDiscFile({ disc: fingerprint }, keep) {
+async function sharedDiscFile(info, keep) {
+  const fingerprint = info.disc;
   const url = '/disc.zip';
   // Each Quick Tunnel hostname has its own storage that later tunnels cannot clear.
   const cacheAllowed = fingerprint && !quickTunnel;
   let cache;
-  if (archiveSelection?.file) {
-    try {
-      await archiveSelection.file.slice(0, 1).arrayBuffer();
-      return archiveSelection.file;
-    } catch (error) {
-      console.warn('Could not read the selected ZIP.', error);
-    }
-  }
   if (cacheAllowed) try {
     cache = await window.caches.open('sledstorm-disc-v1');
     const saved = await cache.match(url);
@@ -306,64 +401,40 @@ async function sharedDiscFile({ disc: fingerprint }, keep) {
     // Private browsing or cleared storage can make the cached copy unavailable.
   }
 
-  showStatus('Downloading game data…');
-  const transfer = new AbortController();
-  let deadline, blob, expectedSize;
-  const resetDeadline = () => {
-    clearTimeout(deadline);
-    deadline = setTimeout(() => transfer.abort(), 45_000);
-  };
-  try {
-    resetDeadline();
-    const response = await fetch(url, { cache: 'no-store', signal: transfer.signal });
-    if (response.status !== 200) throw new Error('Could not download the game disc. Reload the invitation to try again.');
-    expectedSize = Number(response.headers.get('x-sledstorm-disc-size') ?? response.headers.get('content-length'));
-    let received = 0, lastUpdate = 0;
-    const stream = response.body?.pipeThrough(new TransformStream({
-      transform(chunk, controller) {
-        received += chunk.byteLength;
-        const now = performance.now();
-        if (now - lastUpdate >= 350) {
-          resetDeadline();
-          lastUpdate = now;
-          const progress = expectedSize ? `${Math.min(100, Math.floor(received * 100 / expectedSize))}%`
-            : `${Math.floor(received / 1048576)} MiB`;
-          showStatus(`Downloading game data · ${progress}`);
-        }
-        controller.enqueue(chunk);
-      },
-    }));
-    blob = stream ? await new Response(stream).blob() : await response.blob();
-  } catch (error) {
-    if (transfer.signal.aborted) throw new Error('Game data stopped downloading. Reload the invitation to try again.');
-    if (error instanceof TypeError) throw new Error('The game data download was interrupted. Reload the invitation to try again.');
-    throw error;
-  } finally {
-    clearTimeout(deadline);
-  }
-  if (!blob.size || (expectedSize && blob.size !== expectedSize)) {
-    throw new Error('The game disc download is incomplete. Reload the invitation to try again.');
-  }
-  if (keep && archiveSelection?.destination) {
+  // "Download from server": the server's chunks, each checked before it counts and kept as a part in this origin's
+  // private file system, so a reload fetches only what is missing; the whole /disc.zip where the server has no
+  // chunk routes (D96 to D98). Where the download is meant to stay, the browser is asked not to clear it under storage
+  // pressure; never on a Quick Tunnel, whose storage no later address can reach (D103).
+  if (keep && cacheAllowed) askToKeepStorage();
+  const { file, discard } = await downloadDisc(info, { report: showStatus });
+  // The parts are a staging area: they go once the emulator holds the disc, whatever is kept below (D99).
+  const earlier = discardGameData;
+  discardGameData = earlier ? async () => { try { await earlier(); } finally { await discard(); } } : discard;
+  if (keep && zipDestination) {
     showStatus('Saving game data…');
+    let saved = false;
     try {
-      await saveGameArchive(archiveSelection.destination, blob);
-      const handle = archiveSelection.destination;
-      archiveSelection = { file: await handle.getFile(), handle };
-      await rememberGameArchive(availableArchive, handle);
+      await saveGameArchive(zipDestination, file);
+      saved = true;
+      // The saved file is the exact copy of the room's archive: the next visit preselects it as the saved ZIP (D91).
+      await rememberCopy(gameDataStore, { kind: 'zip', handles: [zipDestination], disc: fingerprint });
+      // ...and the saved ZIP is the choice the next visit starts from (D87 puts the last choice first).
+      lobby.rememberDiscSource('zip');
     } catch (error) {
       console.warn('Could not save Sled Storm game data.', error);
+      if (!saved) gameDataNotice = unsavedGameDataNotice('zip', error);
     }
   }
   if (keep && cache) {
     showStatus('Saving game data in this browser…');
     try {
-      await cache.put(url, new Response(blob, { headers: { 'x-sledstorm-disc': fingerprint } }));
-    } catch {
-      // The current download is still playable when the browser denies storage.
+      await cache.put(url, new Response(file, { headers: { 'x-sledstorm-disc': fingerprint } }));
+    } catch (error) {
+      // The current download is still playable when the browser denies storage; the player is told it was not kept.
+      gameDataNotice = unsavedGameDataNotice('browser', error);
     }
   }
-  return new File([blob], 'disc.zip');
+  return file;
 }
 
 launch.addEventListener('click', () => startGame());
@@ -380,18 +451,33 @@ async function navigateToSoloSave(record, storage, files, settings, release) {
 
 async function startGame(loadRequest) {
   if (launch.disabled) return;
-  const keep = gameDataSettings.hidden || keepGameData.checked;
-  if (archiveSelection?.handle && !archiveSelection.file) {
+  // The disc comes from the chosen source (D87): a load request's own files, the player's files or ZIP,
+  // or the server's download, which a page whose disc is fixed always uses.
+  const source = loadRequest ? (loadRequest.files?.length ? 'request' : 'download') : lobby.discSource() ?? 'download';
+  const copy = copies[source];
+  // A refusal is final for that copy (D89): say it again where the player chooses another, before any request.
+  if (copy?.refused) {
+    lobby.showDiscChoice();
+    showStatus(copy.refused);
+    return;
+  }
+  if (copy && !copy.files) {
+    // Renew access first, while the click's activation lasts (D88).
     launch.disabled = true;
-    try {
-      archiveSelection = await reopenGameArchive(archiveSelection.handle, availableArchive);
-      describeGameData();
-    } catch (error) {
+    try { await renewCopy(source, launchWord()); }
+    catch (error) {
+      if (error.gone) lobby.showDiscChoice();
       showStatus(error.message);
       return;
     } finally { launch.disabled = false; }
   }
-  if (quickTunnel && !gameDataSettings.hidden && keep && !archiveSelection) {
+  if ((source === 'files' || source === 'zip') && !copy) {
+    lobby.showDiscChoice();
+    showStatus(`Choose your game files or a saved ZIP to ${invitation ? 'join' : 'start'}.`);
+    return;
+  }
+  const keep = gameDataSettings.hidden || keepGameData.checked;
+  if (source === 'download' && quickTunnel && !gameDataSettings.hidden && keep && !zipDestination) {
     showGameDataDialog();
     return;
   }
@@ -403,13 +489,13 @@ async function startGame(loadRequest) {
   };
   const image = document.querySelector('#image').value;
   let widescreen = document.querySelector('#aspect').value === 'wide';
-  let discFiles;
+  let discFiles, discArchive;
   const renderEnhanced = !dedicatedWorker && document.querySelector('#enhanced-render').checked;
   const drawDistanceInput = document.querySelector('#draw-distance');
   const drawDistance = drawDistanceInput.disabled || dedicatedWorker ? 0 : Number(drawDistanceInput.value);
   let shaders, soloStorage, enableHardwarePreview;
   const bios = loadRequest?.bios ?? biosInput.files[0];
-  const files = loadRequest?.files ?? [...discInput.files];
+  const files = loadRequest?.files ?? copy?.files ?? [];
   let resumeSnapshot = loadRequest?.state;
   try {
     launchInfo = { ...await launcherInfo };
@@ -425,11 +511,15 @@ async function startGame(loadRequest) {
       showStatus('Checking the invitation…');
       await checkNetplayInvitation(invitation);
     }
-    if (launchInfo.discMode === 'local') {
-      discFiles = await selectedDisc(files);
-      if (!discFiles) throw new Error('Select your CUE and all eleven BIN tracks.');
-      Object.assign(launchInfo, await identifyDisc(discFiles, showStatus));
-    }
+    // The exact copy of the room's archive goes to the emulator as /disc.zip does, with the session info's
+    // identity (D74); any other disc is handed over as separate files, identified and checked (D89).
+    const disc = source === 'request' ? await copyDisc(files, launchInfo, showStatus)
+      : copy ? await checkCopy(source, copy, launchInfo) : null;
+    // Under local-only the page never asks for the server's disc (DATA-01).
+    if (!disc && launchInfo.discMode !== 'shared') throw new Error(`Choose your game files or a saved ZIP to ${invitation ? 'join' : 'start'}.`);
+    if (disc?.archive) discArchive = disc.archive;
+    else if (disc) discFiles = disc.files;
+    if (disc) Object.assign(launchInfo, { disc: disc.disc, pal: disc.pal });
     if (loadRequest && (loadRequest.disc !== launchInfo.disc || loadRequest.core !== launchInfo.core))
       throw new Error('The saved game no longer matches this disc or emulator.');
     loadRequest = undefined;
@@ -460,7 +550,7 @@ async function startGame(loadRequest) {
     EJS_player: '#game',
     EJS_core: 'pcsx_rearmed',
     EJS_gameName: discFiles ? discFiles[0].name : 'Sled Storm Europe',
-    EJS_gameUrl: discFiles ? discFiles[0].data : '/disc.zip',
+    EJS_gameUrl: discFiles ? discFiles[0].data : discArchive ?? '/disc.zip',
     EJS_externalFiles: discFiles ? Object.fromEntries(discFiles.slice(1).map(file => ['/' + file.name, file.data])) : {},
     EJS_pathtodata: '/emulator/',
     EJS_biosUrl: biosUrl || '',
@@ -549,6 +639,8 @@ async function startGame(loadRequest) {
       }
       discardGameData?.().catch(error => console.warn('Could not remove the saved Sled Storm archive.', error));
       discardGameData = undefined;
+      // Without a room nothing waits to be LIVE: what was not kept is told now.
+      if (lab || localConsole) tellGameDataNotice();
       if (localConsole) startLocalConsole().catch(error => showStatus(error.message));
       else if (lab) restoreLab().catch(error => showStatus(error.message));
       else {
@@ -615,7 +707,7 @@ async function startGame(loadRequest) {
   game.classList.toggle('race-widescreen', widescreen);
   document.querySelector('#game-stage').scrollIntoView({ block: 'start' });
   showStatus('Loading emulator and disc…');
-  if (launchInfo.discMode === 'shared') {
+  if (!discFiles && !discArchive) {
     try {
       window.EJS_gameUrl = dedicatedWorker ? '/disc.zip' : await sharedDiscFile(launchInfo, keep);
     } catch (error) {

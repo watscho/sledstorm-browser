@@ -5,12 +5,14 @@
 //   npm run verify --prefix server -- --quick without the build and the smoke tests
 //
 // It starts no real browser and no tunnel. A failed check prints the names of
-// its failed tests, or the end of its output, and the command exits with 1.
+// its failed tests, or the end of its output, keeps its whole output in
+// dist/verify, and the command exits with 1.
 import { spawn } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { pinnedNode } from './fetch-node.mjs';
-import { repoRoot, serverRoot } from './lib.mjs';
+import { distRoot, repoRoot, serverRoot } from './lib.mjs';
 
 /** The totals that node:test prints at the end of a run, from its spec or its TAP reporter. Null without them. */
 export function testCounts(output) {
@@ -27,6 +29,17 @@ export function failedTests(output) {
   const names = new Set();
   for (const [, spec, tap] of output.matchAll(/^(?:✖ (.+?) \(\d+(?:\.\d+)?ms\)|not ok \d+ - (.+))$/gm)) names.add(spec ?? tap);
   return [...names];
+}
+
+/**
+ * Writes the whole output of a failed check into `folder`, named after the check, and returns the file's path.
+ * A failure that does not come again can then still be read.
+ */
+export async function keepFailure(folder, name, output) {
+  const file = join(folder, `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.log`);
+  await mkdir(folder, { recursive: true });
+  await writeFile(file, output);
+  return file;
 }
 
 function run(command, args, cwd) {
@@ -57,7 +70,7 @@ async function main(argv) {
     { name: `server, Node.js ${process.versions.node}`, tests: true, run: () => run(process.execPath, unit, serverRoot) },
     { name: `server, Node.js ${pinned.version} (pinned)`, tests: true, run: () => run(pinned.path, unit, serverRoot) },
     { name: 'network modules', tests: true, run: () => run('npm', ['test'], network) },
-    { name: 'web client', tests: true, run: () => run(process.execPath, ['--test', 'web/*.test.mjs'], repoRoot) },
+    { name: 'web client and panel page', tests: true, run: () => run(process.execPath, ['--test', 'web/*.test.mjs', 'admin/*.test.mjs'], repoRoot) },
     { name: 'launcher (Python)', run: () => run('python3', ['tools/test-emulator-server.py'], repoRoot) },
     { name: 'Python syntax', run: () => run('python3', ['-m', 'py_compile', 'server.py', 'tools/build-emulator.py', 'tools/play-online.py'], repoRoot) },
     { name: 'whitespace', run: () => run('git', ['diff', '--check'], repoRoot) },
@@ -84,6 +97,7 @@ async function main(argv) {
     const names = check.tests ? failedTests(output) : [];
     const lines = names.length ? names.slice(0, 20).map(name => `✖ ${name}`) : output.trim().split('\n').slice(-15);
     for (const line of lines) console.log(`      ${line.slice(0, 200)}`);
+    console.log(`      The whole output is in ${await keepFailure(join(distRoot, 'verify'), check.name, output)}.`);
   }
   const total = Math.round((performance.now() - began) / 1000);
   console.log(failed ? `${failed} of ${checks.length} checks failed (${total} s).`

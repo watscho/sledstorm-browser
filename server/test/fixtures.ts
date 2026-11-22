@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import type { DiagnosticReport } from '../src/diagnostics.ts';
+import type { HostControl } from '../src/host-control.ts';
 import { ensureWritableRoots, type Paths } from '../src/paths.ts';
 
 export async function scratch(t: TestContext, label: string): Promise<string> {
@@ -51,6 +53,52 @@ export async function scratchPaths(t: TestContext, label: string): Promise<Paths
   await ensureWritableRoots(paths);
   await mkdir(paths.tempRoot, { recursive: true });
   return { ...paths, root };
+}
+
+/** The panel's page as the repository has it. The folder also holds the page's tests, which no build ships. */
+export const panelRoot = fileURLToPath(new URL('../../admin', import.meta.url));
+
+/** What the control listener may ask of the host, answered by nothing: `calls` keeps what was asked. */
+export function standInControl(): { control: HostControl; calls: string[] } {
+  const calls: string[] = [];
+  return { calls, control: {
+    start(force) {
+      calls.push(force ? 'start --force' : 'start');
+      return null;
+    },
+    stop(force) {
+      calls.push(force ? 'stop --force' : 'stop');
+      return null;
+    },
+    quit(force) {
+      calls.push(force ? 'quit --force' : 'quit');
+      return null;
+    },
+    newGame(force) {
+      calls.push(force ? 'new-game --force' : 'new-game');
+      return null;
+    },
+    config: async () => ({ gameFolder: null, discPolicy: null, autoStart: true, roomOptions: { progress: 'all', camera: true }, problem: null }),
+    configure: async () => ({ status: 400, error: 'This test has no configuration.' }),
+    async pickFolder() {
+      calls.push('pick');
+      return { status: 503, error: 'This test has no dialog.' };
+    },
+    async diagnostics(about) {
+      calls.push('diagnostics');
+      return standInReport(about);
+    },
+    close() {},
+  } };
+}
+
+/** A diagnostic report of nothing, for a control that hosts nothing. */
+export function standInReport({ version, startedAt }: { version: string; startedAt: string | null }): DiagnosticReport {
+  return { application: 'Sled Storm Server', version, generatedAt: '2026-11-21T00:00:00.000Z', startedAt, uptimeSeconds: null,
+    system: { platform: process.platform, release: '', arch: process.arch, node: process.versions.node }, manifest: null,
+    parts: { web: false, emulator: false, browser: false, tunnel: false, panel: false }, host: null,
+    config: { gameFolder: false, discPolicy: null, autoStart: true, roomOptions: { progress: 'all', camera: true }, problem: null },
+    log: { lines: [], problem: null } };
 }
 
 const fakeBrowser = fileURLToPath(new URL('../../research/network/fake-browser.mjs', import.meta.url));

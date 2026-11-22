@@ -88,7 +88,9 @@ test('emulator gateway protects the archive, preserves reshare access and exclud
         }
         const info = await fetch(base + '/session-info', { headers });
         assert.equal(info.headers.get('x-invite-path'), '/access/' + token);
-        for (const path of ['/invitation.js', '/session-client.js', '/local-disc.js', '/disc-identity.js', '/game-data-folder.js', '/network-core.data', '/lobby-ui.js', '/graphics-presets.js', '/performance-metrics.js', '/performance-ui.js', '/save-file.js', '/save-storage.js', '/save-manager.js', '/sled-storm-pal-cover.jpg', '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-mountains.svg', '/lobby-snow-trail.svg', '/display.js', '/solo-save.js', '/shaders/sharp-bilinear.glsl', '/shaders/crt-lottes.glsl', '/hardware-preview.js', '/generated/enge-hardware.js'])
+        // A gateway that refuses the disc tells the page so; the page then asks for the player's own files.
+        assert.equal(info.headers.get('x-sled-disc'), discMode === 'local' ? 'local' : null);
+        for (const path of ['/invitation.js', '/session-client.js', '/local-disc.js', '/disc-sheet.js', '/disc-zip.js', '/disc-identity.js', '/disc-source.js', '/disc-download.js', '/disc-parts.js', '/game-data-folder.js', '/network-core.data', '/lobby-ui.js', '/graphics-presets.js', '/performance-metrics.js', '/performance-ui.js', '/save-file.js', '/save-storage.js', '/save-manager.js', '/sled-storm-pal-cover.jpg', '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-mountains.svg', '/lobby-snow-trail.svg', '/display.js', '/solo-save.js', '/shaders/sharp-bilinear.glsl', '/shaders/crt-lottes.glsl', '/hardware-preview.js', '/generated/enge-hardware.js'])
           assert.equal((await fetch(base + path, { headers })).status, 200, path);
         for (const path of ['/lab-state', '/diagnostic-state', '/.cache/disc.zip', '/.git/config',
           '/game.wasm', '/manifest', '/disc/1?offset=0&length=2048'])
@@ -130,5 +132,122 @@ test('the gateway serves the restore module', async () => {
       { headers: { cookie: `sled_access=${token}` } });
     assert.equal(response.status, 200);
     assert.equal(await response.text(), '/room-restore.js');
+  } finally { gateway.close(); source.close(); }
+});
+
+test('the gateway marks what it forwards, so the listener limits guests only (D94)', async () => {
+  const marks = [];
+  const source = http.createServer((request, response) => {
+    marks.push([request.url, request.headers['x-sled-gateway']]);
+    response.end('x');
+  });
+  source.listen(0, '127.0.0.1'); await once(source, 'listening');
+  const token = 'e'.repeat(48);
+  const sha = 'b2'.repeat(32);
+  const gateway = createPublicGateway({ port: 0, upstream: source.address().port, accessToken: token,
+    discMode: 'shared', assetPaths: emulatorAssetPaths(lock, 'shared') });
+  await once(gateway, 'listening');
+  const base = `http://127.0.0.1:${gateway.address().port}`;
+  try {
+    const paths = ['/disc.zip', '/game-data/manifest', `/game-data/${sha}/chunks/0`, '/network-core.data'];
+    // A guest cannot take the mark off: the gateway sends its own headers, not the guest's.
+    for (const sent of [{}, { 'x-sled-gateway': '0' }]) {
+      for (const path of paths) {
+        const answer = await fetch(base + path, { headers: { cookie: `sled_access=${token}`, ...sent } });
+        assert.equal(answer.status, 200, path);
+        await answer.arrayBuffer();
+      }
+    }
+    assert.deepEqual(marks, [...paths, ...paths].map(path => [path, '1']));
+  } finally { gateway.close(); source.close(); }
+});
+
+test('a shared gateway passes the shapes of the chunk routes and nothing else under /game-data/ (D95)', async () => {
+  const seen = [];
+  const source = http.createServer((request, response) => {
+    seen.push(`${request.method} ${request.url}`);
+    response.setHeader('content-length', Buffer.byteLength(request.url));
+    response.end(request.method === 'HEAD' ? undefined : request.url);
+  });
+  source.listen(0, '127.0.0.1'); await once(source, 'listening');
+  const token = 'f'.repeat(48), headers = { cookie: `sled_access=${token}` };
+  const sha = 'a1'.repeat(32);
+  // Asks for the path exactly as written: fetch would settle dot segments before it sends.
+  const raw = (port, method, path) => new Promise((resolve, reject) => {
+    const asked = http.request({ host: '127.0.0.1', port, method, path, headers }, answer => {
+      let text = '';
+      answer.setEncoding('utf8');
+      answer.on('data', part => { text += part; });
+      answer.once('end', () => resolve({ status: answer.statusCode, headers: answer.headers, text }));
+    });
+    asked.once('error', reject);
+    asked.end();
+  });
+  const passed = [['/game-data/manifest', '/game-data/manifest'], [`/game-data/${sha}/chunks/0`, `/game-data/${sha}/chunks/0`],
+    [`/game-data/${sha}/chunks/12?x=1`, `/game-data/${sha}/chunks/12`], [`/game-data/${sha}/chunks/9999999`, `/game-data/${sha}/chunks/9999999`]];
+  const refused = [['GET', `/game-data/${sha}/chunks/01`], ['GET', '/%67ame-data/manifest'], ['GET', `/game-data/${sha}/chunks/%30`],
+    ['GET', `/game-data/${sha.slice(1)}/chunks/0`], ['GET', `/game-data/${sha.toUpperCase()}/chunks/0`], ['GET', '/game-data/x/../manifest'],
+    ['GET', '/game-data/./manifest'], ['GET', `/game-data/${sha}/chunks/x/../0`], ['GET', '/game-data/manifest/'],
+    ['GET', `/game-data/${sha}/chunks/`], ['GET', `/game-data/${sha}/chunks/-1`], ['GET', `/game-data/${sha}/chunks/10000000`],
+    ['GET', '/game-data/'], ['GET', '/game-data//manifest'], ['POST', '/game-data/manifest'], ['DELETE', `/game-data/${sha}/chunks/0`]];
+  try {
+    for (const discMode of ['shared', 'local']) {
+      const gateway = createPublicGateway({ port: 0, upstream: source.address().port, accessToken: token,
+        discMode, assetPaths: emulatorAssetPaths(lock, discMode) });
+      await once(gateway, 'listening');
+      const port = gateway.address().port;
+      try {
+        for (const [path, forwarded] of passed) {
+          for (const method of ['GET', 'HEAD']) {
+            seen.length = 0;
+            const answer = await raw(port, method, path);
+            if (discMode === 'local') {
+              assert.equal(answer.status, 403, `${discMode} ${method} ${path}`);
+              assert.deepEqual(seen, [], `${discMode} ${method} ${path} asked the upstream`);
+              continue;
+            }
+            assert.equal(answer.status, 200, `${method} ${path}`);
+            assert.deepEqual(seen, [`${method} ${forwarded}`], 'the upstream sees the path without the query');
+            assert.equal(answer.headers['cache-control'], 'no-store');
+            if (method === 'HEAD') assert.equal(answer.headers['content-length'], String(Buffer.byteLength(forwarded)));
+            else assert.equal(answer.text, forwarded);
+            // A chunk streams through the tunnel as /disc.zip does: a fixed length is buffered by a Quick Tunnel.
+            if (method === 'GET' && forwarded.includes('/chunks/')) {
+              assert.equal(answer.headers['content-length'], undefined, path);
+              assert.equal(answer.headers['transfer-encoding'], 'chunked', path);
+            }
+          }
+        }
+        for (const [method, path] of refused) {
+          seen.length = 0;
+          assert.equal((await raw(port, method, path)).status, 403, `${discMode} ${method} ${path}`);
+          assert.deepEqual(seen, [], `${discMode} ${method} ${path} asked the upstream`);
+        }
+      } finally { gateway.close(); }
+    }
+  } finally { source.close(); }
+});
+
+test('the host\'s changed-files answer reaches a guest with its mark (D102)', async () => {
+  const source = http.createServer((request, response) => {
+    response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Sled-Game-Files': 'changed' })
+      .end('The game files changed. Start the server again.');
+  });
+  source.listen(0, '127.0.0.1'); await once(source, 'listening');
+  const token = 'f'.repeat(48);
+  const sha = 'c3'.repeat(32);
+  const gateway = createPublicGateway({ port: 0, upstream: source.address().port, accessToken: token,
+    discMode: 'shared', assetPaths: emulatorAssetPaths(lock, 'shared') });
+  await once(gateway, 'listening');
+  const base = `http://127.0.0.1:${gateway.address().port}`;
+  try {
+    for (const path of ['/disc.zip', `/game-data/${sha}/chunks/0`]) {
+      for (const method of ['GET', 'HEAD']) {
+        const answer = await fetch(base + path, { method, headers: { cookie: `sled_access=${token}` } });
+        assert.equal(answer.status, 503, `${method} ${path}`);
+        assert.equal(answer.headers.get('x-sled-game-files'), 'changed', `${method} ${path}`);
+        await answer.arrayBuffer();
+      }
+    }
   } finally { gateway.close(); source.close(); }
 });

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, realpath, rm, symlink, truncate, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { findDisc, GameFolderError } from '../src/disc-folder.ts';
+import { CUE_LIMIT, DISC_LIMIT } from '../src/network.ts';
 
 async function scratch(t: TestContext): Promise<string> {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'sled disc тест ')));
@@ -59,6 +60,9 @@ test('reads a CUE that starts with a byte order mark', async t => {
   await writeDisc(folder, { 'a.bin': 10, 'b.bin': 20 });
   await writeFile(join(folder, 'Game.cue'), String.fromCharCode(0xfeff) + cueText(['a.bin', 'b.bin']));
   assert.deepEqual((await findDisc(folder)).files.map(file => file.name), ['Game.cue', 'a.bin', 'b.bin']);
+  // Two marks, as the page reads them too: the page's decoder takes one away, the server's none.
+  await writeFile(join(folder, 'Game.cue'), String.fromCharCode(0xfeff).repeat(2) + cueText(['a.bin', 'b.bin']));
+  assert.deepEqual((await findDisc(folder)).files.map(file => file.name), ['Game.cue', 'a.bin', 'b.bin']);
 });
 
 test('rejects a folder without exactly one CUE', async t => {
@@ -88,10 +92,23 @@ test('rejects tracks that are missing, not regular files or outside the folder',
   await writeDisc(folder, {}, { listed: ['a.bin', 'folder.bin'] });
   await assert.rejects(findDisc(folder), refused(outside));
   await writeDisc(folder, {}, { listed: ['a.bin', '../outside.bin'] });
-  await assert.rejects(findDisc(folder), refused(outside));
+  await assert.rejects(findDisc(folder), refused('The CUE file refers to a file outside its folder: ../outside.bin'));
   await symlink(join(root, 'outside.bin'), join(folder, 'link.bin'));
   await writeDisc(folder, {}, { listed: ['a.bin', 'link.bin'] });
   await assert.rejects(findDisc(folder), refused(outside));
+});
+
+test('rejects a CUE over its bound before reading it, and a disc larger than a CD (D76)', async t => {
+  const folder = await scratch(t);
+  await writeDisc(folder, { 'a.bin': 10 });
+  await writeFile(join(folder, 'Game.cue'), Buffer.alloc(CUE_LIMIT + 1, 0x20));
+  await assert.rejects(findDisc(folder), refused('The CUE file is larger than 1 MiB.'));
+  const text = await writeDisc(folder, { 'a.bin': 10, 'big.bin': 0 });
+  // A sparse file: its size is a CD's bound, and it takes no room on the disk.
+  await truncate(join(folder, 'big.bin'), DISC_LIMIT - Buffer.byteLength(text) - 10);
+  assert.equal((await findDisc(folder)).files.length, 3);
+  await truncate(join(folder, 'big.bin'), DISC_LIMIT - Buffer.byteLength(text) - 9);
+  await assert.rejects(findDisc(folder), refused('The game files are larger than a CD (1 GiB).'));
 });
 
 test('rejects a missing folder, a file and an unreadable folder', async t => {

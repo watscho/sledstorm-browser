@@ -5,8 +5,131 @@ semantic versioning for the browser wrapper.
 
 ## Unreleased
 
+### Added - 2026-11-22
+
+- The packaged server offers its game files in numbered pieces of 8 MiB,
+  listed with their SHA-256 hashes in a manifest (`/game-data/manifest` and
+  `/game-data/<archive>/chunks/<n>`), so that a player's page can fetch only
+  the pieces it lacks. The public address passes them only where the host
+  lets players download the game files, and in no other spelling of their
+  paths.
+- "Download from server" fetches those pieces two at a time and checks each
+  one against the manifest before it counts. Checked pieces are kept in the
+  browser's storage for the address, so a download cut by a reload, a closed
+  tab or a crash continues where it stopped instead of starting over, and a
+  damaged piece is fetched again. The whole disc is checked once more before
+  the game starts, and the pieces are removed once it has started. A busy
+  server or a long wait in its queue pauses the download instead of ending
+  it. Where the browser cannot keep the pieces (no storage for the address,
+  a full disk, a second tab of the same invitation), they stay in memory
+  for that page. The Python launcher, which has no pieces, still sends the
+  whole disc.
+- The packaged server sends the game files to at most four invited players
+  at once; up to sixteen more wait their turn, and any beyond that are told
+  that the server is busy. A download whose player leaves frees its place at
+  once, and one whose player stops reading within a minute. The room and
+  the host's own game page never wait behind invited players.
+- An invited player chooses where the disc comes from, in the Game files
+  tab: "Use my game files", "Use saved ZIP", or "Download from server" where
+  the host lets players download the game files. The choice made last is
+  chosen again on the next visit while it is offered, and the launch
+  summary's "Game data" row says whether it is ready. Under "Players may
+  download the game files from this server" a guest may now play from their
+  own files or a ZIP too.
+- In Chrome and other browsers with its file picker, game files or a ZIP
+  chosen once are used again on the same address without choosing them
+  again: the browser keeps access to the files, not a copy of them, and asks
+  again on Join when it must.
+- A copy of another disc is refused as soon as it is chosen, and a
+  remembered copy that was changed, moved or deleted is refused on Join,
+  each with what to do instead; nothing else is tried in its place.
+- A compressed ZIP says how much memory the browser keeps while the game
+  runs, and that the CUE and BIN files or an uncompressed ZIP avoid it.
+
+### Changed - 2026-11-22
+
+- The Quick Tunnel dialog's "Use existing ZIP" chooses the saved ZIP, which
+  may be any ZIP of the host's disc, not only the exact copy saved from that
+  host; a ZIP that is not the room's disc is told in the Game files tab.
+  "Join game · Ready" and "Join game · ZIP selected" give way to the launch
+  summary's "Game data" row, and "Reset settings" no longer forgets the
+  chosen game files.
+
 ### Added - 2026-11-21
 
+- Host with "Players use only their own game files" (`--disc-policy
+  local-only`). The room and the game on this computer still load the disc
+  from this server over the loopback address; the public address gives no
+  game files away in any spelling of their path, and tells an invited
+  player's page so with the header `X-Sled-Disc: local`. That page then asks
+  for the player's own CUE and BIN files, which must be the host's files
+  under the same names. The room, its links and its identity are the same
+  under both choices.
+- The game's page and the packaged server take the same discs, by rules they
+  share: one CUE whose `BINARY` lines name 1 to 99 tracks beside it, at most
+  1 MiB of CUE and 1 GiB in all, a track found by its name whatever its case
+  or Unicode normalization. A player's own CUE no longer has to list eleven
+  tracks; the room's disc identity decides whether the files fit the room.
+  A CUE that is not a text file, or that names a track with a control
+  character or lists itself, is refused by both.
+- Under "Players use only their own game files" an invited player may choose
+  one ZIP of the disc instead of its CUE and BIN files. The page reads it
+  itself, stored or deflated, with the CUE in a folder of the archive and
+  Finder's extra files ignored, and checks each file's size and CRC-32; a
+  damaged, encrypted, ZIP64 or unsafe ZIP is refused with its reason, and
+  nothing else is tried in its place. An exact copy of the host's archive
+  is used as it is.
+- Run the packaged server's room from its page. "New game" ends the room's
+  game and opens the next one at once under the same links; the players are
+  told to open the invitation again. The room's options, all content unlocked
+  or the original progression and separate cameras, are chosen on the page
+  while the room is stopped and apply from the next start; a disc other than
+  the verified PAL one plays with the original progression and a shared
+  camera. A stop, a new game and a quit with players in the room ask first,
+  from the server's own answer, and the command `quit` needs `--force` then.
+  The command `new-game` does the same from a terminal.
+- Save a diagnostic report from the page ("Save diagnostics") or print it
+  with the command `diagnostics`, also when no server runs: the application,
+  its parts, the system, the host's state, the settings without the folder's
+  path, and the last lines of the log, with folders, tokens, links and public
+  host names taken out.
+- Replace the packaged application in place: opening another build stops an
+  older server whose room is empty and starts its own; a server with players
+  keeps running and keeps the page of its own build.
+- A guide to the packaged server, `docs/sled-storm-server.md`.
+- Set up and run the packaged server from its page. Opening the application
+  shows a page that asks for the game folder, chosen in the system's dialog,
+  and for the disc policy, neither chosen in advance; then starts the server,
+  shows its state and players, offers the guests' link to copy and "Open
+  game" for this computer, stops the room, switches the start at launch, and
+  quits. A stop or a quit with players in the room asks first; a double click
+  does not answer the question. The page reads the server once a second, says
+  in a sentence when it is gone, and puts whatever the server sends into the
+  page as text. A cancel in the dialog changes nothing, one dialog is open at
+  a time, and quitting the server closes it.
+- Open the page of the packaged server through a link that works once.
+  Opening the application asks the running server for a token that is good
+  once and for a minute and opens the page with it; the page trades the token
+  for a session of its own tab and takes it out of the address. No cookie is
+  used. A page of another site, and the game page, can neither read nor ask
+  anything of the server's control port, and nothing behind the public
+  address reaches it. Opening the application again opens another tab on the
+  same server, and closing the tabs stops nothing.
+- Stop and start hosting on a running packaged server, with the commands
+  `stop` and `start` and with the same requests for the page. A stop closes
+  the room, the public address and the local game page and leaves the server.
+  With a player in the room, or a controller kept for one, it needs `--force`,
+  and so does a start that closes such a room because the game files changed.
+  A start on a server that is hosting tries again what has failed there, the
+  room or the public address, and leaves the rest as it is. A start that is
+  asked for while the server quits is refused.
+- Count the players of the room in the packaged server's status: connected,
+  and away with a controller kept.
+- Add `autoStart` to the packaged server's `config.json`, true when absent. A
+  server whose file says `false` hosts nothing after it is opened until a
+  start is asked for. The game folder, the disc policy and this switch can be
+  read and changed through the control port; the folder and the policy only
+  while nothing is hosted.
 - Let a player save and load in the room of the packaged server. The player
   the room belongs to, while alone in it, saves to the same library as before
   and loads a save into the same room: the server starts a second emulator

@@ -8,6 +8,8 @@ import { request } from 'node:http';
 import { join } from 'node:path';
 import { isSea } from 'node:sea';
 import { WebSocket } from 'ws';
+import { defaultConfig } from './config-store.ts';
+import { diagnosticReport } from './diagnostics.ts';
 import { startHostServer } from './host-server.ts';
 import type { SmokeGuestSetup } from './internal.ts';
 import { createPublicGateway, createRetroArchRelay, listeningPort } from './network.ts';
@@ -89,12 +91,20 @@ async function checkWritableRoots(paths: Paths): Promise<unknown> {
   return { dataRoot: paths.dataRoot, cacheRoot: paths.cacheRoot, logRoot: paths.logRoot, tempRoot: paths.tempRoot };
 }
 
-async function checkHttp(): Promise<unknown> {
+async function checkHttp(paths: Paths): Promise<unknown> {
   let quits = 0;
   // Read through a function: the compiler must not assume the count stays unchanged across requests.
   const quitCount = () => quits;
-  const host = await startHostServer({ version: appVersion, onQuit: () => { quits += 1; }, status: () => ({}),
-    invitation: () => ({ url: null, localUrl: null }) });
+  // The self-test hosts nothing, so its listener has nothing to start, to stop or to configure, and its report no host.
+  const control = { start: () => null, stop: () => null, quit: () => null, newGame: () => null,
+    config: async () => ({ gameFolder: null, discPolicy: null, autoStart: true, roomOptions: { progress: 'all' as const, camera: true }, problem: null }),
+    configure: async () => ({ status: 409 as const, error: 'The self-test keeps no configuration.' }),
+    pickFolder: async () => ({ status: 503 as const, error: 'The self-test shows no dialog.' }),
+    diagnostics: ({ version, startedAt }: { version: string; startedAt: string }) =>
+      diagnosticReport({ paths, version, status: null, config: { config: defaultConfig, problem: null }, now: new Date(), startedAt }),
+    close: () => {} };
+  const host = await startHostServer({ version: appVersion, panelRoot: join(paths.resourceRoot, 'admin'), onQuit: () => { quits += 1; }, status: () => ({}),
+    invitation: () => ({ url: null, localUrl: null }), control });
   try {
     const bearer = { authorization: `Bearer ${host.token}` };
     const status = await call(host.port, 'GET', '/api/status', bearer);
@@ -105,7 +115,8 @@ async function checkHttp(): Promise<unknown> {
       'A rebound host name must be refused');
     expect((await call(host.port, 'POST', '/api/host/quit', { ...bearer, origin: 'https://attacker.example' })).status === 403,
       'A foreign origin must be refused');
-    expect((await call(host.port, 'GET', '/')).status === 200, 'The placeholder page must load');
+    for (const path of ['/', '/panel.css', '/session.js', '/view.js', '/controller.js', '/panel.js'])
+      expect((await call(host.port, 'GET', path)).status === 200, `The panel's page must load: ${path}`);
     expect(quitCount() === 0, 'Refused requests must not reach the quit handler');
     expect((await call(host.port, 'POST', '/api/host/quit', bearer)).status === 202, 'The quit request must be accepted');
     for (let attempt = 0; quitCount() === 0 && attempt < 50; attempt++) await new Promise(resolve => setTimeout(resolve, 10));
@@ -208,7 +219,7 @@ export async function selfTest(paths: Paths): Promise<number> {
   };
   await check('resources', () => checkResources(paths));
   await check('writable-roots', () => checkWritableRoots(paths));
-  await check('http', checkHttp);
+  await check('http', () => checkHttp(paths));
   await check('netplay-relay', checkNetplayRelay);
   await check('forced-stop', checkForcedStop);
   const ok = checks.every(entry => entry.ok);

@@ -1,7 +1,7 @@
 export function emulatorAssetPaths(lock, discMode) {
   if (!['shared', 'local'].includes(discMode)) throw new Error('Invalid disc mode');
   return new Set(['/', '/app.js', '/display.js', '/solo-save.js', '/retroarch-netplay.js', '/netplay-downlink.js', '/netplay-wire.js', '/frame-sync.js', '/core-state.js', '/pal-profile.js',
-    '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-ui.js', '/graphics-presets.js', '/performance-metrics.js', '/performance-ui.js', '/sled-storm-pal-cover.jpg', '/local-disc.js', '/disc-identity.js', '/game-data-folder.js', '/invitation.js', '/room-identity.js', '/room-restore.js', '/session-client.js', '/style.css',
+    '/sled-storm-logo.png', '/playstation-controller.svg', '/controls.js', '/controls-ui.js', '/lobby-ui.js', '/graphics-presets.js', '/performance-metrics.js', '/performance-ui.js', '/sled-storm-pal-cover.jpg', '/local-disc.js', '/disc-sheet.js', '/disc-zip.js', '/disc-identity.js', '/disc-source.js', '/disc-download.js', '/disc-parts.js', '/game-data-folder.js', '/invitation.js', '/room-identity.js', '/room-restore.js', '/session-client.js', '/style.css',
     '/session-info', '/network-core.data', '/hardware-preview.js', '/generated/enge-hardware.js',
     '/save-file.js', '/save-storage.js', '/save-manager.js',
     '/lobby-mountains.svg', '/lobby-snow-trail.svg', '/shaders/sharp-bilinear.glsl', '/shaders/crt-lottes.glsl', ...(discMode === 'shared' ? ['/disc.zip'] : []),

@@ -1,0 +1,37 @@
+:root { color-scheme: light dark; }
+body { font: 16px/1.5 system-ui, sans-serif; max-width: 36rem; margin: 8vh auto; padding: 0 1rem; }
+h1 { font-size: 1.5rem; margin: 0; }
+h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+p { margin: 0.5rem 0; }
+header, section, details, footer { margin: 0 0 1.5rem; }
+section, details, footer { border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent); padding-top: 1rem; }
+
+/* The state of the host in a word or two, and under it what the server or the page has to say. */
+#headline { font-size: 1.25rem; font-weight: 600; min-height: 1.5em; }
+.note { color: GrayText; font-size: 0.875rem; }
+/* A folder's path and a link are long words: they break where the line ends. */
+.path { overflow-wrap: anywhere; }
+
+button, .button { font: inherit; padding: 0.4rem 0.9rem; border: 1px solid ButtonBorder; border-radius: 0.4rem; background: ButtonFace; color: ButtonText;
+  cursor: pointer; }
+button:disabled { color: GrayText; cursor: default; }
+.button { display: inline-block; text-decoration: none; }
+.buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+
+fieldset { border: 0; margin: 1rem 0 0; padding: 0; }
+/* The room's options begin with their choice of progress, right under the heading. */
+#room-options fieldset { margin: 0 0 0.5rem; }
+legend { font-weight: 600; padding: 0; }
+label { display: block; margin: 0.25rem 0; }
+.invite { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.invite label { margin: 0; }
+.invite input { flex: 1 1 14rem; min-width: 0; font: 0.875rem ui-monospace, monospace; padding: 0.4rem; }
+
+summary { cursor: pointer; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.5rem 0 0; }
+dt { color: GrayText; }
+dd { margin: 0; }
+
+/* The rules above give an element a display of its own, which would show a hidden one. */
+[hidden] { display: none !important; }

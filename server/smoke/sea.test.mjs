@@ -8,7 +8,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { once } from 'node:events';
 import { constants } from 'node:fs';
-import { cp, lstat, mkdir, mkdtemp, readdir, readFile, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { appendFile, cp, lstat, mkdir, mkdtemp, readdir, readFile, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { request } from 'node:http';
 import { connect, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -18,7 +19,7 @@ import { WebSocket } from 'ws';
 import { parseInvitation } from '../../web/invitation.js';
 import { roomIdentity } from '../../web/room-identity.js';
 import { identityKey } from '../../web/save-file.js';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
@@ -84,7 +85,8 @@ const refused = port => new Promise(resolve => {
   socket.once('error', () => resolve(true));
 });
 
-async function stage(layout, { emulator = false, tunnel = 'none', browser = emulator ? 'fake' : 'none' } = {}) {
+/** `build`, when given, stands in the manifest for the checksum of the server's code: the copy is then a build of other code. */
+async function stage(layout, { emulator = false, tunnel = 'none', browser = emulator ? 'fake' : 'none', build } = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'sled smoke тест 雪 ')));
   const home = join(root, 'home folder');
   const cwd = join(root, 'elsewhere');
@@ -125,6 +127,11 @@ async function stage(layout, { emulator = false, tunnel = 'none', browser = emul
     await mkdir(join(resources, 'bin'));
     await writeFile(join(resources, 'bin', 'cloudflared'),
       `#!/bin/sh\nexec '${process.execPath}' '${fakeCloudflared}' --script '${JSON.stringify({ record, launches: [{}] })}' "$@"\n`, { mode: 0o755 });
+  }
+  if (build !== undefined) {
+    const file = join(resources, 'runtime-manifest.json');
+    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    await writeFile(file, `${JSON.stringify({ ...manifest, server: { sha256: build } }, null, 2)}\n`);
   }
   await run('chmod', ['-R', 'a-w', bundle]);
   const before = await listing(bundle);
@@ -299,6 +306,80 @@ test('the bundle carries the web client and no test files', async () => {
   assert.ok(files.includes('room-identity.js'));
 });
 
+test('the bundle carries the panel and no test files', async () => {
+  assert.deepEqual((await readdir(join(built, 'resources', 'admin'), { recursive: true })).sort(),
+    ['controller.js', 'index.html', 'panel.css', 'panel.js', 'session.js', 'view.js']);
+});
+
+test('HOST-01: a second launch gets a new one-time token for the same server', async () => {
+  const staged = await stage('application');
+  let pid;
+  try {
+    // In place of the system's program that opens an address: it writes down what it was given. The switch
+    // that keeps a launch from opening a browser stays set, so a build that does not know the stand-in opens nothing.
+    const record = join(staged.root, 'opened.txt');
+    const opener = join(staged.root, 'stand-in open');
+    await writeFile(opener, `#!/bin/sh\nprintf '%s\\n' "$#" "$@" >> '${record}'\n`, { mode: 0o755 });
+    const env = { ...staged.env, SLED_SERVER_OPENER: opener };
+    const launch = async () => (await run(staged.executable, [], { cwd: staged.cwd, env })).stdout;
+
+    const outputs = [await launch(), await launch()];
+    const [first, second] = outputs.map(output => JSON.parse(output));
+    pid = first.pid;
+    assert.match(first.url, /^http:\/\/127\.0\.0\.1:\d+\/$/);
+    assert.deepEqual([first.event, second], ['started', { event: 'reused', pid, url: first.url }]);
+    assert.deepEqual(await servers(staged), [pid], 'one server');
+
+    const opened = (await readFile(record, 'utf8')).trim().split('\n');
+    assert.deepEqual(opened.filter((_line, index) => index % 2 === 0), ['1', '1'], 'each launch opened one address');
+    const tokens = [opened[1], opened[3]].map(url => new RegExp(`^${first.url}#bootstrap=([a-f0-9]{64})$`).exec(url)?.[1]);
+    assert.ok(tokens[0] && tokens[1], 'each address is the panel\'s, with a one-time token');
+    assert.notEqual(tokens[0], tokens[1]);
+
+    // The page that the address leads to, from the bundle.
+    const page = await fetch(first.url);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-security-policy'), /^default-src 'none'; script-src 'self';/);
+    assert.match(await page.text(), /<script type="module" src="\/panel\.js"><\/script>/);
+    for (const name of ['panel.js', 'session.js', 'view.js', 'controller.js', 'panel.css'])
+      assert.equal((await fetch(new URL(name, first.url))).status, 200, name);
+    for (const name of ['session.test.mjs', 'page.test.mjs']) assert.equal((await fetch(new URL(name, first.url))).status, 404, name);
+
+    // Each token opens one session, as the page does it, and each tab's session is its own.
+    const trade = bootstrap => fetch(new URL('/api/session', first.url),
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ bootstrap }) });
+    const sessions = [];
+    for (const bootstrap of tokens) {
+      const answer = await trade(bootstrap);
+      assert.equal(answer.status, 201);
+      sessions.push((await answer.json()).session);
+      const again = await trade(bootstrap);
+      assert.equal(again.status, 401, 'the same address opened again is refused');
+      assert.deepEqual(await again.json(), { error: 'This link to the panel has expired. Open Sled Storm Server again.' });
+    }
+    assert.notEqual(sessions[0], sessions[1]);
+    for (const session of sessions) {
+      const status = await fetch(new URL('/api/status', first.url), { headers: { authorization: `Bearer ${session}` } });
+      assert.equal(status.status, 200);
+      assert.equal((await status.json()).pid, pid);
+    }
+
+    const log = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    for (const secret of [...tokens, ...sessions])
+      assert.ok(!log.includes(secret) && !outputs.join('').includes(secret), 'neither the log nor the launcher\'s output holds a token or a session');
+
+    // Closing a page is nothing the server hears of: it runs until it is told to quit, here by a tab's session.
+    const quit = await fetch(new URL('/api/host/quit', first.url), { method: 'POST', headers: { authorization: `Bearer ${sessions[1]}` } });
+    assert.equal(quit.status, 202);
+    await untilGone(pid);
+    assert.deepEqual(await staged.command('status'), { running: false });
+    await staged.unchanged();
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
 test('an unconfigured server reports that it needs setup', async () => {
   const staged = await stage('application');
   let pid;
@@ -356,6 +437,15 @@ test('a configured server serves the game origin from the user\'s folder', async
     const archive = Buffer.from(await (await fetch(`${origin}/disc.zip`)).arrayBuffer());
     assert.equal(createHash('sha256').update(archive).digest('hex'), info.archive.sha256);
     assert.equal((await fetch(`http://127.0.0.1:${host.gatewayPort}/session-info`)).status, 401, 'the gateway wants its access link');
+    // With the access cookie, the gateway passes the chunk routes under shared-allowed (D92, D95).
+    const cookie = { cookie: `sled_access=${access}` };
+    const manifest = await fetch(`http://127.0.0.1:${host.gatewayPort}/game-data/manifest`, { headers: cookie });
+    assert.equal(manifest.status, 200);
+    assert.deepEqual(await manifest.json(), { version: 1, disc: info.disc, pal: info.pal, archive: info.archive });
+    const chunk = await fetch(`http://127.0.0.1:${host.gatewayPort}/game-data/${info.archive.sha256}/chunks/0`, { headers: cookie });
+    assert.equal(chunk.status, 200);
+    assert.equal(chunk.headers.get('content-length'), null, 'a chunk streams through the tunnel');
+    assert.equal(createHash('sha256').update(Buffer.from(await chunk.arrayBuffer())).digest('hex'), info.archive.chunks[0]);
 
     const cache = join(staged.home, 'Library', 'Caches', 'Sled Storm Server', 'game-data');
     assert.deepEqual(await readdir(cache), ['archive.json'], 'the cache holds a stamp, not a copy of the disc');
@@ -579,7 +669,12 @@ test('the packaged server opens its room before any player, seats the first one,
     for (const secret of [player.room, player.token, navigate.setup.workerKey])
       assert.ok(!serverLog.includes(secret) && !JSON.stringify(host).includes(secret), 'neither the log nor the status names the room');
 
-    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    // A quit asks about the player, as a stop does, and `--force` is the answer.
+    assert.deepEqual(await refusedCommand(staged, 'quit'),
+      { code: 1, said: 'Players are in the room: 1 connected, 0 away with a controller kept. Add --force to quit anyway.' });
+    assert.ok(alive(pid), 'a refused quit leaves the server running');
+    assert.deepEqual(await refusedCommand(staged, 'quit', '--now'), { code: 2, said: 'Usage: SledStormServer quit [--force]' });
+    assert.deepEqual(await staged.command('quit', '--force'), { event: 'stopped', pid });
     await untilGone(pid);
     assert.ok(!alive(start.pid), 'the worker ended before the server did');
     assert.deepEqual(await readdir(profiles), []);
@@ -589,6 +684,154 @@ test('the packaged server opens its room before any player, seats the first one,
     for (const worker of workers) if (alive(worker)) process.kill(worker, 'SIGKILL');
     if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     await staged.remove();
+  }
+});
+
+test('a new game for the packaged server\'s room keeps its links', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  const sockets = [];
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.deepEqual({ state: host.state, room: host.room }, { state: 'online', room: 'open' }, JSON.stringify(host.problem));
+    const links = await staged.command('invitation');
+    const player = await joinRoom(netplayPort, gamePort, links.localUrl);
+    sockets.push(player.socket);
+    assert.equal((await player.answer).type, 'ready');
+
+    assert.deepEqual(await refusedCommand(staged, 'new-game'), { code: 1,
+      said: 'Players are in the room: 1 connected, 0 away with a controller kept. A new game disconnects them. Add --force to start one anyway.' });
+    assert.deepEqual(await refusedCommand(staged, 'new-game', '--now'), { code: 2, said: 'Usage: SledStormServer new-game [--force]' });
+    const asked = await staged.command('new-game', '--force');
+    assert.equal(asked.event, 'new-game');
+    assert.equal(await player.closed, 'The host started a new game. Open the invitation again to join.');
+    const emulators = async () => (await staged.browserLaunches()).filter(entry => entry.event === 'start');
+    await until('a second emulator', async () => (await emulators()).length === 2);
+    await until('the room is open again', async () => (await staged.command('status')).host.room === 'open');
+    const navigations = (await staged.browserLaunches()).filter(entry => entry.event === 'navigate');
+    assert.equal(navigations.length, 2);
+    assert.equal(navigations[1].setup.room, navigations[0].setup.room, 'the same room');
+    assert.deepEqual(await staged.command('invitation'), links, 'the links stay');
+    const again = await joinRoom(netplayPort, gamePort, links.localUrl);
+    sockets.push(again.socket);
+    assert.equal((await again.answer).type, 'ready', 'the same link joins the new game');
+    const serverLog = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    assert.ok(serverLog.includes('The host started a new game.'), serverLog);
+    for (const secret of [player.room, player.token])
+      assert.ok(!serverLog.includes(secret) && !JSON.stringify(asked).includes(secret), 'neither the log nor the answer names the room');
+
+    assert.deepEqual(await staged.command('quit', '--force'), { event: 'stopped', pid });
+    await untilGone(pid);
+    await staged.unchanged();
+  } finally {
+    for (const socket of sockets) socket.terminate();
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('the diagnostic report of the packaged server names no folder and no secret', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  try {
+    const folder = await syntheticDisc(join(staged.root, 'My Games', 'Sled Storm диск'));
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(await freePort()), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    await staged.command('configure', '--game-folder', folder, '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.equal(host.state, 'online', JSON.stringify(host.problem));
+    const { url } = await staged.command('invitation');
+    const { token, instance } = JSON.parse(await readFile(join(staged.home, 'Library', 'Application Support', 'Sled Storm Server', 'instance.json'), 'utf8'));
+    // The log holds none of these (D19). A line that does is written here by hand, as a later fault could write one.
+    const log = join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log');
+    await appendFile(log, `2026-11-21T00:00:00.000Z Seeded ${folder} ${token} ${url}\n`);
+    const link = new URL(url);
+    const secrets = [folder, staged.home, staged.root, token, instance, link.hostname, link.hash.slice(1), link.pathname.split('/')[2]];
+    const manifest = JSON.parse(await readFile(join(built, 'resources', 'runtime-manifest.json'), 'utf8'));
+
+    const report = await staged.command('diagnostics');
+    for (const secret of secrets) assert.ok(!JSON.stringify(report).includes(secret), 'the report holds a folder or a secret');
+    assert.deepEqual(report.manifest, manifest, 'the manifest of the build');
+    assert.equal(report.manifest.node.version, lock.node.version);
+    assert.equal(report.version, manifest.app.version);
+    assert.deepEqual(report.parts, { web: true, emulator: true, browser: true, tunnel: true, panel: true });
+    assert.deepEqual({ state: report.host.state, room: report.host.room }, { state: 'online', room: 'open' });
+    assert.equal(report.config.gameFolder, true);
+    assert.ok(report.log.lines.some(line => line.endsWith(' Seeded <game folder> <hex> https://<public host>/access/<hex>#<fragment>')),
+      JSON.stringify(report.log.lines.slice(-5)));
+
+    // Without a server the command makes the report itself, from the same log.
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    const alone = await staged.command('diagnostics');
+    assert.deepEqual({ host: alone.host, startedAt: alone.startedAt }, { host: null, startedAt: null });
+    assert.ok(alone.log.lines.at(-1).endsWith(' Stopped.'), alone.log.lines.at(-1));
+    for (const secret of secrets) assert.ok(!JSON.stringify(alone).includes(secret), 'the report holds a folder or a secret');
+    await staged.unchanged();
+  } finally {
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a launch of another build replaces an idle server, and leaves one with players', async () => {
+  // Two copies of the application for one user, with one place for their data. The second is a build of other code.
+  const first = await stage('application', { emulator: true });
+  const second = await stage('application', { emulator: true, build: 'e'.repeat(64) });
+  const pids = [];
+  const sockets = [];
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(first.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    Object.assign(second.env, first.env);
+    await first.command('configure', '--game-folder', await syntheticDisc(join(first.root, 'game')), '--disc-policy', 'shared-allowed');
+    const older = await first.command();
+    pids.push(older.pid);
+    const { host } = await first.hostState('degraded', 'online', 'failed');
+    assert.equal(host.room, 'open', JSON.stringify(host.problem));
+
+    // Nobody is in its room: the first build's server quits before the second one's starts.
+    const replaced = await second.command();
+    pids.push(replaced.pid);
+    assert.deepEqual(replaced, { event: 'replaced', pid: replaced.pid, url: replaced.url });
+    assert.notEqual(replaced.pid, older.pid);
+    assert.ok(!alive(older.pid), 'the older server was gone before the new one started');
+    assert.deepEqual([...await servers(first), ...await servers(second)], [replaced.pid], 'one server');
+    const log = await readFile(join(first.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    assert.ok(log.includes('Stopping: quit request.'), 'the older server quit on request');
+
+    // A launch of the same build uses it.
+    assert.deepEqual(await second.command(), { event: 'reused', pid: replaced.pid, url: replaced.url });
+
+    // A player is in the room of the second build's server: a launch of the first build leaves it running.
+    await until('the room is open', async () => (await second.command('status')).host.room === 'open');
+    const player = await joinRoom(netplayPort, gamePort, (await second.command('invitation')).localUrl);
+    sockets.push(player.socket);
+    assert.equal((await player.answer).type, 'ready');
+    assert.deepEqual(await first.command(), { event: 'reused', pid: replaced.pid, url: replaced.url, otherBuild: true });
+    assert.ok(alive(replaced.pid));
+    assert.equal(player.socket.readyState, WebSocket.OPEN, 'the player is still in the room');
+    assert.deepEqual([...await servers(first), ...await servers(second)], [replaced.pid]);
+
+    assert.deepEqual(await second.command('quit', '--force'), { event: 'stopped', pid: replaced.pid });
+    await untilGone(replaced.pid);
+    await first.unchanged();
+    await second.unchanged();
+  } finally {
+    for (const socket of sockets) socket.terminate();
+    for (const staged of [first, second])
+      for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    for (const pid of pids) if (alive(pid)) process.kill(pid, 'SIGKILL');
+    await first.remove();
+    await second.remove();
   }
 });
 
@@ -718,7 +961,8 @@ test('a saved game is loaded into the room of the packaged server and the invita
     for (const secret of [player.room, player.token, ready.seatKey, save, player.info.disc, ...navigations.map(entry => entry.setup.workerKey)])
       assert.ok(!serverLog.includes(secret) && !JSON.stringify(during).includes(secret), 'neither the log nor the status names it');
 
-    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    // The player is still in the room.
+    assert.deepEqual(await staged.command('quit', '--force'), { event: 'stopped', pid });
     await untilGone(pid);
     assert.ok(!alive(second.pid), 'the worker ended before the server did');
     assert.deepEqual(await readdir(join(staged.home, 'Library', 'Caches', 'Sled Storm Server', 'browser-profiles')), []);
@@ -726,6 +970,511 @@ test('a saved game is loaded into the room of the packaged server and the invita
   } finally {
     for (const socket of sockets) socket.terminate();
     for (const worker of workers) if (alive(worker)) process.kill(worker, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+/** A command that is expected to fail: its exit code and what it said on standard error. */
+async function refusedCommand(staged, ...args) {
+  try {
+    await run(staged.executable, args, { cwd: staged.cwd, env: staged.env });
+  } catch (error) {
+    return { code: error.code, said: String(error.stderr).trim() };
+  }
+  throw new Error(`${args.join(' ')} was expected to fail`);
+}
+
+test('the packaged server starts and stops hosting on request and keeps running', async () => {
+  // No tunnel program in this copy: the room opens, and the public address is what is missing.
+  const staged = await stage('application', { emulator: true });
+  let pid;
+  const sockets = [];
+  try {
+    assert.deepEqual(await refusedCommand(staged, 'start'), { code: 1, said: 'The server is not running.' });
+    assert.deepEqual(await refusedCommand(staged, 'stop'), { code: 1, said: 'The server is not running.' });
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    ({ pid } = await staged.command());
+    let { host } = await staged.hostState('degraded', 'online', 'failed', 'needs_setup');
+    assert.deepEqual({ state: host.state, room: host.room, players: host.players, component: host.problem?.component },
+      { state: 'degraded', room: 'open', players: { connected: 0, reserved: 0 }, component: 'tunnel' });
+    const first = (await staged.command('invitation')).localUrl;
+
+    const stopping = await staged.command('stop');
+    assert.deepEqual(Object.keys(stopping), ['event', 'host']);
+    assert.equal(stopping.event, 'stopping');
+    ({ host } = await staged.hostState('idle'));
+    assert.deepEqual({ room: host.room, players: host.players, localUrl: host.localUrl, problem: host.problem },
+      { room: 'off', players: null, localUrl: null, problem: null });
+    assert.ok(await refused(gamePort) && await refused(netplayPort), 'nothing is hosted');
+    assert.deepEqual(await servers(staged), [pid], 'the server itself runs on');
+    assert.deepEqual(await refusedCommand(staged, 'invitation'), { code: 1, said: 'No room is open.' });
+    assert.equal((await staged.command('stop')).host.state, 'idle', 'a stop with nothing to stop is accepted');
+
+    assert.equal((await staged.command('start')).event, 'starting');
+    ({ host } = await staged.hostState('degraded', 'online', 'failed', 'needs_setup'));
+    assert.deepEqual({ state: host.state, room: host.room }, { state: 'degraded', room: 'open' }, JSON.stringify(host.problem));
+    const second = (await staged.command('invitation')).localUrl;
+    assert.notEqual(new URL(second).hash, new URL(first).hash, 'hosting that was stopped and started has a new room');
+    assert.equal((await staged.command('start')).event, 'starting', 'a start with nothing to start is accepted');
+    assert.equal((await staged.command('invitation')).localUrl, second, 'and leaves the room as it is');
+
+    // With a player in the room, a stop must say so.
+    const player = await joinRoom(netplayPort, gamePort, second);
+    sockets.push(player.socket);
+    assert.equal((await player.answer).type, 'ready');
+    assert.deepEqual((await staged.command('status')).host.players, { connected: 1, reserved: 0 });
+    assert.deepEqual(await refusedCommand(staged, 'stop'),
+      { code: 1, said: 'Players are in the room: 1 connected, 0 away with a controller kept. Add --force to stop it anyway.' });
+    assert.deepEqual(await refusedCommand(staged, 'stop', '--now'), { code: 2, said: 'Usage: SledStormServer stop [--force]' });
+    assert.equal((await staged.command('status')).host.room, 'open', 'a refused stop stops nothing');
+    assert.equal(player.socket.readyState, WebSocket.OPEN);
+
+    // The game files change under the room. The start that the status then asks for would close the
+    // room and open another, so with a player in it that start must say so too.
+    await appendFile(join(staged.root, 'game', 'Track 01.bin'), 'x');
+    assert.equal((await fetch(`http://127.0.0.1:${gamePort}/disc.zip`)).status, 503);
+    assert.equal((await staged.command('status')).host.problem.component, 'game-data');
+    assert.deepEqual(await refusedCommand(staged, 'start'), { code: 1, said: 'Players are in the room: 1 connected, 0 away with a controller kept. '
+      + 'This start closes their room and opens a new one. Add --force to start anyway.' });
+    assert.deepEqual(await refusedCommand(staged, 'start', '--now'), { code: 2, said: 'Usage: SledStormServer start [--force]' });
+    assert.equal((await staged.command('invitation')).localUrl, second, 'a refused start leaves the room as it is');
+    assert.equal(player.socket.readyState, WebSocket.OPEN);
+
+    assert.equal((await staged.command('stop', '--force')).event, 'stopping');
+    await staged.hostState('idle');
+    assert.equal(await player.closed, 'Dedicated server stopped');
+    assert.deepEqual(await servers(staged), [pid]);
+
+    const serverLog = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    for (const secret of [new URL(first).hash.slice(1), new URL(second).hash.slice(1), player.room, player.token])
+      assert.ok(!serverLog.includes(secret) && !JSON.stringify(host).includes(secret), 'neither the log nor the status names a room');
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    await staged.unchanged();
+  } finally {
+    for (const socket of sockets) socket.terminate();
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a server whose configuration says no auto start is idle until asked', async () => {
+  const staged = await stage('bare', { emulator: true });
+  let pid;
+  try {
+    const gamePort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    const folder = await syntheticDisc(join(staged.root, 'game'));
+    await staged.command('configure', '--game-folder', folder, '--disc-policy', 'shared-allowed');
+    // The switch is the panel's; no command sets it. The file is the host's own.
+    const file = join(staged.home, 'Library', 'Application Support', 'Sled Storm Server', 'config.json');
+    const saved = JSON.parse(await readFile(file, 'utf8'));
+    assert.equal(saved.autoStart, true);
+    await writeFile(file, JSON.stringify({ ...saved, autoStart: false }));
+    // The command for the folder leaves the switch as it found it.
+    await staged.command('configure', '--game-folder', folder, '--disc-policy', 'shared-allowed');
+    assert.equal(JSON.parse(await readFile(file, 'utf8')).autoStart, false);
+
+    ({ pid } = await staged.command());
+    // Long enough for a start to have shown itself: the synthetic disc is prepared in a moment.
+    await delay(1500);
+    const { host } = await staged.command('status');
+    assert.deepEqual({ state: host.state, room: host.room, localUrl: host.localUrl, problem: host.problem },
+      { state: 'idle', room: 'off', localUrl: null, problem: null });
+    assert.ok(await refused(gamePort), 'nothing is hosted');
+    const log = join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log');
+    assert.ok(!(await readFile(log, 'utf8')).includes('Preparing the game files.'), 'no start was tried');
+
+    assert.equal((await staged.command('start')).event, 'starting');
+    const started = await staged.hostState('degraded', 'online', 'failed', 'needs_setup');
+    assert.deepEqual({ state: started.host.state, room: started.host.room }, { state: 'degraded', room: 'open' }, JSON.stringify(started.host.problem));
+    assert.equal((await fetch(`http://127.0.0.1:${gamePort}/session-info`)).status, 200);
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+  } finally {
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+/** A request with its path as written: nothing normalizes it on the way out. */
+function raw(port, method, path, headers) {
+  return new Promise((resolve, reject) => {
+    const outgoing = request({ host: '127.0.0.1', port, method, path, headers }, incoming => {
+      let body = '';
+      incoming.setEncoding('utf8');
+      incoming.on('data', chunk => { body += chunk; });
+      incoming.on('end', () => resolve({ status: incoming.statusCode, text: body + JSON.stringify(incoming.headers) }));
+    });
+    outgoing.on('error', reject);
+    outgoing.end(method === 'GET' || method === 'HEAD' ? undefined : '{"force":true}');
+  });
+}
+
+test('AUTH-01: nothing asked through the gateway of the packaged server reaches its control listener', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  try {
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(await freePort()), SLED_SERVER_NETPLAY_PORT: String(await freePort()) });
+    await staged.command('configure', '--game-folder', await syntheticDisc(join(staged.root, 'game')), '--disc-policy', 'shared-allowed');
+    const launched = await staged.command();
+    pid = launched.pid;
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.equal(host.state, 'online', JSON.stringify(host.problem));
+    const controlPort = new URL(launched.url).port;
+    const record = join(staged.home, 'Library', 'Application Support', 'Sled Storm Server', 'instance.json');
+    const { token, instance } = JSON.parse(await readFile(record, 'utf8'));
+    const access = /\/access\/([a-f0-9]{48})#/.exec((await staged.command('invitation')).url)[1];
+    const cookie = { cookie: `sled_access=${access}` };
+    assert.equal((await raw(host.gatewayPort, 'GET', '/session-info', cookie)).status, 200, 'the gateway serves the game');
+
+    // As a command would ask the control listener, credential and all, but through the public door.
+    const command = { authorization: `Bearer ${token}`, host: `127.0.0.1:${controlPort}`, 'content-type': 'application/json' };
+    for (const route of ['/api/status', '/api/invitation', '/api/config', '/api/session/bootstrap', '/api/host/start', '/api/room/stop', '/api/host/quit',
+      '/api/game-folder/pick']) {
+      for (const path of [route, route.replace('/api/', '/%61pi/'), route.replace('/api/', '/api%2F'), `/${route}`, `/.${route}`, `/web/..${route}`]) {
+        for (const method of ['GET', 'POST', 'PUT']) {
+          const outside = await raw(host.gatewayPort, method, path, command);
+          const inside = await raw(host.gatewayPort, method, path, { ...command, ...cookie });
+          assert.deepEqual([outside.status, inside.status], [401, 403], `${method} ${path}`);
+          for (const { text } of [outside, inside])
+            assert.ok(!text.includes(instance) && !text.includes(token) && !text.includes('"instance"'), `${method} ${path}`);
+        }
+      }
+    }
+    // The panel's page is not a part of the game.
+    for (const path of ['/panel.js', '/session.js', '/view.js', '/controller.js', '/panel.css']) {
+      assert.equal((await raw(host.gatewayPort, 'GET', path, cookie)).status, 403, path);
+      assert.equal((await raw(controlPort, 'GET', path, {})).status, 200, path);
+    }
+
+    // Nothing was stopped, started or quit by any of it.
+    const after = await staged.command('status');
+    assert.deepEqual({ running: after.running, pid: after.pid, state: after.host.state, room: after.host.room, gatewayPort: after.host.gatewayPort },
+      { running: true, pid, state: 'online', room: 'open', gatewayPort: host.gatewayPort });
+    const log = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    assert.ok(!log.includes('Stopping') && !log.includes('is stopped') && !log.includes(token), 'the log tells of no stop and holds no credential');
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await untilGone(pid);
+    await staged.unchanged();
+  } finally {
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    for (const program of await staged.tunnelPrograms()) if (alive(program)) process.kill(program, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('the packaged server hosts under local-only, and its gateway gives no disc away', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  const sockets = [];
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    const folder = await syntheticDisc(join(staged.root, 'game'));
+    assert.deepEqual(await staged.command('configure', '--game-folder', folder, '--disc-policy', 'local-only'),
+      { event: 'configured', gameFolder: folder, discPolicy: 'local-only', tracks: 2, restartRequired: false });
+    ({ pid } = await staged.command());
+    const { host } = await staged.hostState('online', 'failed', 'needs_setup');
+    assert.deepEqual({ state: host.state, room: host.room }, { state: 'online', room: 'open' }, JSON.stringify(host.problem));
+
+    // The room's emulator runs on the loopback origin, which still serves the disc under this policy (D72).
+    const origin = `http://127.0.0.1:${gamePort}`;
+    const [, navigate] = await staged.browserLaunches();
+    assert.equal(navigate.url, `${origin}/`);
+    const info = await (await fetch(`${origin}/session-info`)).json();
+    assert.equal(info.discMode, 'shared');
+    const archive = Buffer.from(await (await fetch(`${origin}/disc.zip`)).arrayBuffer());
+    assert.equal(createHash('sha256').update(archive).digest('hex'), info.archive.sha256);
+
+    // The links are those of any room, and a player on this computer joins with the local one.
+    const { url, localUrl } = await staged.command('invitation');
+    assert.equal(new URL(url).hash, new URL(localUrl).hash);
+    const player = await joinRoom(netplayPort, gamePort, localUrl);
+    sockets.push(player.socket);
+    assert.equal((await player.answer).type, 'ready');
+
+    // Through the public gateway, with its access cookie: the same session info, marked local, and no disc.
+    const access = /\/access\/([a-f0-9]{48})#/.exec(url)[1];
+    const cookie = { cookie: `sled_access=${access}` };
+    const through = await fetch(`http://127.0.0.1:${host.gatewayPort}/session-info`, { headers: cookie });
+    assert.equal(through.status, 200);
+    assert.equal(through.headers.get('x-sled-disc'), 'local');
+    assert.deepEqual(await through.json(), info);
+    for (const method of ['GET', 'HEAD'])
+      for (const path of ['/disc.zip', '/disc.zip?v=1', '/%64isc.zip', '/DISC.ZIP', '/./disc.zip', '/emulator/../disc.zip', '/game-data/manifest',
+        `/game-data/${info.archive.sha256}/chunks/0`])
+        assert.equal((await raw(host.gatewayPort, method, path, cookie)).status, 403, `${method} ${path}`);
+    assert.equal((await raw(host.gatewayPort, 'GET', '/disc.zip', {})).status, 401, 'without the cookie the gateway asks for its link');
+
+    // The bundle carries the page that obeys the gateway, and the panel that no longer refuses this policy.
+    const page = await raw(host.gatewayPort, 'GET', '/local-disc.js', cookie);
+    assert.equal(page.status, 200);
+    assert.match(page.text, /export function sessionDiscMode/);
+    // The guest's page takes the discs the server takes, by the rules they share (D75).
+    const sheet = await raw(host.gatewayPort, 'GET', '/disc-sheet.js', cookie);
+    assert.equal(sheet.status, 200);
+    assert.match(sheet.text, /export function cueTrackNames/);
+    // A guest may choose one ZIP of the disc, which the page reads and checks itself (DATA-03, DATA-04).
+    const reader = await raw(host.gatewayPort, 'GET', '/disc-zip.js', cookie);
+    assert.equal(reader.status, 200);
+    assert.match(reader.text, /export async function discFromZip/);
+    // The guest chooses where the disc comes from: their own files or a saved ZIP under this policy (D87).
+    const source = await raw(host.gatewayPort, 'GET', '/disc-source.js', cookie);
+    assert.equal(source.status, 200);
+    assert.match(source.text, /export async function copyDisc/);
+    const lobby = (await raw(host.gatewayPort, 'GET', '/', cookie)).text;
+    assert.match(lobby, /name="disc-source"/);
+    assert.match(lobby, /id="disc-files"[^>]*accept="\.cue,\.bin"/);
+    assert.match(lobby, /id="disc-zip"[^>]*accept="\.zip"/);
+    assert.match((await raw(host.gatewayPort, 'GET', '/app.js', cookie)).text, /sessionDiscMode\(info, response\.headers\.get\('X-Sled-Disc'\)\)/);
+    const panel = await readFile(join(staged.resources, 'admin', 'index.html'), 'utf8');
+    assert.ok(!panel.includes('cannot host') && panel.includes('choose their own game files or a saved ZIP'), 'the panel describes the policy');
+
+    assert.deepEqual(await staged.command('quit', '--force'), { event: 'stopped', pid });
+    await untilGone(pid);
+    await staged.unchanged();
+  } finally {
+    for (const socket of sockets) socket.terminate();
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    for (const program of await staged.tunnelPrograms()) if (alive(program)) process.kill(program, 'SIGKILL');
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+/** Asks the control listener of a launched server as a command of this user would, with the credential of its record. */
+async function control(staged, url, method, path) {
+  const record = join(staged.home, 'Library', 'Application Support', 'Sled Storm Server', 'instance.json');
+  const { token } = JSON.parse(await readFile(record, 'utf8'));
+  const answer = await fetch(new URL(path, url), { method, headers: { authorization: `Bearer ${token}` } });
+  return { status: answer.status, body: await answer.json() };
+}
+
+test('the game folder is chosen through the dialog\'s stand-in, and a cancel changes nothing', async () => {
+  const staged = await stage('application');
+  let pid;
+  try {
+    const folder = await syntheticDisc(join(staged.root, 'game "folder" 雪'));
+    // In place of the system's dialog: it writes down what it was run with, and answers with the folder
+    // of a file, or as a dialog that was canceled while there is no such file.
+    const dialog = join(staged.root, 'stand-in dialog');
+    const record = join(staged.root, 'dialogs.txt');
+    const answer = join(staged.root, 'dialog-answer.txt');
+    await writeFile(dialog, `#!/bin/sh\nprintf '%s\\n' "$#" "$@" >> '${record}'\nif [ -f '${answer}' ]; then /bin/cat '${answer}'; `
+      + 'else echo "0:17: execution error: User canceled. (-128)" >&2; exit 1; fi\n', { mode: 0o755 });
+    staged.env.SLED_SERVER_FOLDER_DIALOG = dialog;
+    const launched = await staged.command();
+    pid = launched.pid;
+    const pick = () => control(staged, launched.url, 'POST', '/api/game-folder/pick');
+    const file = join(staged.home, 'Library', 'Application Support', 'Sled Storm Server', 'config.json');
+    const nothing = { gameFolder: null, discPolicy: null, autoStart: true, roomOptions: { progress: 'all', camera: true }, problem: null };
+
+    assert.deepEqual(await pick(), { status: 200, body: { picked: false, config: nothing } });
+    await assert.rejects(readFile(file), { code: 'ENOENT' }, 'a cancel writes no configuration');
+
+    await writeFile(answer, `${folder}/\n`);
+    assert.deepEqual(await pick(), { status: 200, body: { picked: true, config: { ...nothing, gameFolder: folder } } });
+    assert.equal(JSON.parse(await readFile(file, 'utf8')).gameFolder, folder);
+
+    await rm(answer);
+    assert.deepEqual(await pick(), { status: 200, body: { picked: false, config: { ...nothing, gameFolder: folder } } });
+    assert.equal(JSON.parse(await readFile(file, 'utf8')).gameFolder, folder, 'a cancel keeps the folder that was chosen before');
+
+    // Three dialogs, each run with the fixed script and nothing else.
+    const script = ['4', '-e', 'tell me to activate', '-e',
+      'POSIX path of (choose folder with prompt "Choose the folder that holds your Sled Storm disc")'];
+    assert.deepEqual((await readFile(record, 'utf8')).trim().split('\n'), [...script, ...script, ...script]);
+
+    // The folder leaves the server in the answers about the configuration only.
+    const log = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    assert.ok(!log.includes(folder) && !JSON.stringify(await staged.command('status')).includes(folder), 'neither the log nor the status names the folder');
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    await staged.unchanged();
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('a server that may show nothing has no folder dialog', async () => {
+  // Every staged copy is launched with the switch that keeps a launch from opening a browser. Without a
+  // stand-in for the dialog, such a server shows none: no smoke test can put a window on the screen.
+  const staged = await stage('application');
+  let pid;
+  try {
+    assert.equal(staged.env.SLED_SERVER_NO_BROWSER, '1');
+    const launched = await staged.command();
+    pid = launched.pid;
+    assert.deepEqual(await control(staged, launched.url, 'POST', '/api/game-folder/pick'),
+      { status: 503, body: { error: 'The folder dialog is not available.' } });
+    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+  } finally {
+    if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    await staged.remove();
+  }
+});
+
+test('the first run, as the page asks for it: a folder from the dialog, a policy, the options, a start, the invitation, a new game, the report, a stop and a quit', async () => {
+  const staged = await stage('application', { emulator: true, tunnel: 'fake' });
+  let pid;
+  let reading = true;
+  try {
+    const gamePort = await freePort();
+    const netplayPort = await freePort();
+    Object.assign(staged.env, { SLED_SERVER_GAME_PORT: String(gamePort), SLED_SERVER_NETPLAY_PORT: String(netplayPort) });
+    const folder = await syntheticDisc(join(staged.root, 'game folder'));
+    // In place of the browser and of the system's dialog: one writes down the address that it was given, the other answers with the folder.
+    const opened = join(staged.root, 'opened.txt');
+    const opener = join(staged.root, 'stand-in open');
+    await writeFile(opener, `#!/bin/sh\nprintf '%s\\n' "$1" >> '${opened}'\n`, { mode: 0o755 });
+    const dialog = join(staged.root, 'stand-in dialog');
+    await writeFile(dialog, `#!/bin/sh\nprintf '%s/\\n' '${folder}'\n`, { mode: 0o755 });
+    Object.assign(staged.env, { SLED_SERVER_OPENER: opener, SLED_SERVER_FOLDER_DIALOG: dialog });
+
+    // A double click on a new installation. Nothing was configured by a command.
+    const launched = await staged.command();
+    pid = launched.pid;
+    const bootstrap = /#bootstrap=([a-f0-9]{64})$/.exec((await readFile(opened, 'utf8')).trim())?.[1];
+    assert.ok(bootstrap, 'the browser was given the address of the page with its token');
+
+    // The page's own modules, from the bundle. Only the document is missing: what would be written into it is kept here.
+    const module = name => import(pathToFileURL(join(staged.resources, 'admin', name)).href);
+    const { openSession } = await module('session.js');
+    const { createPanel } = await module('controller.js');
+    const reach = (path, init) => fetch(new URL(path, launched.url), init);
+    const session = await openSession({ fetch: reach, storage: null, bootstrap });
+    assert.match(session, /^[a-f0-9]{64}$/);
+    const sent = [];
+    const copied = [];
+    const views = [];
+    const files = [];
+    const panel = createPanel({
+      async ask(path, init = {}) {
+        if (init.method) sent.push(init.body ? `${init.method} ${path} ${init.body}` : `${init.method} ${path}`);
+        const answer = await reach(path, { ...init, headers: { ...init.headers, Authorization: `Bearer ${session}` } });
+        const text = await answer.text();
+        try { return { status: answer.status, body: JSON.parse(text) }; } catch { return { status: answer.status, body: null }; }
+      },
+      render: view => { views.push(view); },
+      // The page reads once a second; here the next reading is due at once, until the test is over.
+      wait: () => (reading ? delay(50) : new Promise(() => {})),
+      clipboard: async text => { copied.push(text); },
+      lost: () => assert.fail('the server knows the session'),
+      save: (name, text) => { files.push({ name, text }); },
+    });
+    void panel.run();
+    // A view that the page shows on its way there may say less: a reading before the start at launch finds the host at rest.
+    const shows = async (headline, sentence) => {
+      const shown = view => view?.headline === headline && (sentence === undefined || view.sentence === sentence);
+      for (let attempt = 0; !shown(views.at(-1)); attempt++) {
+        if (attempt > 400) throw new Error(`The page never showed "${headline}": ${JSON.stringify(views.at(-1))}`);
+        await delay(25);
+      }
+      return views.at(-1);
+    };
+    const parts = ({ headline, sentence, setup, start, stop, players }) => ({ headline, sentence, setup, start, stop, players });
+    const off = { shown: false, enabled: false };
+
+    // The start at launch found nothing to host, and the page asks for the setup.
+    const asksForSetup = 'Choose the game folder and the disc policy to start hosting.';
+    assert.deepEqual(parts(await shows('Needs setup', asksForSetup)), { headline: 'Needs setup', sentence: asksForSetup,
+      setup: { unfinished: true, folder: null, policy: null, locked: false }, start: { shown: true, enabled: false }, stop: { ...off, label: 'Stop room' },
+      players: null });
+    assert.deepEqual([views.at(-1).application, views.at(-1).invite, views.at(-1).openGame, views.at(-1).autoStart],
+      ['Sled Storm Server', { url: null, note: null }, null, { checked: true, enabled: true }]);
+
+    await panel.chooseFolder();
+    assert.deepEqual(parts(views.at(-1)), { headline: 'Needs setup', sentence: null, setup: { unfinished: true, folder, policy: null, locked: false },
+      start: { shown: true, enabled: false }, stop: { ...off, label: 'Stop room' }, players: null });
+    await panel.setPolicy('shared-allowed');
+    assert.deepEqual(parts(views.at(-1)), { headline: 'Stopped', sentence: null, setup: { unfinished: false, folder, policy: 'shared-allowed', locked: false },
+      start: { shown: true, enabled: true }, stop: { ...off, label: 'Stop room' }, players: null });
+    await panel.setOptions({ camera: false });
+    assert.deepEqual([views.at(-1).sentence, views.at(-1).options], [null,
+      { progress: 'all', camera: false, locked: false, note: 'Unlocked content and separate cameras need the verified PAL disc.' }]);
+
+    await panel.start();
+    const online = await shows('Online');
+    assert.deepEqual(parts(online), { headline: 'Online', sentence: null, setup: { unfinished: false, folder, policy: 'shared-allowed', locked: true },
+      start: off, stop: { shown: true, enabled: true, label: 'Stop room' }, players: '0 connected, 0 away with a controller kept' });
+    assert.equal(online.game, 'Unrecognized disc, 2 tracks, 0 MB');
+    // The synthetic disc is not the verified one: its room plays with the original progression and a shared camera.
+    assert.deepEqual(online.options, { progress: 'all', camera: false, locked: true, note: 'This disc plays with the original progression and a shared camera.' });
+    assert.deepEqual(online.newGame, { shown: true, enabled: true, label: 'New game' });
+    // Both links, to the same room: one for the guests, one for this computer.
+    assert.match(online.invite.url, /^https:\/\/[a-z0-9.-]+\/access\/[a-f0-9]{48}#/);
+    assert.ok(online.openGame.startsWith(`http://127.0.0.1:${gamePort}/#`), 'the game opens on this computer');
+    assert.equal(new URL(online.invite.url).hash, new URL(online.openGame).hash);
+    assert.equal(online.invite.note, null);
+    assert.equal(await panel.copyInvite(), true);
+    assert.deepEqual(copied, [online.invite.url]);
+    // The link for this computer leads into the room.
+    const player = await joinRoom(netplayPort, gamePort, online.openGame);
+    assert.equal((await player.answer).type, 'ready');
+    await until('the player is in the room', async () => (await staged.command('status')).host.players.connected === 1);
+
+    // A new game with the player in the room: the server's refusal is the page's question, and the second press says force.
+    await panel.newGame();
+    assert.deepEqual([views.at(-1).sentence, views.at(-1).newGame],
+      ['Players are in the room: 1 connected, 0 away with a controller kept. A new game disconnects them. Start one anyway?',
+        { shown: true, enabled: true, label: 'New game anyway' }]);
+    await panel.newGame();
+    assert.equal(views.at(-1).sentence, 'A new game is starting in the same room. The links stay the same.');
+    assert.equal(await player.closed, 'The host started a new game. Open the invitation again to join.');
+    player.socket.terminate();
+    await until('the player has left', async () => (await staged.command('status')).host.players.connected === 0);
+    await until('the next session of the room is open', async () => (await staged.command('status')).host.room === 'open');
+    const read = views.length;
+    await until('the page has read the room again', async () => views.length > read + 1);
+    assert.deepEqual([views.at(-1).invite.url, views.at(-1).openGame], [online.invite.url, online.openGame], 'the links stay');
+
+    // The diagnostic report, as the page saves it, names no folder and no secret.
+    await panel.saveDiagnostics();
+    assert.equal(files.length, 1);
+    assert.match(files[0].name, /^sled-storm-server-diagnostics-\d{4}-\d{2}-\d{2}\.json$/);
+    const diagnostics = JSON.parse(files[0].text);
+    assert.deepEqual([diagnostics.application, diagnostics.host.state, diagnostics.config.gameFolder], ['Sled Storm Server', 'online', true]);
+    const publicLink = new URL(online.invite.url);
+    for (const secret of [bootstrap, session, folder, publicLink.hostname, publicLink.hash.slice(1), publicLink.pathname.split('/')[2]])
+      assert.ok(!files[0].text.includes(secret), 'the saved report holds a folder or a secret');
+
+    await panel.stop();
+    const stopped = await shows('Stopped');
+    assert.deepEqual(parts(stopped), { headline: 'Stopped', sentence: null, setup: { unfinished: false, folder, policy: 'shared-allowed', locked: false },
+      start: { shown: true, enabled: true }, stop: { ...off, label: 'Stop room' }, players: null });
+    assert.deepEqual([stopped.invite, stopped.openGame, stopped.game], [{ url: null, note: null }, null, null]);
+    assert.equal((await staged.command('status')).host.state, 'idle');
+    assert.ok(await refused(gamePort) && await refused(netplayPort), 'nothing is hosted');
+
+    await panel.quit();
+    const { setup, quit, ...last } = views.at(-1);
+    assert.deepEqual([last.headline, last.sentence, setup, quit], ['Not connected', 'The server has quit. Open Sled Storm Server to start it again.', null, null]);
+    await untilGone(pid);
+    assert.deepEqual(await staged.command('status'), { running: false });
+    for (const program of await staged.tunnelPrograms()) await untilGone(program);
+    for (const entry of await staged.browserLaunches()) await untilGone(entry.pid);
+    // What the page asked for, in its order. Everything else was a reading.
+    assert.deepEqual(sent, ['POST /api/game-folder/pick', 'PUT /api/config {"discPolicy":"shared-allowed"}',
+      'PUT /api/config {"roomOptions":{"progress":"all","camera":false}}', 'POST /api/host/start', 'POST /api/room/new-game',
+      'POST /api/room/new-game {"force":true}', 'POST /api/diagnostics/export', 'POST /api/room/stop', 'POST /api/host/quit']);
+
+    const log = await readFile(join(staged.home, 'Library', 'Logs', 'Sled Storm Server', 'server.log'), 'utf8');
+    for (const secret of [bootstrap, session, folder, new URL(online.openGame).hash.slice(1)])
+      assert.ok(!log.includes(secret), 'the log holds no token, no session, no folder and no room');
+    await staged.unchanged();
+  } finally {
+    reading = false;
+    for (const entry of await staged.browserLaunches()) if (alive(entry.pid)) process.kill(entry.pid, 'SIGKILL');
+    for (const program of await staged.tunnelPrograms()) if (alive(program)) process.kill(program, 'SIGKILL');
     if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     await staged.remove();
   }

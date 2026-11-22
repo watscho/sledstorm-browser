@@ -9,7 +9,7 @@ import { access, constants, mkdir, rm } from 'node:fs/promises';
 import { connect, type Server, type Socket } from 'node:net';
 import { join } from 'node:path';
 import type { Readable } from 'node:stream';
-import { readConfig } from './config-store.ts';
+import { readConfig, type RoomPreference } from './config-store.ts';
 import { createWorkers, shippedBrowser } from './dedicated.ts';
 import { findDisc, GameFolderError } from './disc-folder.ts';
 import { loadEmulatorAssets, MissingAssetsError, type EmulatorAssets } from './emulator-assets.ts';
@@ -45,6 +45,23 @@ export interface HostStatus {
    * are, so that does not change `state`.
    */
   room: RoomState;
+  /**
+   * Who is in the room, counted when the status is asked for: null while the relay has no session of it.
+   * A player whose game is still loading is `connected`; `reserved` are controllers kept for players who
+   * are away. Nobody is named.
+   */
+  players: { connected: number; reserved: number } | null;
+  /** What the room plays with, while a stack with a room is up: the owner's choice, as far as the disc allows it. */
+  roomOptions: RoomPreference | null;
+}
+
+/**
+ * The options of a room on this disc. The verified PAL disc plays what the owner chose, and its separate
+ * cameras are its native camera; any other disc plays the original progression with a shared camera.
+ */
+export function roomOptionsFor(pal: boolean, chosen: RoomPreference): RoomOptions {
+  if (!pal) return { progress: 'original', camera: false };
+  return chosen.camera ? { progress: chosen.progress, camera: true, nativeCamera: true } : { progress: chosen.progress, camera: false };
 }
 
 /**
@@ -54,10 +71,37 @@ export interface HostStatus {
 export interface HostService {
   /** A frozen snapshot. */
   status(): HostStatus;
-  /** Resolves to the settled status. Expected problems are reported there, not thrown. */
+  /**
+   * Resolves to the settled status. Expected problems are reported there, not thrown. With a stack up,
+   * it tries again what has failed there, the room and the public address, and everything else stays as
+   * it is; a new stack is built only when none is up or the game files changed.
+   */
   start(): Promise<HostStatus>;
   /** Interrupts a start that is under way. */
   stop(): Promise<void>;
+  /**
+   * Stops hosting for good, because the server is quitting. Between other requests the later one wins;
+   * after this one no start is taken, also one that is asked for while the stop is still under way.
+   */
+  close(): Promise<void>;
+  /** True once the server is quitting. */
+  closed(): boolean;
+  /**
+   * True from the moment a start is asked for until it has settled. The status moves a little later,
+   * once the saved configuration has been read.
+   */
+  starting(): boolean;
+  /**
+   * Tells the host that the game folder or the disc policy was saved anew. What a host at rest said
+   * about them, as the problem of its last start, is taken back: it is idle, and the next start says
+   * what it finds. A host that runs or starts is left as it is, and so is a problem of the build.
+   */
+  configured(): void;
+  /**
+   * A new game in the server's room: its session ends and the next opens at once, in the same room, so
+   * both links stay good. False without a stack that has a room.
+   */
+  newGame(): boolean;
   /** The private link for guests, or null while no public address works. */
   invitation(): string | null;
   /** The same room for a browser on this computer, or null without a room. It needs no public address. */
@@ -77,18 +121,19 @@ export interface TunnelSetup {
 const GAME_PORT = 8000;
 const NETPLAY_PORT = 8006;
 
-const DISC_CHANGED = 'The game files changed after they were prepared. Quit the server and open it again.';
+const DISC_CHANGED = 'The game files changed after they were prepared. Start the server again.';
 const NO_ADDRESS = 'The public address is not available. The game still works on this computer.';
 const ROOM_RESTARTING = 'The room is not open at the moment. The server is starting it again.';
 const roomFailed = (reason: string | null) =>
-  `The room could not be started${reason ? ` (${reason})` : ''}. Quit the server and open it again.`;
+  `The room could not be started${reason ? ` (${reason})` : ''}. Start the server again.`;
 
 const snapshot = (status: HostStatus): HostStatus =>
   Object.freeze({ ...status, problem: status.problem && Object.freeze({ ...status.problem }),
-    game: status.game && Object.freeze({ ...status.game }) });
+    game: status.game && Object.freeze({ ...status.game }), players: status.players && Object.freeze({ ...status.players }),
+    roomOptions: status.roomOptions && Object.freeze({ ...status.roomOptions }) });
 
 const stopped = snapshot({ state: 'idle', problem: null, game: null, localUrl: null, gatewayPort: null, tunnel: 'off', mirror: 'off',
-  room: 'off' });
+  room: 'off', players: null, roomOptions: null });
 
 /** A file system message names the user's folders; its code says enough. Other errors keep their text. */
 function describe(error: unknown): string {
@@ -154,17 +199,26 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
 }): HostService {
   let status = stopped;
   let stopStack: (() => Promise<void>) | null = null;
-  // Set by the stack that is up: the private link, and a retry of its public address alone.
+  // Set by the stack that is up: the private links, the count of its room's players, and a new try of
+  // what has failed inside it.
   let invite: (() => string | null) | null = null;
   let localInvite: (() => string | null) | null = null;
-  let retryAddress: ((signal: AbortSignal) => Promise<void>) | null = null;
+  let players: (() => HostStatus['players']) | null = null;
+  let retry: ((signal: AbortSignal) => Promise<void>) | null = null;
+  let renew: (() => boolean) | null = null;
   // What the latest request asked for, and whether that start request has had its attempt.
   let wanted = false;
+  let closed = false;
   let attempted = false;
   let working: Promise<void> | null = null;
   let interrupt: AbortController | null = null;
 
   const set = (next: HostStatus) => { status = snapshot(next); };
+  /** The status with the players of this moment: they come and go without a word to the host. */
+  const current = (): HostStatus => {
+    const counted = players?.() ?? null;
+    return counted ? snapshot({ ...status, players: counted }) : status;
+  };
   const blocked = (state: 'needs_setup' | 'failed', component: HostComponent, message: string) => {
     log(`Cannot host (${component}): ${message}`);
     set({ ...stopped, state, problem: { component, message } });
@@ -189,8 +243,6 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
     if (problem) return blocked('needs_setup', 'config', problem);
     if (!config.gameFolder || !config.discPolicy)
       return blocked('needs_setup', 'config', 'Choose the game folder and the disc policy to start hosting.');
-    if (config.discPolicy !== 'shared-allowed')
-      return blocked('needs_setup', 'config', "Rooms that use each player's own game files are not available in this build yet. Choose shared-allowed to host.");
 
     let assets: EmulatorAssets;
     try {
@@ -234,9 +286,8 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
 
     // The room is the server's: its name and token are made here, and so is its identity, from the real
     // game data and this build. A player's page works out the same identity for itself, or is not let in.
-    // The built-in BIOS is the only one a dedicated room runs. The options are the web client's defaults.
-    const options: RoomOptions = identity.pal ? { progress: 'all', camera: true, nativeCamera: true }
-      : { progress: 'original', camera: false };
+    // The built-in BIOS is the only one a dedicated room runs. The options are the owner's, as far as the disc allows.
+    const options = roomOptionsFor(identity.pal, config.roomOptions);
     let room: { room: string; token: string; identity: string; saves: string } | null = null;
     if (browser) {
       // The saves that fit the room are those of this game and this build, under the key that a player's
@@ -257,7 +308,8 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
       const tunnel: TunnelState = live.noProgram ? 'failed' : live.primary?.state() ?? 'off';
       const roomState = live.room?.state() ?? 'off';
       const base: HostStatus = { state: 'online', problem: null, game, localUrl: `http://127.0.0.1:${gamePort}/`,
-        gatewayPort: live.gatewayPort, tunnel, mirror: live.mirror?.state() ?? 'off', room: roomState };
+        gatewayPort: live.gatewayPort, tunnel, mirror: live.mirror?.state() ?? 'off', room: roomState, players: null,
+        roomOptions: room && { progress: options.progress, camera: options.camera } };
       if (live.changed) return set({ ...base, state: 'degraded', problem: { component: 'game-data', message: DISC_CHANGED } });
       // Without its room there is nothing to play, whatever the public address does.
       if (roomState === 'restarting' || roomState === 'failed') {
@@ -279,22 +331,27 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
       log('The game files changed while the server was running.');
       refresh();
     };
+    // The whole archive and each chunk of it (D92, D93) are read the same way.
+    const watched = async (opened: () => Promise<Readable>): Promise<Readable> => {
+      if (live.changed) throw new GameFilesChangedError('The game files changed after they were prepared.');
+      try {
+        const stream = await opened();
+        stream.once('error', error => { if (error instanceof GameFilesChangedError) noteChange(); });
+        return stream;
+      } catch (error) {
+        if (error instanceof GameFilesChangedError) noteChange();
+        throw error;
+      }
+    };
     const archive = {
       size: identity.archive.size,
-      async open(): Promise<Readable> {
-        if (live.changed) throw new GameFilesChangedError('The game files changed after they were prepared.');
-        try {
-          const stream = await data.openArchive();
-          stream.once('error', error => { if (error instanceof GameFilesChangedError) noteChange(); });
-          return stream;
-        } catch (error) {
-          if (error instanceof GameFilesChangedError) noteChange();
-          throw error;
-        }
-      },
+      manifest: { disc: identity.disc, pal: identity.pal, archive: identity.archive },
+      open: () => watched(() => data.openArchive()),
+      openChunk: (index: number) => watched(() => data.openChunk(index)),
     };
 
     set({ ...stopped, state: 'starting', game });
+    const gatewayMode = config.discPolicy === 'local-only' ? 'local' : 'shared';
     const origins = [`http://127.0.0.1:${gamePort}`, `http://localhost:${gamePort}`];
     const steps: StackStep[] = [
       {
@@ -309,6 +366,7 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
             hardwareRenderer: assets.hardwareRenderer,
             // The keys keep the launcher's order. A Netplay room is identified by a fixed list of these fields
             // (web/room-identity.js), so what is added here for the page, like `serverRoom`, does not count.
+            // `shared` says that this origin serves the archive, which it does under either policy (D72).
             sessionInfo: { disc: identity.disc, pal: identity.pal, archive: identity.archive, discMode: 'shared',
               roomCheck: true, ...assets.identity, ...(browser && { dedicated: true, serverRoom: true }) },
             // The host page builds invitations for the public address, once that address works.
@@ -361,7 +419,7 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
           live.room = keepRoom({ open: events => netplay.createRoom({ ...spec, onRestoring: events.restoring }), log,
             timing: worker?.room,
             onChange() {
-              // A room that has given up gets no further session: its guests are not told to wait for one.
+              // A room that has given up gets no session until the host asks for one: its guests are not told to wait.
               if (live.room?.state() === 'failed') netplay.releaseRoom(spec.room);
               refresh();
             } });
@@ -381,8 +439,10 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
             netplay: netplayPort,
             // Part of every invitation link. It stays in memory and out of the status and the log.
             accessToken: token,
-            discMode: 'shared',
-            assetPaths: assets.assetPaths,
+            // The policy decides only what passes here. The loopback listener serves the disc under either one, to the
+            // room's emulator and to the owner's page; under local-only a remote player uses their own files (D72, D73).
+            discMode: gatewayMode,
+            assetPaths: assets.assetPaths(gatewayMode),
             maxPayload: 8 * 1024 * 1024,
             mirrorPort: 0,
             getMirrorOrigin: () => live.mirror?.origin() ?? undefined,
@@ -467,7 +527,9 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
       live.active = false;
       invite = null;
       localInvite = null;
-      retryAddress = null;
+      players = null;
+      retry = null;
+      renew = null;
       live.wake?.();
       await stop();
     };
@@ -481,7 +543,22 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
       return named ? invitationUrl(`${origin}/`, `/access/${token}`, named, options) : `${origin}/access/${token}`;
     };
     localInvite = () => (named && !gone() ? invitationUrl(`http://127.0.0.1:${gamePort}/`, '/', named, options) : null);
-    retryAddress = async interrupted => {
+    players = () => {
+      const session = room && relay?.roomStatus(room.room);
+      if (!session) return null;
+      const count = (...statuses: string[]) => session.seats.filter(seat => statuses.includes(seat.status)).length;
+      return { connected: count('connected', 'loading'), reserved: count('reserved') };
+    };
+    // Each of the two starts again only what has given up. A room that is between two sessions, and an
+    // address that is being tried, are left to their own pace. The room opens under its name and token,
+    // so the links that players hold stay good.
+    renew = () => {
+      const renewed = live.room?.renew() ?? false;
+      refresh();
+      return renewed;
+    };
+    retry = async interrupted => {
+      live.room?.start();
       live.primary?.start();
       refresh();
       await addressSettled(interrupted);
@@ -512,11 +589,12 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
           attempted = true;
           interrupt = new AbortController();
           try {
-            if (status.problem?.component === 'tunnel' && retryAddress) {
-              // Only the public address is down: try it again and leave the local game running.
-              await retryAddress(interrupt.signal);
+            if (retry && status.problem?.component !== 'game-data') {
+              // A stack is up: what has failed in it is tried again, and the local game goes on.
+              await retry(interrupt.signal);
             } else {
-              // A degraded or half-failed stack goes first, so the new attempt starts clean.
+              // A stack that sends a changed disc, or the rest of a failed start, goes first, so the
+              // new attempt starts clean.
               await halt();
               await attempt(interrupt.signal);
             }
@@ -539,20 +617,45 @@ export function createHostService({ paths, log, gamePort = GAME_PORT, netplayPor
     }
   })();
 
+  const stop = async () => {
+    wanted = false;
+    interrupt?.abort();
+    await settle();
+  };
+
   return {
-    status: () => status,
+    status: current,
     invitation: () => invite?.() ?? null,
     localInvitation: () => localInvite?.() ?? null,
+    newGame: () => renew?.() ?? false,
     async start() {
-      wanted = true;
-      attempted = false;
+      // A quit is the last word. A start that comes after it waits for the stop and changes nothing.
+      if (!closed) {
+        wanted = true;
+        // A request that comes during an attempt joins it and asks for no other. After an attempt that
+        // a stop has interrupted, this one is the next.
+        if (!interrupt || interrupt.signal.aborted) attempted = false;
+        // A host at rest says at once that it starts, and no longer what the last start found: whoever
+        // reads the status a moment after asking must not read the state from before. The attempt
+        // says what it finds; a stop that comes first takes the host back to idle.
+        if (!stopStack && (status.state === 'idle' || status.state === 'needs_setup' || status.state === 'failed'))
+          set({ ...stopped, state: 'preparing' });
+      }
       await settle();
-      return status;
+      return current();
     },
-    async stop() {
-      wanted = false;
-      interrupt?.abort();
-      await settle();
+    stop,
+    close() {
+      closed = true;
+      return stop();
+    },
+    closed: () => closed,
+    starting: () => wanted && working !== null,
+    configured() {
+      // A start that is under way reads the configuration itself.
+      if (wanted && working !== null) return;
+      const about = status.problem?.component;
+      if ((status.state === 'needs_setup' || status.state === 'failed') && (about === 'config' || about === 'game-data')) set(stopped);
     },
   };
 }

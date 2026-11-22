@@ -26,7 +26,7 @@ async function freePort(): Promise<number> {
 /** A running local stack; resolves to the port of its gateway. */
 async function gateway(t: TestContext): Promise<number> {
   const paths = await scratchPaths(t, 'probe');
-  await writeConfig(paths, { version: 1, gameFolder: await writeGame(join(paths.root, 'game')), discPolicy: 'shared-allowed' });
+  await writeConfig(paths, { version: 1, gameFolder: await writeGame(join(paths.root, 'game')), discPolicy: 'shared-allowed', autoStart: true, roomOptions: { progress: 'all', camera: true } });
   const host = createHostService({ paths, log: () => {}, gamePort: await freePort(), netplayPort: await freePort(),
     accessToken: token, tunnels: null, worker: null });
   t.after(() => host.stop());

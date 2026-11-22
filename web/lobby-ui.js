@@ -64,6 +64,27 @@ export function initLobby(notify, returnToLobby) {
   if (Number.isInteger(preferences.volume) && preferences.volume >= 0 && preferences.volume <= 100) volume.value = preferences.volume;
   let widescreenAvailable = false;
   let locked = false;
+  // Where the disc comes from (D87). app.js says what each source holds; this shows the choice.
+  const discGroup = $('#disc-source');
+  const discRadios = [...discGroup.querySelectorAll('input[name=disc-source]')];
+  const discHelp = Object.fromEntries(['files', 'zip'].map(kind => [kind, $(`#source-${kind}-help`).textContent]));
+  const discStates = {};
+  let discOffered;
+  const discSource = () => discGroup.hidden ? null : discRadios.find(radio => radio.checked)?.value ?? null;
+  const paintDisc = () => {
+    if (!discOffered) return;
+    const source = discSource();
+    const state = discStates[source] ?? {};
+    const progress = { ready: 'ready', access: 'allow access again', checking: 'checking…' }[state.status]
+      ?? { files: 'choose files', zip: 'choose a file' }[source];
+    $('#summary-disc').textContent = !source ? 'Server disc'
+      : source === 'download' ? 'Download from server'
+        : `${source === 'files' ? 'My game files' : 'Saved ZIP'} · ${progress}`;
+    $('#disc-selection').textContent = state.text ?? '';
+    $('#disc-held').textContent = state.note ?? '';
+    $('#disc-held').hidden = !state.note;
+    $('#launch').classList.toggle('is-ready', state.status === 'ready');
+  };
   const refresh = () => {
     wideOption.disabled = !widescreenAvailable;
     drawDistance.disabled = locked || !widescreenAvailable;
@@ -87,8 +108,7 @@ export function initLobby(notify, returnToLobby) {
     const distanceLabel = drawDistance.value === '0' ? 'Original' : `+${drawDistance.value}%`;
     $('#draw-distance-value').textContent = distanceLabel;
     drawDistance.setAttribute('aria-valuetext', distanceLabel);
-    const files = $('#disc-files').files;
-    $('#disc-selection').textContent = files.length ? `${files.length} files selected` : '';
+    paintDisc();
   };
   const commitGraphics = next => {
     graphics = next;
@@ -110,6 +130,7 @@ export function initLobby(notify, returnToLobby) {
     else if (input === enhanced) commitGraphics(customizeGraphics(graphics, { enhanced: enhanced.checked }));
     else if (input === volume) remember({ volume: Number(volume.value) });
     else if (input === keepGameData) remember({ keepGameData: keepGameData.checked });
+    else if (discRadios.includes(input)) remember({ discSource: input.value });
     refresh();
   });
   $('#reset-settings').addEventListener('click', () => {
@@ -122,7 +143,7 @@ export function initLobby(notify, returnToLobby) {
     keepGameData.dispatchEvent(new Event('change'));
     remember({ volume: 50, keepGameData: true,
       ...(!progress.disabled && { progress: progress.value, camera: camera.checked }) });
-    $('#bios').value = ''; $('#disc-files').value = '';
+    $('#bios').value = '';
     controls.reset();
     refresh();
   });
@@ -214,13 +235,49 @@ export function initLobby(notify, returnToLobby) {
       $('#room-note').textContent = 'Progress and camera settings come from the host.';
       refresh();
     },
-    discMode(mode) {
-      const local = mode === 'local';
-      $('#disc-settings').hidden = !local;
-      $('#disc-title').textContent = local ? 'Use your local disc' : 'Host disc connected';
-      $('#disc-description').textContent = local
-        ? 'Choose matching PAL CUE/BIN files before joining.'
-        : 'The complete game and music load automatically. No file selection needed.';
+    /**
+     * Shows the sources this page offers with `initial` chosen (web/disc-source.js). An empty list is a
+     * page whose disc is fixed (the dedicated worker, the lab, the console), which shows no choice.
+     * `keeps`: the browser's picker lets a later visit use a chosen copy again (D88).
+     */
+    discSources(offered, initial, keeps) {
+      discOffered = offered;
+      discGroup.hidden = !offered.length;
+      $('#source-download').hidden = !offered.includes('download');
+      for (const radio of discRadios) radio.checked = radio.value === initial;
+      for (const [kind, help] of Object.entries(discHelp)) $(`#source-${kind}-help`).textContent = help +
+        (keeps ? ' Once checked, this browser remembers it for this address.' : ' The choice lasts until this page is reloaded.');
+      const download = offered.includes('download');
+      $('#disc-title').textContent = !offered.length ? 'Host disc connected' : download ? 'Host disc available' : 'Use your own game files';
+      $('#disc-description').textContent = !offered.length ? 'The complete game and music load automatically.'
+        : download ? 'Download it from the host, or use your own copy: its CUE and BIN files, or a ZIP of them.'
+          : 'This session does not offer the disc. Choose your copy of the host\'s disc: its CUE and BIN files, or a ZIP of them.';
+      paintDisc();
+    },
+    /** The source chosen now, or null on a page whose disc is fixed. */
+    discSource,
+    /** The source chosen last on this address, from the lobby's settings. */
+    lastDiscSource: () => preferences.discSource,
+    /** Makes `kind` the choice that the next visit starts from, without changing this page's choice. */
+    rememberDiscSource: kind => remember({ discSource: kind }),
+    /** Chooses `kind`, as a click on its radio would. */
+    selectDiscSource(kind) {
+      const radio = discRadios.find(item => item.value === kind);
+      // Not a source this session hides; the Game files tab itself may be closed.
+      if (!radio || discGroup.hidden || radio.closest('.source-option').hidden) return;
+      radio.checked = true;
+      remember({ discSource: kind });
+      paintDisc();
+    },
+    /** What the source `kind` holds: `status` is 'ready', 'access', 'checking' or empty; `text` and `note` are shown under the group. */
+    describeDisc(kind, state) {
+      discStates[kind] = state;
+      paintDisc();
+    },
+    /** Opens the Game files tab with the choice in focus, for a Join with nothing chosen. */
+    showDiscChoice() {
+      activate(tabs.find(tab => tab.id === 'tab-files'));
+      (discRadios.find(radio => radio.checked) ?? discRadios[0]).focus();
     },
     start() {
       locked = true;
