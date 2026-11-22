@@ -5,9 +5,10 @@ files from your disc, runs the room with its own emulator, opens a public
 address for your guests and is run from a page in your browser. It needs no
 Python, no Node.js and no terminal.
 
-It is an internal preview. The Python launchers in the
-[quick start](../README.md#-start-invite-stop) remain the supported way to
-play. What the preview does and does not do yet:
+The app is an internal preview. If you already have the ZIP, go to
+[First run](#first-run). The [device and platform guide](platforms.md)
+compares the app with the established Python source workflow and explains
+which browsers guests can use.
 
 - It is built for Apple silicon. The bundled `cloudflared` declares macOS
   15.0, which sets the current package minimum. The preview is signed ad

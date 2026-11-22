@@ -1,11 +1,16 @@
 # Installation and local play
 
+This guide covers building and running the Python launchers from source.
+For the macOS app preview or browser-only play, see the
+[device and platform guide](platforms.md).
+
 ## Requirements
 
 The host needs macOS or Linux, Python 3.10+, Git, Bash, make, Node.js 22+ with npm,
 bsdtar/libarchive, several GB of free disk space, and a desktop browser supporting
-WebAssembly and WebGL2. macOS has been tested; Linux and Windows/WSL have not
-been qualified. Internet hosting also needs
+WebAssembly SIMD and WebGL 2. The verified macOS runs used Apple Silicon.
+Intel Mac and Linux source hosting still need qualification. Windows and
+WSL are outside the verified hosting matrix. Internet hosting also needs
 [cloudflared](https://github.com/cloudflare/cloudflared#installing-cloudflared).
 
 Dedicated hosting also needs Chrome on the host to run the room emulator.

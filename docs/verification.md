@@ -1,5 +1,56 @@
 # Verification and known limits
 
+## Node SEA macOS preview qualification
+
+Checks on 2026-11-22 used an Apple M1 Pro on macOS 27.2.1 (26B131).
+The internal arm64 preview and hardened ad-hoc rehearsal from clean revision
+`f611aa8` passed RELEASE-01 and all five SEA self-tests after extraction.
+The complete repository verification passed all 11 checks, including
+Python syntax and all 30 packaged smoke tests.
+
+The extracted preview opened a real PAL room under `local-only` with
+zero players. LaunchServices reopened its panel after the tab closed and
+connected to the same server and room. The public Quick Tunnel served the
+invited game page back to this Mac. Stop and Quit released the tested
+listeners and child processes. After Quit, a fresh extraction of the same
+ZIP retained the config and game-data cache and auto-started the room.
+
+The panel check used the bundled headless Chromium and a stand-in for the
+native folder picker. Developer ID signing, notarization, clean-machine
+installation, privacy prompts and races on separate physical devices
+remain open. The
+[P6 plan](superpowers/plans/2026-11-22-p6-release-package.md#status) records
+the archive digests and remaining manual checks.
+
+### Single-Mac follow-up
+
+On macOS 27.2.1, Safari 27.2 Private Browsing reached LIVE with separate
+CUE/BIN files, a stored ZIP and the loopback download fallback. Canceling a
+second ZIP selection kept the earlier file. After replacing the stopped
+preview, the same private window loaded its earlier autosave and returned to
+LIVE. Config and archive cache hashes matched across the replacement.
+
+The pinned native emulator rebuilt in scratch. Its JavaScript matched the
+preview, and its WebAssembly differed only in build timestamp text. A full
+24 MiB scratch volume rejected the ZIP write with `ENOSPC`. The ZIP helper
+preserved the earlier file and the in-memory archive. This check used a
+file-handle adapter to reach the full disk. The
+[P6 plan](superpowers/plans/2026-11-22-p6-release-package.md#single-mac-qualification-2026-11-22)
+records its scope, browser versions and open checks.
+
+
+### Public synthetic transfer
+
+Through two actual Cloudflare Quick Tunnel origins, Chromium resumed the
+synthetic archive with 2 of 9 parts kept from before the interruption,
+refetched only one corrupted part and accepted the exported ZIP on the
+new origin with zero chunk requests. The slow-link burst returned HTTP
+503 with `Retry-After` for overflow. A separate limiter check confirmed
+four active slots and 16 waiting slots.
+The run used one Mac and a dedicated worker stand-in. The
+[P6 record](superpowers/plans/2026-11-22-p6-release-package.md#real-quick-tunnel-qualification-2026-11-22) has the measurements.
+
+
 ## 1.1.0 verification summary
 
 Release checks on 2026-11-12 used one Mac. This release combines the graphics,

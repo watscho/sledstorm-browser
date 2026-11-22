@@ -1,6 +1,16 @@
 # Playing with friends
 
+[Check your device and choose a hosting setup](platforms.md).
+
 ## Host: start and invite
+
+With the [macOS app preview](sled-storm-server.md#first-run), choose your PAL
+disc folder and disc policy in the browser panel. Click **Start server**,
+then **Copy invite link**. **Open game** joins from the host computer. The
+room keeps running when you close the panel tab. Click **Stop room** or
+**Quit server** to end hosting.
+
+### Python launcher
 
 Complete the [one-time setup](setup.md), add your PAL CUE/BIN files to `game/`,
 and install Chrome and `cloudflared` on the host. From the project folder:

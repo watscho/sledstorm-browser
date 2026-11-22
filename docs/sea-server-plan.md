@@ -22,7 +22,7 @@ was actually done and verified. Anything not run stays listed as open.
 | P3 Browser admin and macOS launch | Done 2026-11-21 in three slices. Open items are listed under P3. |
 | P4 Independent data sources | Done 2026-11-22 in three slices, each in three phases. Open items are listed under P4. |
 | P5 Resumable delivery | Done 2026-11-22 in three slices. DATA-05 to DATA-08 passed in the local qualification setup. Open items are listed under P5. |
-| P6 Qualification and release package | Internal ZIP and signing rehearsal passed RELEASE-01. Developer ID, notarization and manual qualification are open. |
+| P6 Qualification and release package | RELEASE-01 and the development Mac lifecycle passed. Developer ID, notarization and clean-machine qualification are open. |
 
 ## Where to continue
 
@@ -45,20 +45,30 @@ deployment target in the bundled code. The
 records the archive digest, review baseline, verified notices and checks.
 
 **P6 slice 1, phase 2.** The Developer ID and notarization workflow is
-prepared. RELEASE-01 and the SEA self-test passed on a hardened ad-hoc
-rehearsal ZIP. Chromium's hardened runtime check needs a Developer ID team.
-The original preview ZIP also passed a LaunchServices first-launch, reopen
-and quit check with isolated state on the development Mac.
-The full verify run passed 10 of 11 checks. The Python syntax check needs
-the emulator build scripts quarantined by SentinelOne. The
+prepared. The four emulator build scripts are present at their committed
+versions in the current checkout. All 11 checks passed on `f611aa8`,
+including Python syntax and all 30 packaged smoke tests. A preview ZIP and
+a hardened ad-hoc rehearsal ZIP built from that clean revision both passed
+RELEASE-01 and the SEA self-test. The
 [P6 plan](superpowers/plans/2026-11-22-p6-release-package.md#status) records
-the incident and the remaining qualification work.
+the archive digests. On the development Mac the extracted preview opened a
+real PAL room through LaunchServices and served its invitation through a
+Quick Tunnel. Stop and Quit released the ports and child processes. Replacing
+the app with a fresh extraction of the same ZIP preserved its config and
+game-data cache. The
+[single-Mac follow-up](superpowers/plans/2026-11-22-p6-release-package.md#single-mac-qualification-2026-11-22)
+rebuilt the pinned native emulator, ran the three game-data sources in
+private Safari, restored a pre-replacement autosave and checked the ZIP
+helper on a full scratch volume. The
+[public synthetic transfer](superpowers/plans/2026-11-22-p6-release-package.md#real-quick-tunnel-qualification-2026-11-22)
+verified resume, one corrupt part and ZIP reuse on a new Quick Tunnel
+origin. The test used one Mac and a dedicated worker stand-in.
 
-**Next: finish P6 phase 2.** After the security team restores the build
-scripts, rerun full verify. With a valid Developer ID Application identity,
-check Chromium in the signed ZIP before notarization and test the final
-app on clean Apple Silicon macOS. The plan carries forward the physical-device
-races and the open P5 network and browser checks.
+**Next: finish P6 phase 2.** With a valid Developer ID Application identity,
+check Chromium in the signed ZIP and notarize it using the configured
+`notarytool` Keychain profile. Test the final app on clean Apple Silicon
+macOS. The plan carries forward the physical-device races and the open P5
+network and browser checks.
 
 **Handoff to another Mac.** The checkpoint on `claude/sea-server` is based
 on `20c2064`. If transferring `SledStorm-P6.bundle`, apply it in an

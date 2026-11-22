@@ -18,6 +18,18 @@ riders, sleds and courses are selected in the original game menus.
 *Cover scan: [PSX Data Center](https://psxdatacenter.com/images/hires/P/S/SLES-02194/SLES-02194-F-ALL.html).
 Original game artwork is not covered by the wrapper's MIT license.*
 
+## Choose how to play
+
+| What you want to do | Start here |
+| --- | --- |
+| Join friends on a Windows, Linux or Mac desktop | Open their invitation in a compatible desktop browser. [Join a room](docs/platforms.md#join-a-friend) |
+| Host on an Apple Silicon Mac | Use the internal macOS app preview on macOS 15 or later, or host from source. [App preview](docs/platforms.md#host-with-the-macos-app-preview) |
+| Host from the terminal | Follow the source workflow. [Platform requirements and setup](docs/platforms.md#host-from-source) |
+
+The host runs the room. Friends join through the browser and can use a
+matching copy of the game files or a host download when sharing is enabled.
+[See the full device and browser guide](docs/platforms.md).
+
 ## Version 1.1.0
 
 Choose **Performance / Balanced / Quality**, or keep a remembered **Custom**
@@ -45,10 +57,10 @@ is described in [known limits](#current-limits).
 
 ## ▶ Start, invite, stop
 
-> [!IMPORTANT]
-> **Only the host installs and runs this project.** Friends open an invitation
-> in their browsers. One CUE/BIN set on the host is enough. Guests can download
-> the shared archive for the session or reuse a ZIP they saved earlier.
+These steps use the Python source launcher. For the packaged Apple Silicon
+preview, follow the [app's first-run guide](docs/sled-storm-server.md#first-run).
+Joining a room only requires the invitation, a compatible browser and a
+game-data source the host offers.
 
 ### 1. Set up once
 
@@ -303,7 +315,8 @@ Netplay.
 
 [Browse all documentation](docs/README.md).
 
-- [Installation and troubleshooting](docs/setup.md)
+- [Devices, browsers and hosting options](docs/platforms.md)
+- [Source installation and troubleshooting](docs/setup.md)
 - [Playing with friends and hosting](docs/multiplayer.md)
 - [Launcher settings](docs/browser-lobby.md)
 - [Sled Storm Server, the packaged host (preview)](docs/sled-storm-server.md)
