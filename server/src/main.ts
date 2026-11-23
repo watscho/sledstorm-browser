@@ -1,6 +1,6 @@
 // Command dispatch. Importing this module starts nothing; `entry.ts` runs it.
 import { isAbsolute } from 'node:path';
-import { configure, diagnostics, invitation, launch, newGame, quit, start, status, stop } from './control.ts';
+import { configure, diagnostics, invitation, launch, nativeQuit, newGame, quit, start, status, stop } from './control.ts';
 import { internal } from './internal.ts';
 import { currentPaths } from './paths.ts';
 import { openBrowser } from './platform/open-browser.ts';
@@ -49,6 +49,7 @@ export async function main(argv: string[]): Promise<number> {
   const paths = currentPaths();
   switch (command) {
     case '--native-panel': return launch(paths, { openPanel: false, nativePanel: true });
+    case '--native-quit': return nativeQuit(paths, rest);
     case undefined:
     case 'panel': {
       const opener = standInOpener();

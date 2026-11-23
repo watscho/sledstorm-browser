@@ -30,9 +30,9 @@ to host and a mix of desktop devices to play.
 
 The **app preview** bundles the server, emulator browser and tunnel tool.
 Its window shows the live player count and controls for starting, stopping
-and joining the room. The room stays
-available with the panel closed and the operator can leave every seat to
-browser players. Both disc policies support the dedicated room.
+and joining the room. The operator can leave every seat to browser players.
+Both disc policies support the dedicated room. Quitting the app stops the
+room and asks for confirmation if players are connected or reserved.
 
 The **Python launcher** gives you a source checkout and control over the
 emulator build. It uses a terminal and separately installed tools. Its

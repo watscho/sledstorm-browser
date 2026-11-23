@@ -6,14 +6,28 @@ private struct PanelLaunch: Decodable {
     let openAtLaunch: Bool
 }
 
+private struct ServerQuit: Decodable {
+    enum Event: String, Decodable {
+        case stopped
+        case notRunning = "not-running"
+        case confirmationRequired = "confirmation-required"
+    }
+
+    let event: Event
+    let instance: String?
+    let message: String?
+}
+
 @main
 @MainActor
-final class ServerWindow: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKScriptMessageHandlerWithReply, WKDownloadDelegate {
+final class ServerWindow: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKScriptMessageHandlerWithReply, WKDownloadDelegate {
     private static let helperURL = Bundle.main.bundleURL.appending(path: "Contents/Helpers/SledStormServer")
     private let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 280),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
     private var panelPort: Int?
+    private var startingPanel = true
+    private var quitPending = false
 
     static func main() {
         let environment = ProcessInfo.processInfo.environment
@@ -46,6 +60,7 @@ final class ServerWindow: NSObject, NSApplicationDelegate, WKNavigationDelegate,
         window.titleVisibility = .hidden
         window.contentMinSize = NSSize(width: 320, height: 260)
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         let loading = NSTextField(labelWithString: "Connecting to the server…")
         loading.alignment = .center
@@ -68,10 +83,10 @@ final class ServerWindow: NSObject, NSApplicationDelegate, WKNavigationDelegate,
         launcher.terminationHandler = { [weak self] process in
             let data = output.fileHandleForReading.readDataToEndOfFile()
             let launch = process.terminationStatus == 0 ? try? JSONDecoder().decode(PanelLaunch.self, from: data) : nil
-            Task { @MainActor in self?.showPanel(launch) }
+            Task { @MainActor in self?.panelStarted(launch) }
         }
         do { try launcher.run() }
-        catch { showPanel(nil) }
+        catch { panelStarted(nil) }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -80,6 +95,76 @@ final class ServerWindow: NSObject, NSApplicationDelegate, WKNavigationDelegate,
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        NSApp.terminate(nil)
+        return false
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if !quitPending {
+            quitPending = true
+            if !startingPanel { Task { requestServerQuit() } }
+        }
+        return .terminateLater
+    }
+
+    private func panelStarted(_ launch: PanelLaunch?) {
+        startingPanel = false
+        if launch != nil || !quitPending { showPanel(launch) }
+        // A quit during startup must wait for the launch helper to finish starting the server.
+        if quitPending { requestServerQuit() }
+    }
+
+    private func requestServerQuit(confirmedInstance: String? = nil) {
+        let helper = Process()
+        let output = Pipe()
+        helper.executableURL = Self.helperURL
+        helper.arguments = ["--native-quit"] + (confirmedInstance.map { [$0] } ?? [])
+        helper.standardOutput = output
+        helper.terminationHandler = { [weak self] process in
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            let result = process.terminationStatus == 0 ? try? JSONDecoder().decode(ServerQuit.self, from: data) : nil
+            Task { @MainActor in self?.handleServerQuit(result) }
+        }
+        do { try helper.run() }
+        catch { handleServerQuit(nil) }
+    }
+
+    private func handleServerQuit(_ result: ServerQuit?) {
+        switch result?.event {
+        case .stopped, .notRunning:
+            NSApp.reply(toApplicationShouldTerminate: true)
+            return
+        case .confirmationRequired:
+            if let instance = result?.instance, let message = result?.message {
+                let alert = NSAlert()
+                alert.messageText = "Quit Sled Storm Server?"
+                alert.informativeText = "\(message) Quitting disconnects them."
+                alert.addButton(withTitle: "Cancel")
+                alert.addButton(withTitle: "Quit Server")
+                alert.beginSheetModal(for: window) { [weak self] choice in
+                    if choice == .alertSecondButtonReturn {
+                        self?.requestServerQuit(confirmedInstance: instance)
+                    } else {
+                        self?.cancelQuit()
+                    }
+                }
+                return
+            }
+            fallthrough
+        case nil:
+            let alert = NSAlert()
+            alert.messageText = "Could not stop Sled Storm Server"
+            alert.informativeText = "The app is still open. Try quitting again."
+            alert.beginSheetModal(for: window) { [weak self] _ in self?.cancelQuit() }
+        }
+    }
+
+    private func cancelQuit() {
+        quitPending = false
+        NSApp.reply(toApplicationShouldTerminate: false)
+    }
 
     private func showPanel(_ launch: PanelLaunch?) {
         guard let launch, launch.address.scheme == "http", launch.address.host == "127.0.0.1",

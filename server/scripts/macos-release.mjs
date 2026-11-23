@@ -9,7 +9,7 @@ import { applicationName, distRoot, executableName, readJson, repoRoot, run, ser
 import { macosMinimum } from './macos-minimum.mjs';
 import { packagedCodeHashes, signingIdentity, signMacosApp, verifyMacosSigning } from './macos-signing.mjs';
 import { applicationIcon, packageMacos } from './package-macos.mjs';
-import { PANEL_FILES, RELEASE_WEB_FILES } from './stage-resources.mjs';
+import { HARDWARE_RENDERER_FILE, PANEL_FILES, RELEASE_WEB_FILES } from './stage-resources.mjs';
 
 const exec = promisify(execFile);
 const appName = `${applicationName}.app`;
@@ -100,6 +100,7 @@ async function checkResources(app, { signing, stapled = false } = {}) {
   await checkFiles(join(contents, '_CodeSignature'), ['CodeResources']);
   await checkFiles(join(resources, 'admin'), PANEL_FILES);
   await checkFiles(join(resources, 'web'), RELEASE_WEB_FILES);
+  requireMatch(await sha256File(join(resources, 'web', HARDWARE_RENDERER_FILE)), manifest.emulator.webgl2, 'WebGL2 renderer digest');
   await checkFiles(join(resources, 'bin'), ['cloudflared']);
   await checkFiles(emulator, ['emulator.lock.json', 'native-build.json', 'network-core.data',
     ...Object.keys(emulatorLock.files).map(name => `emulatorjs/${name}`)]);

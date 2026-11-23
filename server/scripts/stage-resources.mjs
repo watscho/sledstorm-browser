@@ -1,7 +1,7 @@
 // Copy the runtime into a resource directory: always the web client, the
 // panel's page, the pinned tunnel program and the pinned browser, and the
-// emulator files when this checkout has been bootstrapped and built
-// (docs/setup.md). Nothing is compiled here.
+// emulator files and generated WebGL2 renderer when this checkout has been
+// bootstrapped and built (docs/setup.md).
 import { access, chmod, constants, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pinnedChromium } from './fetch-chromium.mjs';
@@ -16,7 +16,9 @@ export const bundleCopy = { recursive: true, verbatimSymlinks: true, mode: const
 /** The files of the panel's page: the ones that the control listener serves (`PANEL_FILES` in src/host-server.ts). */
 export const PANEL_FILES = ['index.html', 'panel.css', 'session.js', 'view.js', 'controller.js', 'panel.js'];
 
-export const RELEASE_WEB_FILES = [
+export const HARDWARE_RENDERER_FILE = 'generated/enge-hardware.js';
+
+const WEB_SOURCE_FILES = [
   'app.js', 'controls-ui.js', 'controls.js', 'core-state.js', 'disc-download.js', 'disc-identity.js',
   'disc-parts.js', 'disc-sheet.js', 'disc-source.js', 'disc-zip.js', 'display.js',
   'game-data-folder.js', 'graphics-presets.js', 'hardware-preview.js', 'index.html', 'invitation.js',
@@ -26,6 +28,8 @@ export const RELEASE_WEB_FILES = [
   'save-storage.js', 'shaders/crt-lottes.glsl', 'shaders/sharp-bilinear.glsl',
   'sled-storm-logo.png', 'sled-storm-pal-cover.jpg', 'solo-save.js', 'style.css',
 ];
+
+export const RELEASE_WEB_FILES = [...WEB_SOURCE_FILES, HARDWARE_RENDERER_FILE];
 
 /**
  * Copies the panel's page from `source`, the repository's `admin` folder, into the resource directory
@@ -37,18 +41,21 @@ export async function stagePanel(target, source = join(repoRoot, 'admin')) {
 }
 
 export async function stageResources(target, { candidate = false } = {}) {
+  const webSource = join(repoRoot, 'web');
+  const web = join(target, 'web');
   if (candidate) {
-    await mkdir(join(target, 'web', 'shaders'), { recursive: true });
-    for (const name of RELEASE_WEB_FILES) {
-      await cp(join(repoRoot, 'web', name), join(target, 'web', name), bundleCopy);
+    await mkdir(join(web, 'shaders'), { recursive: true });
+    for (const name of WEB_SOURCE_FILES) {
+      await cp(join(webSource, name), join(web, name), bundleCopy);
     }
   } else {
-    // Tests and their fixtures are not part of the client.
-    await cp(join(repoRoot, 'web'), join(target, 'web'),
+    // Generate the packaged renderer below from the verified inputs, even when a local preview exists.
+    await cp(webSource, web,
       { recursive: true, filter: source => !source.endsWith('.test.mjs') && !source.endsWith('.fixtures.json')
+          && source !== join(webSource, HARDWARE_RENDERER_FILE)
           && !['frame-sync.js', 'session-client.js'].some(name => source.endsWith(`/${name}`)) });
   }
-  const index = join(target, 'web', 'index.html');
+  const index = join(web, 'index.html');
   const html = await readFile(index, 'utf8');
   await writeFile(index, html.replace('<html lang="en">', '<html lang="en" data-launcher="mac">'));
   await stagePanel(target);
@@ -90,6 +97,9 @@ export async function stageResources(target, { candidate = false } = {}) {
   const sources = [corePath, buildPath, ...names.map(name => join(vendor, name))];
   if (!(await Promise.all(sources.map(exists))).every(Boolean)) return { emulator: null, cloudflared, chromium };
 
+  const renderer = join(web, HARDWARE_RENDERER_FILE);
+  await run('python3', [join(repoRoot, 'tools', 'prepare-hardware-preview.py'), '--output', renderer]);
+
   const emulator = join(target, 'emulator');
   await mkdir(emulator, { recursive: true });
   await cp(lockPath, join(emulator, 'emulator.lock.json'));
@@ -100,5 +110,5 @@ export async function stageResources(target, { candidate = false } = {}) {
     await cp(join(vendor, name), join(emulator, 'emulatorjs', name));
   }
   return { emulator: { lock: await sha256File(lockPath), coreData: await sha256File(corePath),
-    nativeBuild: await sha256File(buildPath) }, cloudflared, chromium };
+    nativeBuild: await sha256File(buildPath), webgl2: await sha256File(renderer) }, cloudflared, chromium };
 }

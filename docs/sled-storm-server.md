@@ -22,9 +22,11 @@ notarization and installation on a clean Mac. For Intel or Linux, see
    The game opens in the default browser when the room is ready. Use **Join
    Room** to open it again and **Copy Invite** when the public link is ready.
 
-Closing the window leaves the server running. Open the app again to return
-to that server. The control listener stays on loopback. Send players the
-private game invitation and keep it within the group.
+Closing the app window or pressing **⌘Q** stops the room, tunnel and local
+game service before the app exits. If players are connected or have a
+reserved controller, the app asks before disconnecting them. Cancel to
+keep the window and room open. The control listener stays on loopback.
+Keep the private game invitation within your group.
 
 ## Disc policy
 

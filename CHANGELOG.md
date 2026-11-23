@@ -3,6 +3,16 @@
 All notable changes to this browser wrapper are recorded here. Versions use
 semantic versioning for the browser wrapper.
 
+## 1.3.1 - 2026-11-23
+
+- Quality 2× clears its frame timing when a tab changes visibility. Returning
+  to a race no longer skips a console step because the tab was in the background.
+- The macOS preview includes the pinned WebGL2 race renderer. The native
+  emulator also reduces the cost of checking camera hooks on each console
+  instruction. Quality retains 2× rendering and +100% draw distance.
+- Closing the macOS launcher window or using **⌘Q** shuts down its server.
+  The launcher asks for confirmation when players are still in the room.
+
 ## 1.3.0 - 2026-11-22
 
 - The Apple Silicon preview opens a native launcher with **Single Player**

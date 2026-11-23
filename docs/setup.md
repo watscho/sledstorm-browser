@@ -32,8 +32,11 @@ mkdir -p game
 Bootstrap verifies the pinned EmulatorJS assets. The build fetches and
 prepares pinned PCSX-ReARMed, RetroArch and Emscripten sources, then compiles
 the native adapter. Downloaded inputs and built output live in `.cache/`
-and `vendor/`. For the optional WebGL 2 race renderer, run
-`python3 tools/prepare-hardware-preview.py` after the build.
+and `vendor/`. For WebGL 2 races with the Python launcher, run
+`python3 tools/prepare-hardware-preview.py` after the build. The macOS
+packaging command generates and includes this renderer automatically when
+the emulator is prepared. The first run fetches the pinned eNGE sources
+from GitHub. Later runs verify and reuse the local copies in `.cache/`.
 
 ## Add the game files
 
@@ -77,7 +80,7 @@ room. Keep that tab open during play.
 ## Upgrade an existing installation
 
 Stop the launcher and update the checkout you intend to run. Version
-1.3.0 changes the native emulator. Rebuild it and refresh the archive
+1.3.1 changes the native emulator. Rebuild it and refresh the archive
 with `python3 tools/build-emulator.py` and
 `python3 tools/prepare-emulator.py --native`. Run bootstrap first if
 the pinned dependencies are missing.

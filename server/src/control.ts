@@ -134,14 +134,34 @@ export async function quit(paths: Paths, argv: string[]): Promise<number> {
     console.error('Usage: SledStormServer quit [--force]');
     return 2;
   }
+  return quitRunningServer(paths, force);
+}
+
+/** The macOS window can confirm a quit only for the instance that reported players. */
+export async function nativeQuit(paths: Paths, argv: string[]): Promise<number> {
+  const [confirmedInstance] = argv;
+  if (argv.length > 1 || (confirmedInstance !== undefined && !/^[a-f0-9]{16}$/.test(confirmedInstance))) return 2;
+  return quitRunningServer(paths, confirmedInstance !== undefined, { confirmedInstance });
+}
+
+async function quitRunningServer(paths: Paths, force: boolean, native?: { confirmedInstance?: string }): Promise<number> {
   const record = await findLiveInstance(paths);
   if (!record) {
     console.log(JSON.stringify({ event: 'not-running' }));
     return 0;
   }
+  if (native?.confirmedInstance !== undefined && native.confirmedInstance !== record.instance) {
+    console.error('The running server changed before the quit was confirmed.');
+    return 1;
+  }
   const answer = await requestQuit(record, force);
   if (answer?.status !== 202) {
-    console.error(inTheRoom(answer?.players) ? `${inTheRoom(answer?.players)} Add --force to quit anyway.`
+    const players = inTheRoom(answer?.players);
+    if (native && !force && answer?.status === 409 && players) {
+      console.log(JSON.stringify({ event: 'confirmation-required', instance: record.instance, message: players }));
+      return 0;
+    }
+    console.error(players ? `${players} Add --force to quit anyway.`
       : 'The server did not accept the quit request.');
     return 1;
   }

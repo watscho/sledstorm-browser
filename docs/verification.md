@@ -2,7 +2,7 @@
 
 ## Current status
 
-The **1.3.0 Python source launcher** is the established workflow. The
+The **1.3.1 Python source launcher** is the established workflow. The
 **Apple Silicon server app** is an internal preview. The arm64 bundle
 declares macOS 15.0 based on the bundled `cloudflared` deployment target.
 Test coverage below applies to the environment and workflow listed.

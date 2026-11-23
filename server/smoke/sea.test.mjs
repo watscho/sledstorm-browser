@@ -241,11 +241,12 @@ test('launch starts one detached server, a second launch reuses it, quit stops i
     const { token } = JSON.parse(await readFile(join(data, 'instance.json'), 'utf8'));
     assert.ok(!log.includes(token), 'the credential must not be logged');
 
-    assert.deepEqual(await staged.command('quit'), { event: 'stopped', pid });
+    assert.deepEqual(await staged.command('--native-quit'), { event: 'stopped', pid });
     await untilGone(pid);
     await assert.rejects(stat(join(data, 'instance.json')), 'the record is removed on a clean stop');
     assert.deepEqual(await staged.command('status'), { running: false });
     assert.deepEqual(await staged.command('quit'), { event: 'not-running' }, 'a repeated quit is harmless');
+    assert.deepEqual(await staged.command('--native-quit'), { event: 'not-running' });
     await staged.unchanged();
   } finally {
     if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
@@ -549,6 +550,16 @@ test('the bundle carries the pinned cloudflared', async () => {
   assert.deepEqual(manifest.cloudflared, { version: lock.cloudflared.version, archiveSha256: pin.sha256, binarySha256: pin.binarySha256 });
 });
 
+test('a playable bundle carries the WebGL2 race renderer and records its digest', async t => {
+  const resources = join(built, 'resources');
+  const manifest = JSON.parse(await readFile(join(resources, 'runtime-manifest.json'), 'utf8'));
+  if (!manifest.emulator) return t.skip('This build has no prepared emulator.');
+  const renderer = await readFile(join(resources, 'web', 'generated', 'enge-hardware.js'), 'utf8');
+  assert.match(renderer, /^\/\* eNGE [0-9a-f]{40}\n\nMIT License/);
+  assert.match(renderer, /export function createRenderer\(/);
+  assert.equal(manifest.emulator.webgl2, createHash('sha256').update(renderer).digest('hex'));
+});
+
 test('the bundle carries the pinned Chromium', async () => {
   const pin = lock.chromium.archives['darwin-arm64'];
   const application = join(built, 'resources', 'chromium', 'Chromium.app');
@@ -714,7 +725,14 @@ test('the packaged server opens its room before any player, seats the first one,
       { code: 1, said: 'Players are in the room: 1 connected, 0 away with a controller kept. Add --force to quit anyway.' });
     assert.ok(alive(pid), 'a refused quit leaves the server running');
     assert.deepEqual(await refusedCommand(staged, 'quit', '--now'), { code: 2, said: 'Usage: SledStormServer quit [--force]' });
-    assert.deepEqual(await staged.command('quit', '--force'), { event: 'stopped', pid });
+    const confirmation = await staged.command('--native-quit');
+    assert.equal(confirmation.event, 'confirmation-required');
+    assert.equal(confirmation.message, 'Players are in the room: 1 connected, 0 away with a controller kept.');
+    assert.match(confirmation.instance, /^[a-f0-9]{16}$/);
+    const otherInstance = (confirmation.instance[0] === '0' ? '1' : '0') + confirmation.instance.slice(1);
+    assert.equal((await refusedCommand(staged, '--native-quit', otherInstance)).code, 1);
+    assert.ok(alive(pid), 'a quit without confirmation for this instance leaves it running');
+    assert.deepEqual(await staged.command('--native-quit', confirmation.instance), { event: 'stopped', pid });
     await untilGone(pid);
     assert.ok(!alive(start.pid), 'the worker ended before the server did');
     assert.deepEqual(await readdir(profiles), []);

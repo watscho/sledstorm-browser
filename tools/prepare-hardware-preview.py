@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Build the opt-in WebGL2 preview from verified eNGE sources."""
+"""Build the WebGL2 race renderer from verified eNGE sources."""
 import argparse
 import hashlib
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
 COMMIT = '3c154d8c429fca39eb9295104c922c9b803a2823'
 BASE = f'https://raw.githubusercontent.com/kootstra-rene/enge-js/{COMMIT}/'
+CACHE = ROOT / '.cache' / 'emulator-enge' / COMMIT
 FILES = {
     'LICENSE': '9cbb6d5f89adb620de2f2bdb34984ad080fa477312761f0b4d71ce3d0a5be23e',
     'code/enge-webgl2.js': 'b185c6f04b301003295c63f270b19a4ca83b346f5a100e7705ba5b0062d9ac7b',
@@ -17,19 +19,29 @@ FILES = {
 
 
 def source(name, directory):
-    if directory:
-        data = (directory / name).read_bytes()
-    else:
+    path = (directory or CACHE) / name
+    download = directory is None and not path.is_file()
+    if download:
         with urlopen(BASE + name, timeout=30) as response:
             data = response.read()
+    else:
+        data = path.read_bytes()
     if hashlib.sha256(data).hexdigest() != FILES[name]:
         raise ValueError(f'Unexpected source hash for {name}')
+    if download:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(dir=path.parent) as temporary:
+            verified = Path(temporary) / path.name
+            verified.write_bytes(data)
+            verified.replace(path)
     return data.decode('utf-8')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, help='Use an existing checkout of the pinned eNGE revision')
+    parser.add_argument('--output', type=Path, default=ROOT / 'web/generated/enge-hardware.js',
+                        help='Write the browser module to this path')
     args = parser.parse_args()
     license_text, render, shaders, gpu = (source(name, args.source) for name in FILES)
 
@@ -87,10 +99,10 @@ def main():
                               gpu[gpu.index('  const flippedQuad'):gpu.index('  // 0x00-0x1f')])
     adapter = adapter.replace('    // INSERT_DRAW_COMMANDS', gpu[gpu.index('    // Monochrome 3 point polygon'):
                                                             gpu.index('    // Move image in framebuffer')])
-    output = ROOT / 'web/generated/enge-hardware.js'
-    output.parent.mkdir(exist_ok=True)
+    output = args.output
+    output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(f'/* eNGE {COMMIT}\n\n{license_text}*/\n{shaders}\n{adapter}')
-    print(f'Prepared WebGL2 preview at {output.relative_to(ROOT)}')
+    print(f'Prepared WebGL2 renderer at {output}')
 
 
 if __name__ == '__main__':

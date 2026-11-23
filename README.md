@@ -39,9 +39,10 @@ supplied preview ZIP or build one locally. [Build the macOS preview](docs/sled-s
    dedicated room. For internet play, send guests the full link from
    **Copy Invite** once the public address is ready.
 
-The server can keep the room open while the window is closed. Use
-**Stop Server** to close the room or **Quit server** to shut down the
-background process. [App setup and build](docs/sled-storm-server.md#first-run)
+Use **Stop Server** to close the room and keep the app open. Closing the
+window, pressing **⌘Q**, or clicking **Quit server** shuts down the server.
+If players are in the room, confirm before disconnecting them.
+[App setup and build](docs/sled-storm-server.md#first-run)
 
 ### Standalone SEA server
 
@@ -113,7 +114,7 @@ saved ZIP again in **Game files**. [Disc setup](docs/setup.md#add-the-game-files
 
 ## Release status
 
-**Version 1.3.0.** The macOS app and SEA are internal Apple Silicon
+**Version 1.3.1.** The macOS app and SEA are internal Apple Silicon
 previews. The Python launcher is the established source workflow.
 Developer ID signing, notarization, clean-Mac installation and the full
 cross-device race matrix are still open.

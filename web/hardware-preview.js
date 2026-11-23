@@ -33,13 +33,19 @@ export function enableHardwarePreview(module, game, options) {
   const source = module.canvas;
   source.classList.add('hardware-preview-source');
 
+  function resetWideFrameTiming() {
+    lastWideFrame = undefined;
+    module.sledPaintWideFrame = false;
+  }
+
   function disable() {
+    document.removeEventListener('visibilitychange', resetWideFrameTiming);
     module.sledWideGpuCapture = undefined;
     module.sledWideGpuHud = undefined;
     module.sledWideGpuVisibility = undefined;
     module.sledShouldHoldWideFrame = undefined;
     module.sledWideGpuScreenshot = undefined;
-    module.sledPaintWideFrame = false;
+    resetWideFrameTiming();
     game.classList.remove('hardware-preview-active');
     source.classList.remove('hardware-preview-source');
     layer.remove();
@@ -86,8 +92,7 @@ export function enableHardwarePreview(module, game, options) {
     game.classList.toggle('hardware-preview-active', visible);
     if (options.scale !== 2) return;
     if (!visible) {
-      lastWideFrame = undefined;
-      module.sledPaintWideFrame = false;
+      resetWideFrameTiming();
       return;
     }
     const now = performance.now();
@@ -98,6 +103,8 @@ export function enableHardwarePreview(module, game, options) {
     lastWideFrame = now;
   };
   if (options.scale === 2) {
+    // The native renderer can hold the last wide frame while the tab is hidden.
+    document.addEventListener('visibilitychange', resetWideFrameTiming);
     module.sledShouldHoldWideFrame = () => {
       if (!module.sledRenderRelief || lastWideFrame === undefined) return false;
       const now = performance.now();

@@ -159,26 +159,38 @@ bool sled_unserialize_checkpoint(const void *data, size_t size)
         path.write_text(text)
     path = CORE / 'libpcsxcore/psxinterpreter.c'
     text = original(path)
-    text = once(text, 'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {',
-                '#include "../frontend/sled-view.h"\n\nstatic inline void execI_(u8 **memRLUT, psxRegisters *regs) {')
+    # Each word covers 32 aligned MIPS instructions. The interpreter checks
+    # this lookup for every instruction and calls the view hook at exact PCs.
+    hook_pcs = (
+        0x80014e88, 0x80014e90, 0x80014e98, 0x80053e68, 0x8004a41c,
+        0x8004c700, 0x8004ac84, 0x80051e3c, 0x80051af0, 0x8004ede4,
+        0x80039c34, 0x8003c45c, 0x8003c484, 0x8003c7f0, 0x8003d100,
+        0x8005f344, 0x80064128, 0x800650fc, 0x80051520, 0x80051680,
+        0x80051b38, 0x80051c20, 0x80061eb0, 0x80062948, 0x80062950,
+        0x80060dec, 0x8006126c, 0x8006159c, 0x80061940, 0x80061d14,
+        0x8007ec9c, 0x8007f2c0, 0x8007f8c4, 0x8007fe7c,
+    )
+    hook_base = min(hook_pcs) & ~127
+    hook_words = {}
+    for pc in hook_pcs:
+        word, bit = divmod((pc - hook_base) // 4, 32)
+        hook_words[word] = hook_words.get(word, 0) | (1 << bit)
+    hook_table = '\n'.join(f'\t[{word}] = 0x{mask:08x}u,' for word, mask in sorted(hook_words.items()))
     text = once(text, 'static inline void execI_(u8 **memRLUT, psxRegisters *regs) {\n\tu32 pc = regs->pc;',
-                '''static inline void execI_(u8 **memRLUT, psxRegisters *regs) {
-	u32 pc = regs->pc;
-	if ((pc == 0x80014e88u || pc == 0x80014e90u || pc == 0x80014e98u ||
-	     pc == 0x80053e68u || pc == 0x8004a41cu || pc == 0x8004c700u ||
-	     pc == 0x8004ac84u || pc == 0x80051e3cu || pc == 0x80051af0u ||
-	     pc == 0x8004ede4u || pc == 0x80039c34u ||
-	     pc == 0x8003c45cu || pc == 0x8003c484u || pc == 0x8003c7f0u ||
-	     pc == 0x8003d100u ||
-	     pc == 0x8005f344u || pc == 0x80064128u || pc == 0x800650fcu ||
-	     pc == 0x80051520u || pc == 0x80051680u || pc == 0x80051b38u ||
-	     pc == 0x80051c20u || pc == 0x80061eb0u || pc == 0x80062948u ||
-	     pc == 0x80062950u || pc == 0x80060decu || pc == 0x8006126cu ||
-	     pc == 0x8006159cu || pc == 0x80061940u || pc == 0x80061d14u ||
-	     pc == 0x8007ec9cu || pc == 0x8007f2c0u || pc == 0x8007f8c4u ||
-	     pc == 0x8007fe7cu) &&
-	    sled_view_pc(regs))
-		return;''')
+                f'''#include "../frontend/sled-view.h"
+
+static const u32 sled_view_hook_words[] = {{
+{hook_table}
+}};
+
+static inline void execI_(u8 **memRLUT, psxRegisters *regs) {{
+\tu32 pc = regs->pc;
+\tconst u32 offset = pc - 0x{hook_base:08x}u;
+\tconst u32 hook_word = offset >> 7;
+\tif (hook_word < sizeof(sled_view_hook_words) / sizeof(sled_view_hook_words[0]) &&
+\t    !(offset & 3) && (sled_view_hook_words[hook_word] & (1u << ((offset >> 2) & 31))) &&
+\t    sled_view_pc(regs))
+\t\treturn;''')
     text = once(text, '} ICache[256];', '''} ICache[256];
 static struct cache_entry sled_saved_icache[256];
 void sled_view_cache_save(int restore) {

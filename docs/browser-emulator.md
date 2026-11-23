@@ -15,8 +15,9 @@ The desktop app resolves read-only assets from its bundle and keeps
 writable configuration, cache and logs in the user's Library.
 `SLED_SERVER_HOME` isolates these paths in tests. A kernel advisory lock,
 private instance record and authenticated probe coordinate a single
-server per user. The app opens a window and starts or reuses that server.
-The server can keep hosting while the window is closed.
+server per user. The app starts or reuses that server and requests its
+shutdown when quitting. Closing the standalone SEA browser panel leaves
+the server running.
 
 The game origin and RetroArch relay use loopback ports 8000 and 8006.
 The packaged gateway and admin listener select free ports. Keep the
